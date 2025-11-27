@@ -1,0 +1,229 @@
+/* Material Theme Darker */
+:root {
+  /* Material Darker Base Colors */
+  --color-material-background: #212121;
+  --color-material-surface: #2A2A2A;
+  --color-material-primary: #82aaff;
+  --color-material-secondary: #c792ea;
+  --color-material-error: #f07178;
+  --color-material-warning: #ffcb6b;
+  --color-material-info: #89ddff;
+  --color-material-success: #c3e88d;
+  --color-material-text-primary: #B0BEC5;
+  --color-material-text-secondary: #727272;
+
+  /* Gray Scale */
+  --color-gray-50: #B0BEC5;
+  --color-gray-100: #9fa8b0;
+  --color-gray-200: #8e929b;
+  --color-gray-300: #7d7c86;
+  --color-gray-400: #6c6671;
+  --color-gray-500: #5b505c;
+  --color-gray-600: #4a3a47;
+  --color-gray-700: #404040;
+  --color-gray-800: #2A2A2A;
+  --color-gray-900: #212121;
+  --color-gray-950: #1a1a1a;
+
+  --color-white: #ffffff;
+
+  /* Blue */
+  --color-blue-50: #e8f4fd;
+  --color-blue-100: #d1e9fb;
+  --color-blue-200: #a3d3f7;
+  --color-blue-300: #82aaff;
+  --color-blue-400: #5e9aef;
+  --color-blue-500: #3a8adf;
+  --color-blue-600: #167acf;
+  --color-blue-700: #0d6abf;
+  --color-blue-800: #045aaf;
+  --color-blue-900: #004a9f;
+  --color-blue-950: #003a8f;
+
+  /* Red */
+  --color-red-50: #ffe8ea;
+  --color-red-100: #ffd1d5;
+  --color-red-200: #ffa3ab;
+  --color-red-300: #ff7581;
+  --color-red-400: #f07178;
+  --color-red-500: #e65d64;
+  --color-red-600: #dc4950;
+  --color-red-700: #d2353c;
+  --color-red-800: #c82128;
+  --color-red-900: #be0d14;
+  --color-red-950: #b40000;
+
+  /* Green */
+  --color-green-50: #f0f8e8;
+  --color-green-100: #e1f1d1;
+  --color-green-200: #c3e3a3;
+  --color-green-300: #c3e88d;
+  --color-green-400: #b3de77;
+  --color-green-500: #a3d461;
+  --color-green-600: #93ca4b;
+  --color-green-700: #83c035;
+  --color-green-800: #73b61f;
+  --color-green-900: #63ac09;
+  --color-green-950: #53a200;
+
+  /* Yellow */
+  --color-yellow-50: #fff8e1;
+  --color-yellow-100: #fff1c3;
+  --color-yellow-200: #ffe387;
+  --color-yellow-300: #ffd54b;
+  --color-yellow-400: #ffcb6b;
+  --color-yellow-500: #ffc155;
+  --color-yellow-600: #ffb73f;
+  --color-yellow-700: #ffad29;
+  --color-yellow-800: #ffa313;
+  --color-yellow-900: #ff9900;
+  --color-yellow-950: #e68900;
+
+  /* Purple */
+  --color-purple-50: #f5ebfa;
+  --color-purple-100: #ebd7f5;
+  --color-purple-200: #d7afeb;
+  --color-purple-300: #c792ea;
+  --color-purple-400: #b77ee0;
+  --color-purple-500: #a76ad6;
+  --color-purple-600: #9756cc;
+  --color-purple-700: #8742c2;
+  --color-purple-800: #772eb8;
+  --color-purple-900: #671aae;
+  --color-purple-950: #5706a4;
+
+  /* Theme Variables */
+  --surface: var(--color-material-surface);
+  --background: var(--color-material-background);
+  --elevated: var(--color-gray-700);
+  --foreground: var(--color-material-text-primary);
+
+  --primary: var(--color-material-primary);
+  --primary-foreground: var(--color-gray-950);
+  --secondary: var(--color-gray-800);
+  --secondary-foreground: var(--color-material-text-secondary);
+
+  --card: var(--color-gray-800);
+  --accent: var(--color-material-info);
+  --accent-hover: var(--color-blue-400);
+  --accent-foreground: var(--color-gray-950);
+  --muted: var(--color-material-text-secondary);
+
+  --selection: var(--color-gray-700);
+  --selection-foreground: var(--color-white);
+  --selection-border: var(--color-material-primary);
+
+  --input: var(--color-gray-800);
+  --input-border: var(--color-gray-700);
+
+  --border: var(--color-gray-700);
+  --ring: var(--color-material-primary);
+
+  --popover: var(--color-gray-800);
+  --popover-foreground: var(--color-material-text-primary);
+  --popover-border: var(--color-gray-700);
+
+  --destructive: var(--color-material-error);
+  --destructive-foreground: var(--color-white);
+  --destructive-background: var(--color-red-900);
+
+  --success: var(--color-material-success);
+  --success-foreground: var(--color-gray-950);
+  --success-background: var(--color-green-700);
+
+  --info: var(--color-material-info);
+  --info-foreground: var(--color-gray-950);
+  --info-background: var(--color-blue-700);
+
+  --warning: var(--color-material-warning);
+  --warning-foreground: var(--color-gray-950);
+  --warning-background: var(--color-yellow-700);
+
+  --ai: var(--color-material-secondary);
+  --ai-foreground: var(--color-gray-950);
+  --ai-background: var(--color-purple-700);
+
+  --sidebar-background: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-item-hover-background: var(--selection);
+  --sidebar-item-hover-foreground: var(--selection-foreground);
+  --sidebar-item-active-background: var(--selection);
+  --sidebar-item-active-foreground: var(--primary);
+  --sidebar-item-text: var(--muted);
+
+  --toolbar-background: var(--background);
+
+  --tooltip-background: var(--color-gray-700);
+  --tooltip-foreground: var(--color-white);
+
+  --scrollbar-track: var(--foreground);
+  --scrollbar-thumb: var(--foreground);
+
+  --dialog-overlay: var(--surface);
+  --dialog-background: var(--background);
+
+  --alert-dialog-overlay: var(--surface);
+  --alert-dialog-background: var(--background);
+
+  --selection-background: var(--selection);
+
+  --button-primary-background: var(--primary);
+  --button-primary-foreground: var(--primary-foreground);
+  --button-primary-hover: var(--blue-400);
+
+  --button-secondary-background: var(--secondary);
+  --button-secondary-foreground: var(--secondary-foreground);
+
+  --button-ai-background: var(--ai);
+  --button-ai-foreground: var(--ai-foreground);
+
+  --button-accent-background: var(--accent);
+  --button-accent-foreground: var(--accent-foreground);
+  --button-accent-hover: var(--accent-hover);
+
+  --button-destructive-background: var(--destructive-background);
+  --button-destructive-foreground: var(--destructive);
+
+  --button-warning-background: var(--warning-background);
+  --button-warning-foreground: var(--warning);
+
+  --button-outline-border: var(--border);
+  --button-outline-foreground: var(--secondary-foreground);
+  --button-outline-hover: var(--input);
+
+  --button-ghost-hover: var(--secondary);
+  --button-ghost-foreground: var(--secondary-foreground);
+
+  --button-link-foreground: var(--primary);
+
+  --badge-primary-background: var(--primary);
+  --badge-primary-foreground: var(--primary-foreground);
+
+  --badge-secondary-background: var(--secondary);
+  --badge-secondary-foreground: var(--secondary-foreground);
+
+  --badge-ai-background: var(--ai);
+  --badge-ai-foreground: var(--ai-foreground);
+
+  --badge-destructive-background: var(--destructive-background);
+  --badge-destructive-foreground: var(--destructive-foreground);
+
+  --badge-accent-background: var(--accent);
+  --badge-accent-foreground: var(--accent-foreground);
+
+  --badge-warning-background: var(--warning-background);
+  --badge-warning-foreground: var(--warning-foreground);
+
+  --badge-info-background: var(--info-background);
+  --badge-info-foreground: var(--info-foreground);
+
+  --badge-success-background: var(--success-background);
+  --badge-success-foreground: var(--success-foreground);
+
+  --badge-outline-border: var(--border);
+  --badge-outline-foreground: var(--foreground);
+
+  --badge-surface-background: var(--surface);
+  --badge-surface-foreground: var(--foreground);
+}

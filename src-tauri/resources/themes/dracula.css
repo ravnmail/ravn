@@ -1,0 +1,230 @@
+/* Dracula Theme - Official Color Palette */
+:root {
+  /* Dracula Base Colors */
+  --color-dracula-background: #282A36;
+  --color-dracula-current-line: #44475A;
+  --color-dracula-foreground: #F8F8F2;
+  --color-dracula-comment: #6272A4;
+  --color-dracula-cyan: #8BE9FD;
+  --color-dracula-green: #50FA7B;
+  --color-dracula-orange: #FFB86C;
+  --color-dracula-pink: #FF79C6;
+  --color-dracula-purple: #BD93F9;
+  --color-dracula-red: #FF5555;
+  --color-dracula-yellow: #F1FA8C;
+
+  /* Gray Scale (derived from Dracula palette) */
+  --color-gray-50: #F8F8F2;
+  --color-gray-100: #E6E6E6;
+  --color-gray-200: #BFBFBF;
+  --color-gray-300: #999999;
+  --color-gray-400: #6272A4;
+  --color-gray-500: #565869;
+  --color-gray-600: #44475A;
+  --color-gray-700: #363849;
+  --color-gray-800: #2E303E;
+  --color-gray-900: #282A36;
+  --color-gray-950: #1E1F29;
+
+  --color-white: #F8F8F2;
+
+  /* Blue (using Dracula Cyan) */
+  --color-blue-50: #E8FCFE;
+  --color-blue-100: #D1F9FD;
+  --color-blue-200: #A3F3FB;
+  --color-blue-300: #8BE9FD;
+  --color-blue-400: #6FD9F0;
+  --color-blue-500: #52C9E3;
+  --color-blue-600: #3FB9D6;
+  --color-blue-700: #2CA9C9;
+  --color-blue-800: #1999BC;
+  --color-blue-900: #0689AF;
+  --color-blue-950: #0579A2;
+
+  /* Red (using Dracula Red) */
+  --color-red-50: #FFE8E8;
+  --color-red-100: #FFD1D1;
+  --color-red-200: #FFA3A3;
+  --color-red-300: #FF7575;
+  --color-red-400: #FF5555;
+  --color-red-500: #FF3535;
+  --color-red-600: #E61F1F;
+  --color-red-700: #CC0909;
+  --color-red-800: #B30000;
+  --color-red-900: #990000;
+  --color-red-950: #800000;
+
+  /* Green (using Dracula Green) */
+  --color-green-50: #E8FFE8;
+  --color-green-100: #D1FFD1;
+  --color-green-200: #A3FFA3;
+  --color-green-300: #75FF75;
+  --color-green-400: #50FA7B;
+  --color-green-500: #2BE051;
+  --color-green-600: #1FC641;
+  --color-green-700: #13AC31;
+  --color-green-800: #079221;
+  --color-green-900: #007811;
+  --color-green-950: #005E01;
+
+  /* Yellow (using Dracula Yellow) */
+  --color-yellow-50: #FFFEE8;
+  --color-yellow-100: #FFFDD1;
+  --color-yellow-200: #FFFBA3;
+  --color-yellow-300: #FFF975;
+  --color-yellow-400: #F1FA8C;
+  --color-yellow-500: #E3EC6E;
+  --color-yellow-600: #D5DE50;
+  --color-yellow-700: #C7D032;
+  --color-yellow-800: #B9C214;
+  --color-yellow-900: #ABB400;
+  --color-yellow-950: #9DA600;
+
+  /* Purple (using Dracula Purple) */
+  --color-purple-50: #F5EDFE;
+  --color-purple-100: #EBDBFD;
+  --color-purple-200: #D7B7FB;
+  --color-purple-300: #C393F9;
+  --color-purple-400: #BD93F9;
+  --color-purple-500: #A973E7;
+  --color-purple-600: #9553D5;
+  --color-purple-700: #8133C3;
+  --color-purple-800: #6D13B1;
+  --color-purple-900: #59009F;
+  --color-purple-950: #45008D;
+
+  /* Theme Variables */
+  --surface: var(--color-dracula-current-line);
+  --background: var(--color-dracula-background);
+  --elevated: var(--color-gray-700);
+  --foreground: var(--color-dracula-foreground);
+
+  --primary: var(--color-dracula-purple);
+  --primary-foreground: var(--color-dracula-background);
+  --secondary: var(--color-dracula-current-line);
+  --secondary-foreground: var(--color-dracula-foreground);
+
+  --card: var(--color-gray-800);
+  --accent: var(--color-dracula-cyan);
+  --accent-hover: var(--color-blue-600);
+  --accent-foreground: var(--color-dracula-background);
+  --muted: var(--color-dracula-comment);
+
+  --selection: var(--color-dracula-current-line);
+  --selection-foreground: var(--color-dracula-foreground);
+  --selection-border: var(--color-dracula-purple);
+
+  --input: var(--color-gray-800);
+  --input-border: var(--color-dracula-current-line);
+
+  --border: var(--color-dracula-current-line);
+  --ring: var(--color-dracula-purple);
+
+  --popover: var(--color-gray-800);
+  --popover-foreground: var(--color-dracula-foreground);
+  --popover-border: var(--color-dracula-current-line);
+
+  --destructive: var(--color-dracula-red);
+  --destructive-foreground: var(--color-gray-50);
+  --destructive-background: var(--color-red-900);
+
+  --success: var(--color-dracula-green);
+  --success-foreground: var(--color-gray-900);
+  --success-background: var(--color-green-700);
+
+  --info: var(--color-dracula-cyan);
+  --info-foreground: var(--color-gray-900);
+  --info-background: var(--color-blue-700);
+
+  --warning: var(--color-dracula-yellow);
+  --warning-foreground: var(--color-gray-900);
+  --warning-background: var(--color-yellow-700);
+
+  --ai: var(--color-dracula-pink);
+  --ai-foreground: var(--color-gray-900);
+  --ai-background: var(--color-purple-700);
+
+  --sidebar-background: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-item-hover-background: var(--selection);
+  --sidebar-item-hover-foreground: var(--selection-foreground);
+  --sidebar-item-active-background: var(--selection);
+  --sidebar-item-active-foreground: var(--primary);
+  --sidebar-item-text: var(--muted);
+
+  --toolbar-background: var(--background);
+
+  --tooltip-background: var(--color-gray-700);
+  --tooltip-foreground: var(--color-dracula-foreground);
+
+  --scrollbar-track: var(--foreground);
+  --scrollbar-thumb: var(--foreground);
+
+  --dialog-overlay: var(--surface);
+  --dialog-background: var(--background);
+
+  --alert-dialog-overlay: var(--surface);
+  --alert-dialog-background: var(--background);
+
+  --selection-background: var(--selection);
+
+  --button-primary-background: var(--primary);
+  --button-primary-foreground: var(--primary-foreground);
+  --button-primary-hover: var(--purple-600);
+
+  --button-secondary-background: var(--secondary);
+  --button-secondary-foreground: var(--secondary-foreground);
+
+  --button-ai-background: var(--ai);
+  --button-ai-foreground: var(--ai-foreground);
+
+  --button-accent-background: var(--accent);
+  --button-accent-foreground: var(--accent-foreground);
+  --button-accent-hover: var(--accent-hover);
+
+  --button-destructive-background: var(--destructive-background);
+  --button-destructive-foreground: var(--destructive);
+
+  --button-warning-background: var(--warning-background);
+  --button-warning-foreground: var(--warning);
+
+  --button-outline-border: var(--border);
+  --button-outline-foreground: var(--secondary-foreground);
+  --button-outline-hover: var(--input);
+
+  --button-ghost-hover: var(--secondary);
+  --button-ghost-foreground: var(--secondary-foreground);
+
+  --button-link-foreground: var(--primary);
+
+  --badge-primary-background: var(--primary);
+  --badge-primary-foreground: var(--primary-foreground);
+
+  --badge-secondary-background: var(--secondary);
+  --badge-secondary-foreground: var(--secondary-foreground);
+
+  --badge-ai-background: var(--ai);
+  --badge-ai-foreground: var(--ai-foreground);
+
+  --badge-destructive-background: var(--destructive-background);
+  --badge-destructive-foreground: var(--destructive-foreground);
+
+  --badge-accent-background: var(--accent);
+  --badge-accent-foreground: var(--accent-foreground);
+
+  --badge-warning-background: var(--warning-background);
+  --badge-warning-foreground: var(--warning-foreground);
+
+  --badge-info-background: var(--info-background);
+  --badge-info-foreground: var(--info-foreground);
+
+  --badge-success-background: var(--success-background);
+  --badge-success-foreground: var(--success-foreground);
+
+  --badge-outline-border: var(--border);
+  --badge-outline-foreground: var(--foreground);
+
+  --badge-surface-background: var(--surface);
+  --badge-surface-foreground: var(--foreground);
+}

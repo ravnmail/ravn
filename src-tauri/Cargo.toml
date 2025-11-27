@@ -1,0 +1,100 @@
+[package]
+name = "ravn"
+version = "2025.11.27"
+description = "A modern email client for digital natives."
+authors = ["Michael Wallner"]
+license = "GPL-3.0-only"
+repository = "https://github.com/ravnmail/ravn"
+edition = "2021"
+rust-version = "1.91.1"
+
+[profile.dev]
+incremental = true # Compile your binary in smaller steps.
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+opt-level = "z"
+strip = true
+
+[lib]
+name = "app_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "RAVN"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.5.2", features = [] }
+dotenv = "0.15"
+
+[dependencies]
+async-imap = "0.11"
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+config = "0.15.19"
+env_logger = "0.11"
+futures = "0.3"
+async-compat = "0.2"
+lettre = { version = "0.11", features = [
+  "tokio1",
+  "tokio1-native-tls",
+  "builder",
+] }
+log = "0.4"
+mail-parser = "0.11"
+notify = "8.2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+json5 = "0.4"
+sha2 = "0.10.9"
+sqlx = { version = "0.8", features = [
+  "runtime-tokio-native-tls",
+  "sqlite",
+  "chrono",
+  "json",
+  "uuid",
+] }
+tauri = { version = "2.9", features = ["protocol-asset"] }
+thiserror = "1.0"
+tokio = { version = "1.48", features = ["full", "test-util"] }
+tokio-native-tls = "0.3"
+md5 = "0.8.0"
+reqwest = { version = "0.12.24", features = ["json"] }
+regex = "1.12"
+mime_guess = "2.0"
+css-inline = "0.18"
+html2text = "0.16"
+scraper = "0.24"
+# Email sync subsystem dependencies
+oauth2 = "4.4"
+url = "2.5"
+base64 = "0.22"
+uuid = { version = "1.18", features = ["v7", "serde"] }
+once_cell = "1.21"
+aes-gcm = "0.10"
+rand = "0.8"
+opener = "0.8"
+tantivy = "0.25"
+async-openai = "0.30.1"
+html-to-markdown-rs = "2.9.1"
+
+[target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))".dependencies]
+tauri-plugin-single-instance = { version = "2.3.6", features = ["deep-link"] }
+
+# Platform-specific keyring configuration
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3.6", features = ["linux-native"] }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+keyring = "3.6"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-quick-look-ui = "0.3"
+objc2-foundation = "0.3"
+objc2 = "0.6"
+
+[dev-dependencies]
+tempfile = "3.23"

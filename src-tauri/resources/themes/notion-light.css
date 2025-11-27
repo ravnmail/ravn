@@ -1,0 +1,234 @@
+/* Notion Light Theme - Inspired by Notion's design system */
+:root {
+  /* Notion Light Base Colors */
+  --color-notion-bg-primary: #ffffff;
+  --color-notion-bg-secondary: #f9f8f7;
+  --color-notion-bg-tertiary: #f0efed;
+  --color-notion-text-primary: #2c2c2b;
+  --color-notion-text-secondary: #7d7a75;
+  --color-notion-text-tertiary: #a19e99;
+  --color-notion-border: #e6e5e3;
+  --color-notion-blue: #2383e2;
+  --color-notion-red: #eb5757;
+  --color-notion-yellow: #ffb110;
+  --color-notion-green: #46a171;
+  --color-notion-purple: #b577d6;
+  --color-notion-pink: #db6999;
+  --color-notion-orange: #d5803b;
+  --color-notion-brown: #b68965;
+
+  /* Gray Scale */
+  --color-gray-50: #ffffff;
+  --color-gray-100: #f8f8f7;
+  --color-gray-200: #f0efed;
+  --color-gray-300: #e6e5e3;
+  --color-gray-400: #d4d3cf;
+  --color-gray-500: #ada9a3;
+  --color-gray-600: #7d7a75;
+  --color-gray-700: #5f5e5b;
+  --color-gray-800: #484743;
+  --color-gray-900: #2c2c2b;
+  --color-gray-950: #1d1b16;
+
+  --color-white: #ffffff;
+
+  /* Blue (Notion Blue) */
+  --color-blue-50: #f3f9fd;
+  --color-blue-100: #e5f2fc;
+  --color-blue-200: #cee3f7;
+  --color-blue-300: #b6d4f3;
+  --color-blue-400: #83abe1;
+  --color-blue-500: #2383e2;
+  --color-blue-600: #1976d2;
+  --color-blue-700: #105fad;
+  --color-blue-800: #0a4a8a;
+  --color-blue-900: #053567;
+  --color-blue-950: #022044;
+
+  /* Red (Notion Red) */
+  --color-red-50: #fdf6f6;
+  --color-red-100: #fce9e7;
+  --color-red-200: #f7d9d5;
+  --color-red-300: #f0c5be;
+  --color-red-400: #d0988d;
+  --color-red-500: #eb5757;
+  --color-red-600: #cd3c3a;
+  --color-red-700: #ae2f2e;
+  --color-red-800: #862120;
+  --color-red-900: #5d1715;
+  --color-red-950: #30130f;
+
+  /* Green (Notion Green) */
+  --color-green-50: #f6f9f7;
+  --color-green-100: #e8f1ec;
+  --color-green-200: #d7e6dd;
+  --color-green-300: #bed9c9;
+  --color-green-400: #8bb79d;
+  --color-green-500: #46a171;
+  --color-green-600: #37674c;
+  --color-green-700: #2a533c;
+  --color-green-800: #1f4f3b;
+  --color-green-900: #1c3829;
+  --color-green-950: #102416;
+
+  /* Yellow (Notion Yellow) */
+  --color-yellow-50: #fcfaef;
+  --color-yellow-100: #f9f3dc;
+  --color-yellow-200: #f2e3b7;
+  --color-yellow-300: #e8d497;
+  --color-yellow-400: #d8c283;
+  --color-yellow-500: #ffb110;
+  --color-yellow-600: #db9400;
+  --color-yellow-700: #835e33;
+  --color-yellow-800: #5f4023;
+  --color-yellow-900: #402c1b;
+  --color-yellow-950: #251910;
+
+  /* Purple (Notion Purple) */
+  --color-purple-50: #faf7fc;
+  --color-purple-100: #f3ebf9;
+  --color-purple-200: #e8dbf2;
+  --color-purple-300: #dbc8e8;
+  --color-purple-400: #b49cc6;
+  --color-purple-500: #b577d6;
+  --color-purple-600: #9a6bb4;
+  --color-purple-700: #754d92;
+  --color-purple-800: #5a3872;
+  --color-purple-900: #412454;
+  --color-purple-950: #26152e;
+
+  /* Theme Variables */
+  --surface: var(--color-notion-bg-secondary);
+  --background: var(--color-notion-bg-primary);
+  --elevated: var(--color-white);
+  --foreground: var(--color-notion-text-primary);
+
+  --primary: var(--color-notion-blue);
+  --primary-foreground: var(--color-white);
+  --secondary: var(--color-gray-200);
+  --secondary-foreground: var(--color-notion-text-primary);
+
+  --card: var(--color-white);
+  --accent: var(--color-notion-blue);
+  --accent-hover: var(--color-blue-700);
+  --accent-foreground: var(--color-white);
+  --muted: var(--color-notion-text-secondary);
+
+  --selection: var(--color-blue-100);
+  --selection-foreground: var(--color-notion-text-primary);
+  --selection-border: var(--color-notion-blue);
+
+  --input: var(--color-white);
+  --input-border: var(--color-notion-border);
+
+  --border: var(--color-notion-border);
+  --ring: var(--color-notion-blue);
+
+  --popover: var(--color-white);
+  --popover-foreground: var(--color-notion-text-primary);
+  --popover-border: var(--color-notion-border);
+
+  --destructive: var(--color-notion-red);
+  --destructive-foreground: var(--color-white);
+  --destructive-background: var(--color-red-100);
+
+  --success: var(--color-notion-green);
+  --success-foreground: var(--color-white);
+  --success-background: var(--color-green-500);
+
+  --info: var(--color-notion-blue);
+  --info-foreground: var(--color-white);
+  --info-background: var(--color-blue-500);
+
+  --warning: var(--color-notion-yellow);
+  --warning-foreground: var(--color-gray-900);
+  --warning-background: var(--color-yellow-500);
+
+  --ai: var(--color-notion-purple);
+  --ai-foreground: var(--color-white);
+  --ai-background: var(--color-purple-500);
+
+  --sidebar-background: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-item-hover-background: var(--selection);
+  --sidebar-item-hover-foreground: var(--selection-foreground);
+  --sidebar-item-active-background: var(--selection);
+  --sidebar-item-active-foreground: var(--primary);
+  --sidebar-item-text: var(--muted);
+
+  --toolbar-background: var(--background);
+
+  --tooltip-background: var(--color-gray-900);
+  --tooltip-foreground: var(--color-white);
+
+  --scrollbar-track: var(--foreground);
+  --scrollbar-thumb: var(--foreground);
+
+  --dialog-overlay: var(--surface);
+  --dialog-background: var(--background);
+
+  --alert-dialog-overlay: var(--surface);
+  --alert-dialog-background: var(--background);
+
+  --selection-background: var(--selection);
+
+  --button-primary-background: var(--primary);
+  --button-primary-foreground: var(--primary-foreground);
+  --button-primary-hover: var(--blue-700);
+
+  --button-secondary-background: var(--secondary);
+  --button-secondary-foreground: var(--secondary-foreground);
+
+  --button-ai-background: var(--ai);
+  --button-ai-foreground: var(--ai-foreground);
+
+  --button-accent-background: var(--accent);
+  --button-accent-foreground: var(--accent-foreground);
+  --button-accent-hover: var(--accent-hover);
+
+  --button-destructive-background: var(--destructive-background);
+  --button-destructive-foreground: var(--destructive);
+
+  --button-warning-background: var(--warning-background);
+  --button-warning-foreground: var(--warning);
+
+  --button-outline-border: var(--border);
+  --button-outline-foreground: var(--secondary-foreground);
+  --button-outline-hover: var(--input);
+
+  --button-ghost-hover: var(--secondary);
+  --button-ghost-foreground: var(--secondary-foreground);
+
+  --button-link-foreground: var(--primary);
+
+  --badge-primary-background: var(--primary);
+  --badge-primary-foreground: var(--primary-foreground);
+
+  --badge-secondary-background: var(--secondary);
+  --badge-secondary-foreground: var(--secondary-foreground);
+
+  --badge-ai-background: var(--ai);
+  --badge-ai-foreground: var(--ai-foreground);
+
+  --badge-destructive-background: var(--destructive-background);
+  --badge-destructive-foreground: var(--destructive-foreground);
+
+  --badge-accent-background: var(--accent);
+  --badge-accent-foreground: var(--accent-foreground);
+
+  --badge-warning-background: var(--warning-background);
+  --badge-warning-foreground: var(--warning-foreground);
+
+  --badge-info-background: var(--info-background);
+  --badge-info-foreground: var(--info-foreground);
+
+  --badge-success-background: var(--success-background);
+  --badge-success-foreground: var(--success-foreground);
+
+  --badge-outline-border: var(--border);
+  --badge-outline-foreground: var(--foreground);
+
+  --badge-surface-background: var(--surface);
+  --badge-surface-foreground: var(--foreground);
+}

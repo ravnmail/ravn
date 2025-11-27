@@ -1,0 +1,64 @@
+<script lang="ts" setup>
+import type { Editor } from '@tiptap/vue-3'
+import truncate from 'lodash/truncate'
+import ActionButton from '@/components/ActionButton.vue'
+import { Separator } from '@/components/ui/separator'
+
+interface Props {
+  editor: Editor
+  link?: string
+}
+
+withDefaults(defineProps<Props>(), {
+  link: undefined,
+})
+const { t } = useI18n()
+const emits = defineEmits(['clear', 'edit'])
+
+function onClear() {
+  emits('clear')
+}
+
+function onEdit() {
+  emits('edit')
+}
+</script>
+
+<template>
+  <div
+    class="flex items-center gap-2 p-2 bg-white rounded-lg dark:bg-black shadow-sm border border-neutral-200 dark:border-neutral-800"
+  >
+    <a
+      :href="link"
+      class="text-sm underline break-all"
+      rel="noopener noreferrer"
+      target="_blank"
+    >
+      {{
+        truncate(link, {
+          length: 50,
+          omission: '…',
+        })
+      }}
+    </a>
+    <Separator
+      v-if="link"
+      class="h-4"
+      orientation="vertical"
+    />
+    <div class="flex flex-nowrap">
+      <ActionButton
+        :action="onEdit"
+        :tooltip="t('composer.link.edit.tooltip')"
+        :tooltip-options="{ sideOffset: 15 }"
+        icon="pencil"
+      />
+      <ActionButton
+        :action="onClear"
+        :tooltip="t('composer.link.unlink.tooltip')"
+        :tooltip-options="{ sideOffset: 15 }"
+        icon="unlink"
+      />
+    </div>
+  </div>
+</template>

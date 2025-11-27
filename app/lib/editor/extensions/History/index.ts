@@ -1,0 +1,33 @@
+import type { HistoryOptions as TiptapHistoryOptions } from '@tiptap/extension-history'
+import { History as TiptapHistory } from '@tiptap/extension-history'
+
+import ActionButton from '@/components/ActionButton.vue'
+
+import type { GeneralOptions } from '@/types/composer'
+
+export interface HistoryOptions extends TiptapHistoryOptions, GeneralOptions<HistoryOptions> { }
+
+export const History = TiptapHistory.extend<HistoryOptions>({
+  addOptions() {
+    return {
+      ...this.parent?.(),
+      depth: 10,
+      button: ({ editor, t }) => {
+        const historys: ['undo', 'redo'] = ['undo', 'redo']
+        return historys.map(item => ({
+          component: ActionButton,
+          componentProps: {
+            action: () => {
+              if (item === 'undo') editor?.chain().undo().focus().run()
+              if (item === 'redo') editor?.chain().redo().focus().run()
+            },
+            shortcutKeys: item === 'undo' ? ['mod', 'Z'] : ['shift', 'mod', 'Z'],
+            disabled: !editor?.isEditable || !editor.can()[item](),
+            icon: item === 'undo' ? 'undo-2' : 'redo-2',
+            tooltip: t(`composer.${item}.tooltip`),
+          },
+        }))
+      },
+    }
+  },
+})

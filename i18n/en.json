@@ -1,0 +1,883 @@
+{
+  "app": {
+    "title": "RAVN"
+  },
+  "common": {
+    "actions": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "edit": "Edit",
+      "create": "Create",
+      "update": "Update",
+      "close": "Close",
+      "back": "Back",
+      "continue": "Continue",
+      "done": "Done",
+      "tryAgain": "Try Again",
+      "test": "Test",
+      "hide": "Hide",
+      "resetChanges": "Reset Changes",
+      "saveChanges": "Save Changes",
+      "connect": "Connect",
+      "reply": "Reply",
+      "replyAll": "Reply All",
+      "forward": "Forward",
+      "archive": "Archive",
+      "spam": "Mark as Spam",
+      "unread": "Mark as Unread",
+      "read": "Mark as Read",
+      "move": "Move",
+      "more": "More",
+      "pin": "Pin",
+      "discard": "Discard",
+      "newTab": "New"
+    },
+    "labels": {
+      "settings": "Settings",
+      "from": "From",
+      "to": "To",
+      "cc": "Cc",
+      "bcc": "Bcc",
+      "subject": "Subject",
+      "email": "Email",
+      "password": "Password",
+      "username": "Username",
+      "server": "Server",
+      "port": "Port",
+      "name": "Name",
+      "title": "Title",
+      "description": "Description"
+    },
+    "states": {
+      "loading": "Loading...",
+      "saving": "Saving...",
+      "processing": "Processing...",
+      "noContent": "No content to display"
+    },
+    "time": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "thisWeek": "This Week",
+      "lastWeek": "Last Week",
+      "thisMonth": "This Month",
+      "older": "Older"
+    }
+  },
+  "actions": {
+    "reply": "Reply",
+    "delete": "Delete",
+    "forward": "Forward",
+    "archive": "Archive",
+    "spam": "Mark as Spam",
+    "unread": "Mark as Unread",
+    "read": "Mark as Read",
+    "move": "Move",
+    "more": "More",
+    "pin": "Pin"
+  },
+  "dialogs": {
+    "confirmDelete": {
+      "title": "Confirm Deletion",
+      "message": "Are you sure you want to delete {name}? This action cannot be undone."
+    }
+  },
+  "pages": {
+    "testNavigation": {
+      "title": "Navigation Test Page",
+      "subtitle": "Test RAVN URL scheme navigation",
+      "customTest": {
+        "title": "Custom URL Test",
+        "description": "Test any RAVN URL or path"
+      },
+      "urlLabel": "URL",
+      "testButton": "Test",
+      "quickTests": {
+        "title": "Quick Tests",
+        "description": "Test common URL patterns"
+      },
+      "helpers": {
+        "title": "Navigation Helpers",
+        "description": "Test programmatic navigation helpers"
+      },
+      "howItWorks": {
+        "title": "How it works:",
+        "steps": {
+          "0": "Enter a RAVN URL in the format <code>ravn://path</code>",
+          "1": "Or just enter a path like <code>/emails/123</code>",
+          "2": "Click test to navigate",
+          "3": "Use browser back/forward to test history"
+        }
+      },
+      "keyboardShortcuts": "Keyboard Shortcuts"
+    },
+    "settings": {
+      "title": "Settings",
+      "nav": {
+        "aiAssistant": "AI Assistant",
+        "signatures": "Signatures"
+      }
+    },
+    "signatures": {
+      "title": "Signatures",
+      "description": "Manage your email signatures",
+      "addButton": "Add Signature",
+      "yourSignatures": {
+        "title": "Your Signatures",
+        "description": "Create and manage multiple email signatures"
+      },
+      "emptyState": "No signatures yet. Click 'Add Signature' to create one.",
+      "globalDefault": "Global Default",
+      "defaultFor": "Default for:",
+      "loading": "Loading signatures...",
+      "actions": {
+        "edit": "Edit signature",
+        "delete": "Delete signature",
+        "setGlobalDefault": "Set as Global Default",
+        "update": "Update",
+        "create": "Create"
+      },
+      "dialog": {
+        "titleEdit": "Edit Signature",
+        "titleAdd": "Add Signature",
+        "descriptionEdit": "Make changes to your signature below",
+        "descriptionAdd": "Create a new email signature"
+      },
+      "form": {
+        "titleLabel": "Title",
+        "titlePlaceholder": "My Signature",
+        "titleHelper": "A name to identify this signature",
+        "contentLabel": "Signature Content",
+        "contentPlaceholder": "Your signature text here...",
+        "contentHelper": "The content that will appear in your emails",
+        "accountsLabel": "Set as default for accounts",
+        "accountsPlaceholder": "Select accounts...",
+        "accountsHelper": "Choose which accounts should use this signature by default"
+      }
+    },
+    "ai": {
+      "title": "AI Assistant",
+      "description": "Configure AI models for email assistance",
+      "models": {
+        "title": "AI Models",
+        "description": "Configure which AI models to use for different tasks",
+        "fast": {
+          "label": "Fast Model",
+          "placeholder": "Select a fast AI model",
+          "description": "Used for quick tasks like suggestions and completions"
+        },
+        "normal": {
+          "label": "Normal Model",
+          "placeholder": "Select a normal AI model",
+          "description": "Used for general AI tasks like email analysis"
+        }
+      },
+      "loading": "Loading settings..."
+    },
+    "auth": {
+      "callback": {
+        "processing": {
+          "title": "Processing Authentication",
+          "message": "Please wait while we complete the setup..."
+        },
+        "success": {
+          "message": "Authentication Successful",
+          "autoClose": "This window will close automatically..."
+        },
+        "error": {
+          "missingCode": "Authentication Failed",
+          "missingCodeDetail": "No authorization code received. Please try again."
+        },
+        "actions": {
+          "closeWindow": "Close Window"
+        }
+      }
+    },
+    "addAccount": {
+      "steps": {
+        "addEmail": "Add Email",
+        "configure": "Configure",
+        "authenticating": "Authenticating...",
+        "success": "Success!",
+        "error": "Error"
+      },
+      "descriptions": {
+        "select": "Select your email provider to get started",
+        "configure": "Configure your email account settings"
+      },
+      "accountName": {
+        "label": "Account Name",
+        "placeholder": "Work Email"
+      },
+      "emailAddress": {
+        "label": "Email Address",
+        "placeholder": "you@example.com"
+      },
+      "chooseProvider": "Choose Provider",
+      "comingSoon": "Coming Soon",
+      "providers": {
+        "gmail": {
+          "name": "Gmail",
+          "description": "Connect your Google account"
+        },
+        "office365": {
+          "name": "Office 365",
+          "description": "Connect your Microsoft account"
+        },
+        "imap": {
+          "name": "IMAP/SMTP",
+          "description": "Manual email configuration"
+        },
+        "apple": {
+          "name": "iCloud",
+          "description": "Connect your Apple account"
+        }
+      },
+      "imap": {
+        "server": "IMAP Server",
+        "port": "IMAP Port",
+        "username": "IMAP Username",
+        "password": "IMAP Password",
+        "useTls": "Use TLS"
+      },
+      "smtp": {
+        "title": "SMTP Configuration",
+        "description": "Configure outgoing mail server",
+        "server": "SMTP Server",
+        "port": "SMTP Port",
+        "portHelper": "Common ports: 25, 465, 587, 2525",
+        "username": "SMTP Username",
+        "useTls": "Use TLS",
+        "differentPassword": "Use different password for SMTP",
+        "password": "SMTP Password"
+      },
+      "tls": {
+        "recommended": "Recommended"
+      },
+      "connecting": {
+        "oauth": "Opening authentication window...",
+        "testing": "Testing connection...",
+        "pleaseWait": "Please wait while we connect to your email account..."
+      },
+      "success": {
+        "title": "Account Added Successfully!",
+        "message": "Your email account has been configured and is ready to use."
+      },
+      "error": {
+        "title": "Connection Failed"
+      }
+    },
+    "view": {
+      "emptyState": {
+        "title": "Welcome to Kanban Views",
+        "description": "Organize your emails visually with customizable kanban boards",
+        "getStarted": "Get started by creating a new view using the button above"
+      }
+    }
+  },
+  "components": {
+    "tabBar": {
+      "newTab": "New"
+    },
+    "tabContent": {
+      "noContent": "No content to display"
+    },
+    "folderNav": {
+      "mail": "Mail",
+      "emptyState": "No folders found. Add an account to get started."
+    },
+    "viewNav": {
+      "newView": "New View",
+      "title": "Views"
+    },
+    "emailAutocomplete": {
+      "loading": "Loading contacts...",
+      "noResults": "No contacts found",
+      "noContacts": "No contacts available"
+    },
+    "viewSwitcher": {
+      "deleteConfirm": "Delete view",
+      "actions": {
+        "edit": "Edit View",
+        "delete": "Delete View"
+      },
+      "labels": "Labels"
+    },
+    "viewWizard": {
+      "steps": {
+        "type": {
+          "title": "Choose View Type",
+          "description": "Select how you want to visualize your emails"
+        },
+        "template": {
+          "title": "Choose Template",
+          "description": "Start with a template or build from scratch"
+        },
+        "preview": {
+          "title": "Preview",
+          "description": "Review your view configuration"
+        },
+        "customize": {
+          "title": "Customize",
+          "description": "Configure your view settings"
+        }
+      },
+      "viewTypes": {
+        "kanban": {
+          "name": "Kanban",
+          "description": "Organize emails in columns"
+        },
+        "calendar": {
+          "name": "Calendar",
+          "description": "View emails by date"
+        },
+        "list": {
+          "name": "List",
+          "description": "Traditional email list"
+        }
+      },
+      "comingSoon": "Coming Soon",
+      "startFromScratch": {
+        "title": "Start from Scratch",
+        "description": "Create a custom view with your own configuration"
+      },
+      "preview": {
+        "labelsTitle": "Labels to be created:",
+        "swimlanesTitle": "Swimlanes:"
+      },
+      "customize": {
+        "includeFolders": "Include Folders",
+        "noFolders": "No folders available. Add an email account first.",
+        "viewConfig": "View Configuration"
+      },
+      "actions": {
+        "createView": "Create View"
+      }
+    },
+    "verticalNavItem": {
+      "actions": {
+        "save": "Save",
+        "cancel": "Cancel",
+        "edit": "Edit",
+        "hide": "Hide"
+      }
+    },
+    "labelManager": {
+      "confirmDelete": "Delete label",
+      "title": "Label Manager",
+      "description": "Manage your labels",
+      "emptyState": "No labels available",
+      "actions": {
+        "update": "Update",
+        "create": "Create"
+      }
+    },
+    "emailViewer": {
+      "errors": {
+        "credentials": "Invalid credentials. Please re-authenticate your account.",
+        "archiveFolder": "Archive folder not found. Please check your folder configuration.",
+        "generic": "An error occurred while loading the email."
+      },
+      "noSubject": "(No Subject)",
+      "emptyState": {
+        "title": "No email selected",
+        "message": "Select an email from the list to view it here"
+      }
+    },
+    "emailActions": {
+      "reply": {
+        "tooltip": "Reply (R)"
+      },
+      "replyAll": {
+        "tooltip": "Reply All (Shift+R)"
+      },
+      "forward": {
+        "tooltip": "Forward (F)"
+      },
+      "archive": {
+        "tooltip": "Archive (E)"
+      },
+      "delete": {
+        "tooltip": "Delete (Backspace)"
+      }
+    },
+    "emailActionsToolbar": {
+      "emailsSelected": "{count} email{s} selected",
+      "clearSelection": "Clear selection",
+      "actions": {
+        "archive": "Archive",
+        "delete": "Delete",
+        "markRead": "Mark as Read",
+        "markUnread": "Mark as Unread"
+      }
+    },
+    "aiAnalysis": {
+      "analyzing": "Analyzing email...",
+      "failed": "Analysis failed",
+      "quickReply": "Quick Reply"
+    },
+    "conversationViewer": {
+      "errors": {
+        "credentials": "Invalid credentials. Please re-authenticate your account.",
+        "archiveFolder": "Archive folder not found. Please check your folder configuration.",
+        "generic": "An error occurred while loading the conversation."
+      },
+      "notFound": "Conversation not found"
+    },
+    "attachments": {
+      "contextMenu": {
+        "quickLook": "Quick Look",
+        "saveToDownloads": "Save to Downloads",
+        "saveTo": "Save to..."
+      },
+      "shortcuts": {
+        "space": "Space"
+      }
+    },
+    "attachment": {
+      "notCached": "Not cached"
+    },
+    "mailList": {
+      "errors": {
+        "credentials": "Invalid credentials. Please re-authenticate your account.",
+        "archiveFolder": "Archive folder not found. Please check your folder configuration.",
+        "generic": "An error occurred while loading emails."
+      },
+      "noEmails": "No emails",
+      "emptyState": {
+        "inbox": {
+          "title": "Inbox Zero!",
+          "message": "You're all caught up. Nice work!"
+        },
+        "generic": {
+          "title": "No emails",
+          "message": "This folder is empty"
+        }
+      },
+      "sorting": {
+        "label": "Sort by",
+        "receivedAt": "Date Received",
+        "sentAt": "Date Sent",
+        "size": "Size",
+        "order": {
+          "asc": "Oldest first",
+          "desc": "Newest first"
+        }
+      },
+      "filtering": {
+        "label": "Filter",
+        "all": "All",
+        "unread": "Unread",
+        "read": "Read",
+        "withAttachments": "With Attachments",
+        "withoutAttachments": "Without Attachments"
+      },
+      "grouping": {
+        "toggle": "Toggle grouping",
+        "enabled": "Grouping enabled",
+        "disabled": "Grouping disabled",
+        "size": {
+          "enormous": "Enormous (>25 MB)",
+          "huge": "Huge (10-25 MB)",
+          "veryLarge": "Very Large (5-10 MB)",
+          "large": "Large (1-5 MB)",
+          "medium": "Medium (25 KB-1 MB)",
+          "small": "Small (<25 KB)"
+        }
+      }
+    },
+    "kanban": {
+      "emptyState": {
+        "noEmails": "No emails",
+        "noSwimlanes": {
+          "title": "No swimlanes configured",
+          "message": "Edit this view to add swimlanes"
+        }
+      }
+    },
+    "viewEditor": {
+      "title": {
+        "create": "Create View",
+        "edit": "Edit View"
+      },
+      "description": "Configure your view settings",
+      "includeFolders": "Include Folders",
+      "noFolders": "No folders available. Add an email account first.",
+      "swimlanes": {
+        "title": "Swimlanes",
+        "labels": "Labels",
+        "folders": "Folders",
+        "emptyState": "No swimlanes configured. Add labels or folders to create swimlanes."
+      },
+      "actions": {
+        "addSwimlane": "Add Swimlane",
+        "createView": "Create View",
+        "updateView": "Update View"
+      }
+    },
+    "messageView": {
+      "labels": {
+        "from": "From",
+        "to": "To",
+        "cc": "Cc",
+        "subject": "Subject"
+      },
+      "loadingAttachments": "Loading attachments...",
+      "attachmentError": "Failed to load attachments",
+      "imagesBlocked": "Images are blocked to protect your privacy",
+      "actions": {
+        "showImages": "Show Images",
+        "showAndTrack": "Show Images & Allow Tracking",
+        "allowTracking": "Allow Tracking",
+        "showMore": "Show more",
+        "analyzeWithAI": "Analyze with AI",
+        "showHTML": "Show HTML",
+        "showSimple": "Show Simple"
+      }
+    }
+  },
+  "composer": {
+    "to": "To",
+    "cc": "Cc",
+    "bcc": "Bcc",
+    "from": "From",
+    "selectSender": "Select sender",
+    "selectAccount": "Select account",
+    "subject": "Subject",
+    "showCc": "Cc",
+    "showBcc": "Bcc",
+    "hideCc": "Hide Cc",
+    "hideBcc": "Hide Bcc",
+    "send": "Send",
+    "discard": "Discard",
+    "saveDraft": "Save Draft",
+    "addAttachment": "Add Attachment",
+    "attachments": "Attachments",
+    "removeAttachment": "Remove attachment",
+    "enterRecipient": "Enter recipient email",
+    "invalidEmail": "Invalid email address",
+    "noRecipients": "Please add at least one recipient",
+    "noAccountSelected": "Please select an account",
+    "noSmtpConfig": "This account has no SMTP configuration",
+    "noSmtp": "No SMTP",
+    "sending": "Sending...",
+    "savingDraft": "Saving draft...",
+    "draftSaved": "Draft saved",
+    "emailSent": "Email sent successfully",
+    "draft": "Draft",
+    "saved": "Saved",
+    "unsavedChanges": "Unsaved changes",
+    "newMessage": "New Message",
+    "reply": "Reply",
+    "forward": "Forward",
+    "dropFilesHere": "Drop files here to attach",
+    "releaseToAttach": "Release to add as attachments",
+    "composeNewEmail": "Compose",
+    "AI": {
+      "ask": "Ask AI",
+      "placeholder": "Ask AI ...",
+      "generating": "Generating",
+      "replace": "Replace with AI response",
+      "insert": "Insert AI response",
+      "regenerate": "Regenerate AI response",
+      "close": "Close",
+      "stop": "Stop",
+      "error": "AI Error",
+      "editorNotFound": "Editor not found",
+      "noSelection": "Please select some text first",
+      "unknownError": "An unknown error occurred",
+      "noCachedPrompt": "No cached prompt found",
+      "regenerateError": "Failed to regenerate response",
+      "shortcutError": "Failed to execute shortcut",
+      "generateSubject": "Generate subject with AI",
+      "shortcuts": {
+        "generate": {
+          "title": "Generate from selection",
+          "keywords": "Text from keywords",
+          "improve": "Improve writing",
+          "shorter": "Make it shorter",
+          "longer": "Make it longer",
+          "summarize": "Summarize",
+          "continue": "Continue writing"
+        },
+        "tone": {
+          "title": "Change Tone",
+          "professional": "Professional",
+          "casual": "Casual",
+          "direct": "Direct",
+          "confident": "Confident",
+          "friendly": "Friendly"
+        },
+        "style": {
+          "title": "Change style of writing",
+          "business": "Business",
+          "legal": "Legal",
+          "journalism": "Journalism",
+          "medical": "Medical",
+          "poetic": "Poetic"
+        },
+        "translate": {
+          "title": "Translate",
+          "english": "Translate to English",
+          "german": "Translate to German",
+          "french": "Translate to French",
+          "spanish": "Translate to Spanish",
+          "chinese": "Translate to Chinese",
+          "russian": "Translate to Russian",
+          "portuguese": "Translate to Portuguese",
+          "korean": "Translate to Korean",
+          "japanese": "Translate to Japanese",
+          "hindi": "Translate to Hindi",
+          "arabic": "Translate to Arabic"
+        }
+      }
+    },
+    "remove": "Delete",
+    "clear": {
+      "tooltip": "Clear formatting"
+    },
+    "copyToClipboard": "Copy to Clipboard",
+    "copy": "Duplicate",
+    "slash": {
+      "format": "Basic blocks",
+      "media": "Media"
+    },
+    "paragraph": "Text",
+    "draghandle": {
+      "add": "**Click** to add<br/>**Alt+Click** to add above",
+      "drag": "**Click** to open menu<br/>**Drag** to move"
+    },
+    "code": {
+      "tooltip": "Inline Code"
+    },
+    "codeblock": {
+      "tooltip": "Code Block"
+    },
+    "bold": {
+      "tooltip": "Bold"
+    },
+    "italic": {
+      "tooltip": "Italic"
+    },
+    "strike": {
+      "tooltip": "Strikethrough"
+    },
+    "underline": {
+      "tooltip": "Underline"
+    },
+    "blockquote": {
+      "tooltip": "Blockquote"
+    },
+    "bulletlist": {
+      "tooltip": "Bulleted List"
+    },
+    "orderedlist": {
+      "tooltip": "Numbered List"
+    },
+    "tasklist": {
+      "tooltip": "To-do List"
+    },
+    "horizontalrule": {
+      "tooltip": "Horizontal Rule"
+    },
+    "callout": {
+      "tooltip": "Callout",
+      "dialog": {
+        "title": "Insert Callout",
+        "text": "Text",
+        "type": "Type",
+        "apply": "Apply"
+      }
+    },
+    "signature": {
+      "tooltip": "Signature",
+      "dialog": {
+        "title": "Insert Signature",
+        "signature": "Signature",
+        "apply": "Apply"
+      }
+    },
+    "hardbreak": {
+      "tooltip": "Hard Break"
+    },
+    "undo": {
+      "tooltip": "Undo"
+    },
+    "redo": {
+      "tooltip": "Redo"
+    },
+    "indent": {
+      "tooltip": "Increase Indent"
+    },
+    "outdent": {
+      "tooltip": "Decrease Indent"
+    },
+    "link": {
+      "tooltip": "Link",
+      "unlink": {
+        "tooltip": "Unlink"
+      },
+      "open": {
+        "tooltip": "Open Link"
+      },
+      "edit": {
+        "tooltip": "Edit Link"
+      },
+      "dialog": {
+        "title": "Insert Link",
+        "link": "Link",
+        "linkPlaceholder": "Paste or type a link",
+        "text": "Text",
+        "openInNewTab": "Open in new tab",
+        "button": {
+          "apply": "Apply"
+        }
+      }
+    },
+    "headings": {
+      "tooltip": "Turn into",
+      "h1": "Heading 1",
+      "h2": "Heading 2",
+      "h3": "Heading 3"
+    },
+    "placeholders": {
+      "default": "Compose your email here or / to see commands",
+      "code": "Type your code here",
+      "heading": "Type your heading here",
+      "h1": "Heading 1",
+      "h2": "Heading 2",
+      "h3": "Heading 3"
+    }
+  },
+  "labels": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This Week",
+    "lastWeek": "Last Week",
+    "thisMonth": "This Month",
+    "subject": "Subject",
+    "older": "Older",
+    "from": "From",
+    "to": "To",
+    "cc": "Cc",
+    "bcc": "Bcc"
+  },
+  "email": {
+    "images_blocked": "Images are blocked to protect your privacy",
+    "show_images": "Show Images",
+    "show_and_track": "Show Images & Allow Tracking",
+    "allow_tracking": "Allow Tracking"
+  },
+  "keyboard": {
+    "title": "Keyboard Shortcuts",
+    "enabled": "Enable keyboard shortcuts",
+    "navigation": {
+      "title": "Navigation",
+      "nextEmail": "Next Email",
+      "previousEmail": "Previous Email",
+      "nextConversation": "Next Conversation",
+      "previousConversation": "Previous Conversation",
+      "openConversation": "Open Conversation",
+      "goBack": "Go Back"
+    },
+    "actions": {
+      "title": "Actions",
+      "archive": "Archive",
+      "delete": "Delete",
+      "reply": "Reply",
+      "replyAll": "Reply All",
+      "forward": "Forward",
+      "toggleStar": "Toggle Star",
+      "markRead": "Mark as Read",
+      "markUnread": "Mark as Unread"
+    },
+    "composer": {
+      "title": "Composer",
+      "newEmail": "New Email",
+      "send": "Send Email",
+      "discardDraft": "Discard Draft"
+    },
+    "view": {
+      "title": "View",
+      "toggleDetailsPane": "Toggle Details Pane",
+      "toggleSidebar": "Toggle Sidebar",
+      "home": "Home",
+      "search": "Search"
+    },
+    "application": {
+      "title": "Application",
+      "settings": "Open Settings",
+      "help": "Show Help",
+      "refresh": "Refresh"
+    }
+  },
+  "home": {
+    "title": "Home"
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search emails...",
+    "searchEmails": "Search Emails",
+    "results": "Search Results",
+    "noResults": "No results found",
+    "noResultsDescription": "Try different keywords or check your spelling",
+    "searching": "Searching...",
+    "filters": {
+      "title": "Filters",
+      "unreadOnly": "Unread only",
+      "flaggedOnly": "Flagged only",
+      "account": "Account",
+      "folder": "Folder",
+      "allAccounts": "All accounts",
+      "allFolders": "All folders"
+    },
+    "actions": {
+      "search": "Search",
+      "clear": "Clear",
+      "reindex": "Reindex all emails",
+      "reindexAccount": "Reindex account"
+    },
+    "status": {
+      "indexing": "Indexing emails...",
+      "indexed": "Indexed {count} emails",
+      "indexComplete": "Indexing complete",
+      "indexError": "Failed to index emails"
+    },
+    "shortcuts": {
+      "openSearch": "Open search",
+      "closeSearch": "Close search"
+    }
+  },
+  "credentials": {
+    "errors": {
+      "missing": "Credentials not configured for {account}",
+      "missingDescription": "Your email account needs authentication to sync",
+      "expired": "Authentication expired for {account}",
+      "expiredDescription": "Your session has expired. Please re-authenticate to continue"
+    },
+    "actions": {
+      "fixNow": "Fix now",
+      "reAuthenticate": "Re-authenticate",
+      "updateSettings": "Update Settings",
+      "dismiss": "Dismiss"
+    },
+    "providers": {
+      "gmail": {
+        "label": "Gmail",
+        "actionLabel": "Re-authenticate Google"
+      },
+      "office365": {
+        "label": "Office 365",
+        "actionLabel": "Re-authenticate Microsoft"
+      },
+      "imap": {
+        "label": "IMAP",
+        "actionLabel": "Update IMAP Settings"
+      },
+      "apple": {
+        "label": "iCloud",
+        "actionLabel": "Update iCloud Settings"
+      }
+    }
+  }
+}

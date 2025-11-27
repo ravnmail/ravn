@@ -1,0 +1,229 @@
+/* GitHub Light Theme - Based on Primer Design System */
+:root {
+  /* GitHub Light Base Colors */
+  --color-github-fg-default: #1f2328;
+  --color-github-fg-muted: #59636e;
+  --color-github-fg-subtle: #818b98;
+  --color-github-accent: #0969da;
+  --color-github-success: #1a7f37;
+  --color-github-danger: #d1242f;
+  --color-github-bg-default: #ffffff;
+  --color-github-bg-subtle: #f6f8fa;
+  --color-github-border-default: #d1d9e0;
+  --color-github-border-muted: #d8dee4;
+
+  /* Gray Scale */
+  --color-gray-50: #ffffff;
+  --color-gray-100: #f6f8fa;
+  --color-gray-200: #eaeef2;
+  --color-gray-300: #d1d9e0;
+  --color-gray-400: #afb8c1;
+  --color-gray-500: #818b98;
+  --color-gray-600: #59636e;
+  --color-gray-700: #424a53;
+  --color-gray-800: #32383f;
+  --color-gray-900: #1f2328;
+  --color-gray-950: #0d1117;
+
+  --color-white: #ffffff;
+
+  /* Blue (GitHub Accent) */
+  --color-blue-50: #ddf4ff;
+  --color-blue-100: #b6e3ff;
+  --color-blue-200: #80ccff;
+  --color-blue-300: #54aeff;
+  --color-blue-400: #218bff;
+  --color-blue-500: #0969da;
+  --color-blue-600: #0550ae;
+  --color-blue-700: #033d8b;
+  --color-blue-800: #0a3069;
+  --color-blue-900: #002155;
+  --color-blue-950: #001d48;
+
+  /* Red (GitHub Danger) */
+  --color-red-50: #ffebe9;
+  --color-red-100: #ffd8d3;
+  --color-red-200: #ffb8af;
+  --color-red-300: #ff8182;
+  --color-red-400: #fa4549;
+  --color-red-500: #d1242f;
+  --color-red-600: #a40e26;
+  --color-red-700: #86061d;
+  --color-red-800: #6e011a;
+  --color-red-900: #5a0016;
+  --color-red-950: #430011;
+
+  /* Green (GitHub Success) */
+  --color-green-50: #dafbe1;
+  --color-green-100: #aceebb;
+  --color-green-200: #6fdd8b;
+  --color-green-300: #4ac26b;
+  --color-green-400: #2da44e;
+  --color-green-500: #1a7f37;
+  --color-green-600: #116329;
+  --color-green-700: #044f1e;
+  --color-green-800: #003d16;
+  --color-green-900: #002d11;
+  --color-green-950: #00230b;
+
+  /* Yellow (GitHub Warning) */
+  --color-yellow-50: #fff8c5;
+  --color-yellow-100: #fae17d;
+  --color-yellow-200: #eac54f;
+  --color-yellow-300: #d4a72c;
+  --color-yellow-400: #bf8700;
+  --color-yellow-500: #9a6700;
+  --color-yellow-600: #7d4e00;
+  --color-yellow-700: #633c01;
+  --color-yellow-800: #4d2d00;
+  --color-yellow-900: #3b2300;
+  --color-yellow-950: #2e1800;
+
+  /* Purple (GitHub Sponsors) */
+  --color-purple-50: #fbefff;
+  --color-purple-100: #ecd8ff;
+  --color-purple-200: #d8b9ff;
+  --color-purple-300: #c297ff;
+  --color-purple-400: #a475f9;
+  --color-purple-500: #8250df;
+  --color-purple-600: #6639ba;
+  --color-purple-700: #512a97;
+  --color-purple-800: #3e1f79;
+  --color-purple-900: #2e1461;
+  --color-purple-950: #230b4b;
+
+  /* Theme Variables */
+  --surface: var(--color-github-bg-subtle);
+  --background: var(--color-github-bg-default);
+  --elevated: var(--color-gray-100);
+  --foreground: var(--color-github-fg-default);
+
+  --primary: var(--color-github-accent);
+  --primary-foreground: var(--color-white);
+  --secondary: var(--color-gray-200);
+  --secondary-foreground: var(--color-github-fg-default);
+
+  --card: var(--color-white);
+  --accent: var(--color-github-accent);
+  --accent-hover: var(--color-blue-700);
+  --accent-foreground: var(--color-white);
+  --muted: var(--color-github-fg-muted);
+
+  --selection: var(--color-blue-100);
+  --selection-foreground: var(--color-github-fg-default);
+  --selection-border: var(--color-github-accent);
+
+  --input: var(--color-white);
+  --input-border: var(--color-github-border-default);
+
+  --border: var(--color-github-border-default);
+  --ring: var(--color-github-accent);
+
+  --popover: var(--color-white);
+  --popover-foreground: var(--color-github-fg-default);
+  --popover-border: var(--color-github-border-muted);
+
+  --destructive: var(--color-github-danger);
+  --destructive-foreground: var(--color-white);
+  --destructive-background: var(--color-red-100);
+
+  --success: var(--color-github-success);
+  --success-foreground: var(--color-white);
+  --success-background: var(--color-green-500);
+
+  --info: var(--color-github-accent);
+  --info-foreground: var(--color-white);
+  --info-background: var(--color-blue-500);
+
+  --warning: var(--color-yellow-400);
+  --warning-foreground: var(--color-gray-900);
+  --warning-background: var(--color-yellow-500);
+
+  --ai: var(--color-purple-500);
+  --ai-foreground: var(--color-white);
+  --ai-background: var(--color-purple-500);
+
+  --sidebar-background: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-item-hover-background: var(--selection);
+  --sidebar-item-hover-foreground: var(--selection-foreground);
+  --sidebar-item-active-background: var(--selection);
+  --sidebar-item-active-foreground: var(--primary);
+  --sidebar-item-text: var(--muted);
+
+  --toolbar-background: var(--background);
+
+  --tooltip-background: var(--color-gray-900);
+  --tooltip-foreground: var(--color-gray-50);
+
+  --scrollbar-track: var(--foreground);
+  --scrollbar-thumb: var(--foreground);
+
+  --dialog-overlay: var(--surface);
+  --dialog-background: var(--background);
+
+  --alert-dialog-overlay: var(--surface);
+  --alert-dialog-background: var(--background);
+
+  --selection-background: var(--selection);
+
+  --button-primary-background: var(--primary);
+  --button-primary-foreground: var(--primary-foreground);
+  --button-primary-hover: var(--blue-600);
+
+  --button-secondary-background: var(--secondary);
+  --button-secondary-foreground: var(--secondary-foreground);
+
+  --button-ai-background: var(--ai);
+  --button-ai-foreground: var(--ai-foreground);
+
+  --button-accent-background: var(--accent);
+  --button-accent-foreground: var(--accent-foreground);
+  --button-accent-hover: var(--accent-hover);
+
+  --button-destructive-background: var(--destructive-background);
+  --button-destructive-foreground: var(--destructive);
+
+  --button-warning-background: var(--warning-background);
+  --button-warning-foreground: var(--warning);
+
+  --button-outline-border: var(--border);
+  --button-outline-foreground: var(--secondary-foreground);
+  --button-outline-hover: var(--input);
+
+  --button-ghost-hover: var(--secondary);
+  --button-ghost-foreground: var(--secondary-foreground);
+
+  --button-link-foreground: var(--primary);
+
+  --badge-primary-background: var(--primary);
+  --badge-primary-foreground: var(--primary-foreground);
+
+  --badge-secondary-background: var(--secondary);
+  --badge-secondary-foreground: var(--secondary-foreground);
+
+  --badge-ai-background: var(--ai);
+  --badge-ai-foreground: var(--ai-foreground);
+
+  --badge-destructive-background: var(--destructive-background);
+  --badge-destructive-foreground: var(--destructive-foreground);
+
+  --badge-accent-background: var(--accent);
+  --badge-accent-foreground: var(--accent-foreground);
+
+  --badge-warning-background: var(--warning-background);
+  --badge-warning-foreground: var(--warning-foreground);
+
+  --badge-info-background: var(--info-background);
+  --badge-info-foreground: var(--info-foreground);
+
+  --badge-success-background: var(--success-background);
+  --badge-success-foreground: var(--success-foreground);
+
+  --badge-outline-border: var(--border);
+  --badge-outline-foreground: var(--foreground);
+
+  --badge-surface-background: var(--surface);
+  --badge-surface-foreground: var(--foreground);
+}

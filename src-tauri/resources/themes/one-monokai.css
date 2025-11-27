@@ -1,0 +1,228 @@
+/* One Monokai Theme */
+:root {
+  /* One Monokai Base Colors */
+  --color-monokai-background: #1e2227;
+  --color-monokai-foreground: #abb2bf;
+  --color-monokai-red: #e06c75;
+  --color-monokai-yellow: #e5c07b;
+  --color-monokai-green: #98c379;
+  --color-monokai-blue: #61afef;
+  --color-monokai-cyan: #56b6c2;
+  --color-monokai-purple: #c678dd;
+  --color-monokai-comment: #676f7d;
+
+  /* Gray Scale */
+  --color-gray-50: #abb2bf;
+  --color-gray-100: #9da4b0;
+  --color-gray-200: #8e95a1;
+  --color-gray-300: #7f8692;
+  --color-gray-400: #707783;
+  --color-gray-500: #676f7d;
+  --color-gray-600: #5e6774;
+  --color-gray-700: #3a3f4b;
+  --color-gray-800: #282c34;
+  --color-gray-900: #1e2227;
+  --color-gray-950: #14171a;
+
+  --color-white: #ffffff;
+
+  /* Blue */
+  --color-blue-50: #e8f4fd;
+  --color-blue-100: #d1e9fb;
+  --color-blue-200: #a3d3f7;
+  --color-blue-300: #75bdf3;
+  --color-blue-400: #61afef;
+  --color-blue-500: #4d9feb;
+  --color-blue-600: #398fe7;
+  --color-blue-700: #257fe3;
+  --color-blue-800: #116fdf;
+  --color-blue-900: #0d5fdb;
+  --color-blue-950: #0a4fd7;
+
+  /* Red */
+  --color-red-50: #fce8ea;
+  --color-red-100: #f9d1d5;
+  --color-red-200: #f3a3ab;
+  --color-red-300: #ed7581;
+  --color-red-400: #e06c75;
+  --color-red-500: #d35d66;
+  --color-red-600: #c64e57;
+  --color-red-700: #b94048;
+  --color-red-800: #ac3239;
+  --color-red-900: #9f242a;
+  --color-red-950: #92161b;
+
+  /* Green */
+  --color-green-50: #ecf7e8;
+  --color-green-100: #d9efd1;
+  --color-green-200: #b3dfa3;
+  --color-green-300: #8dcf75;
+  --color-green-400: #98c379;
+  --color-green-500: #82b363;
+  --color-green-600: #6ca34d;
+  --color-green-700: #569337;
+  --color-green-800: #408321;
+  --color-green-900: #2a730b;
+  --color-green-950: #146300;
+
+  /* Yellow */
+  --color-yellow-50: #fcf5e8;
+  --color-yellow-100: #f9ebd1;
+  --color-yellow-200: #f3d7a3;
+  --color-yellow-300: #edc375;
+  --color-yellow-400: #e5c07b;
+  --color-yellow-500: #d9b465;
+  --color-yellow-600: #cda84f;
+  --color-yellow-700: #c19c39;
+  --color-yellow-800: #b59023;
+  --color-yellow-900: #a9840d;
+  --color-yellow-950: #9d7800;
+
+  /* Purple */
+  --color-purple-50: #f5ebfa;
+  --color-purple-100: #ebd7f5;
+  --color-purple-200: #d7afeb;
+  --color-purple-300: #c387e1;
+  --color-purple-400: #c678dd;
+  --color-purple-500: #b962d3;
+  --color-purple-600: #ac4cc9;
+  --color-purple-700: #9f36bf;
+  --color-purple-800: #9220b5;
+  --color-purple-900: #850aab;
+  --color-purple-950: #7800a1;
+
+  /* Theme Variables */
+  --surface: var(--color-gray-800);
+  --background: var(--color-monokai-background);
+  --elevated: var(--color-gray-700);
+  --foreground: var(--color-monokai-foreground);
+
+  --primary: var(--color-monokai-blue);
+  --primary-foreground: var(--color-monokai-background);
+  --secondary: var(--color-gray-800);
+  --secondary-foreground: var(--color-gray-100);
+
+  --card: var(--color-gray-800);
+  --accent: var(--color-monokai-cyan);
+  --accent-hover: var(--color-blue-700);
+  --accent-foreground: var(--color-monokai-background);
+  --muted: var(--color-monokai-comment);
+
+  --selection: var(--color-gray-700);
+  --selection-foreground: var(--color-monokai-foreground);
+  --selection-border: var(--color-monokai-blue);
+
+  --input: var(--color-gray-800);
+  --input-border: var(--color-gray-700);
+
+  --border: var(--color-gray-700);
+  --ring: var(--color-monokai-blue);
+
+  --popover: var(--color-gray-800);
+  --popover-foreground: var(--color-monokai-foreground);
+  --popover-border: var(--color-gray-700);
+
+  --destructive: var(--color-monokai-red);
+  --destructive-foreground: var(--color-gray-50);
+  --destructive-background: var(--color-red-900);
+
+  --success: var(--color-monokai-green);
+  --success-foreground: var(--color-gray-900);
+  --success-background: var(--color-green-700);
+
+  --info: var(--color-monokai-cyan);
+  --info-foreground: var(--color-gray-900);
+  --info-background: var(--color-blue-700);
+
+  --warning: var(--color-monokai-yellow);
+  --warning-foreground: var(--color-gray-900);
+  --warning-background: var(--color-yellow-700);
+
+  --ai: var(--color-monokai-purple);
+  --ai-foreground: var(--color-gray-900);
+  --ai-background: var(--color-purple-700);
+
+  --sidebar-background: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-item-hover-background: var(--selection);
+  --sidebar-item-hover-foreground: var(--selection-foreground);
+  --sidebar-item-active-background: var(--selection);
+  --sidebar-item-active-foreground: var(--primary);
+  --sidebar-item-text: var(--muted);
+
+  --toolbar-background: var(--background);
+
+  --tooltip-background: var(--color-gray-700);
+  --tooltip-foreground: var(--color-monokai-foreground);
+
+  --scrollbar-track: var(--foreground);
+  --scrollbar-thumb: var(--foreground);
+
+  --dialog-overlay: var(--surface);
+  --dialog-background: var(--background);
+
+  --alert-dialog-overlay: var(--surface);
+  --alert-dialog-background: var(--background);
+
+  --selection-background: var(--selection);
+
+  --button-primary-background: var(--primary);
+  --button-primary-foreground: var(--primary-foreground);
+  --button-primary-hover: var(--blue-600);
+
+  --button-secondary-background: var(--secondary);
+  --button-secondary-foreground: var(--secondary-foreground);
+
+  --button-ai-background: var(--ai);
+  --button-ai-foreground: var(--ai-foreground);
+
+  --button-accent-background: var(--accent);
+  --button-accent-foreground: var(--accent-foreground);
+  --button-accent-hover: var(--accent-hover);
+
+  --button-destructive-background: var(--destructive-background);
+  --button-destructive-foreground: var(--destructive);
+
+  --button-warning-background: var(--warning-background);
+  --button-warning-foreground: var(--warning);
+
+  --button-outline-border: var(--border);
+  --button-outline-foreground: var(--secondary-foreground);
+  --button-outline-hover: var(--input);
+
+  --button-ghost-hover: var(--secondary);
+  --button-ghost-foreground: var(--secondary-foreground);
+
+  --button-link-foreground: var(--primary);
+
+  --badge-primary-background: var(--primary);
+  --badge-primary-foreground: var(--primary-foreground);
+
+  --badge-secondary-background: var(--secondary);
+  --badge-secondary-foreground: var(--secondary-foreground);
+
+  --badge-ai-background: var(--ai);
+  --badge-ai-foreground: var(--ai-foreground);
+
+  --badge-destructive-background: var(--destructive-background);
+  --badge-destructive-foreground: var(--destructive-foreground);
+
+  --badge-accent-background: var(--accent);
+  --badge-accent-foreground: var(--accent-foreground);
+
+  --badge-warning-background: var(--warning-background);
+  --badge-warning-foreground: var(--warning-foreground);
+
+  --badge-info-background: var(--info-background);
+  --badge-info-foreground: var(--info-foreground);
+
+  --badge-success-background: var(--success-background);
+  --badge-success-foreground: var(--success-foreground);
+
+  --badge-outline-border: var(--border);
+  --badge-outline-foreground: var(--foreground);
+
+  --badge-surface-background: var(--surface);
+  --badge-surface-foreground: var(--foreground);
+}

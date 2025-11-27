@@ -1,0 +1,80 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "RAVN",
+  "identifier": "com.coderscantina.ravn",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "bun run dev",
+    "beforeBuildCommand": "bun run generate"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "RAVN",
+        "width": 800,
+        "height": 600,
+        "resizable": true,
+        "hiddenTitle": true,
+        "titleBarStyle": "Overlay",
+        "trafficLightPosition": {
+          "x": 16,
+          "y": 20
+        },
+        "fullscreen": false,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$APPDATA/**", "$APPLOCALDATA/**"]
+      },
+      "csp": {
+        "default-src": "'self' tauri: ravn: asset:",
+        "connect-src": "ipc: http://ipc.localhost tauri://localhost ",
+        "img-src": "'self' asset: http://asset.localhost data: blob: *",
+        "style-src": "'unsafe-inline' 'self' tauri://localhost"
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "license": "GPL",
+    "licenseFile": "../LICENSE",
+    "resources": ["resources/*", "resources/themes/*"],
+    "copyright": "Copyright © 2025\nCoder's Cantina, Michael Wallner",
+    "category": "Productivity",
+    "homepage": "https://www.ravnmail.com",
+    "shortDescription": "The modern email client for digital natives",
+    "longDescription": "RAVN is a modern email client designed for digital natives, featuring kanban-based email handling, powerful search capabilities, markdown composition, and multi-account support.",
+    "macOS": {
+      "bundleVersion": "COMMIT_HASH",
+      "entitlements": null,
+      "exceptionDomain": null,
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null,
+      "hardenedRuntime": true
+    },
+    "iOS": {
+      "frameworks": []
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["ravn"]
+      }
+    }
+  }
+}
