@@ -1,5 +1,4 @@
 import { listen } from '@tauri-apps/api/event'
-import { onMounted, onUnmounted } from 'vue'
 import { navigateToUrl } from './useUrlNavigation'
 import { useAuth } from './useAuth'
 

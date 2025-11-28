@@ -20,6 +20,7 @@ use html_to_markdown_rs::{convert, ConversionOptions, PreprocessingOptions, Prep
 use sqlx::SqlitePool;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tauri::Emitter;
 use uuid::Uuid;
 
 pub struct EmailSync {
@@ -31,6 +32,16 @@ pub struct EmailSync {
     app_handle: Option<tauri::AppHandle>,
     notification_service: Option<Arc<NotificationService>>,
     settings: Arc<Settings>,
+}
+
+fn emit_folder_event<S: serde::Serialize + Clone>(
+    app_handle: &tauri::AppHandle,
+    event_name: &str,
+    payload: S,
+) {
+    if let Err(e) = app_handle.emit(event_name, payload) {
+        log::error!("Failed to emit folder event '{}': {}", event_name, e);
+    }
 }
 
 impl EmailSync {
@@ -130,6 +141,13 @@ impl EmailSync {
             let _ = self.set_sync_status(folder, "error").await;
         }
 
+        // emit event folder:updated
+        emit_folder_event(
+            &self.app_handle.as_ref().unwrap(),
+            "folder:updated",
+            serde_json::json!(folder),
+        );
+
         result
     }
 
@@ -205,7 +223,10 @@ impl EmailSync {
                     {
                         next_sync_token = new_token;
                         // Process deleted emails from delta response
-                        total_deleted = self.process_deleted_emails(&deleted_ids, folder).await.unwrap_or(0);
+                        total_deleted = self
+                            .process_deleted_emails(&deleted_ids, folder)
+                            .await
+                            .unwrap_or(0);
                     }
                 } else {
                     // Full sync with paging

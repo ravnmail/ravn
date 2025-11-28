@@ -5,7 +5,6 @@ import type {
   CreateViewRequest,
   UpdateViewRequest,
 } from '~/types/view'
-import { useSetupQueryListeners } from './useQueryListeners'
 
 const QUERY_KEYS = {
   all: ['views'] as const,
@@ -17,11 +16,8 @@ const QUERY_KEYS = {
 export const useViews = () => {
   const queryClient = useQueryClient()
 
-  useSetupQueryListeners(queryClient, [
-    { name: 'view:created', invalidateKey: QUERY_KEYS.lists() },
-    { name: 'view:updated', invalidateKey: QUERY_KEYS.lists() },
-    { name: 'view:deleted', invalidateKey: QUERY_KEYS.lists() },
-  ])
+  // Note: Event listeners for 'view:created', 'view:updated', 'view:deleted'
+  // are now registered globally in useGlobalEventListeners
 
   const {
     data: views,

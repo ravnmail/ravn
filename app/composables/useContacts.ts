@@ -6,7 +6,6 @@ import type {
   GetContactsRequest,
   GetTopContactsRequest,
 } from '~/types/contact'
-import { useSetupQueryListeners } from './useQueryListeners'
 
 const QUERY_KEYS = {
   all: ['contacts'] as const,
@@ -23,12 +22,6 @@ const QUERY_KEYS = {
 
 export function useContacts() {
   const queryClient = useQueryClient()
-
-  useSetupQueryListeners(queryClient, [
-    { name: 'contact:created', invalidateKey: QUERY_KEYS.lists() },
-    { name: 'contact:updated', invalidateKey: QUERY_KEYS.lists() },
-    { name: 'contact:deleted', invalidateKey: QUERY_KEYS.lists() },
-  ])
 
   const {
     data: contacts,

@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { Account, AccountType, CreateAccountRequest, CredentialsRequiredEvent } from '~/types/sync'
-import { useSetupQueryListeners } from './useQueryListeners'
 
 const QUERY_KEYS = {
   all: ['accounts'] as const,
@@ -91,12 +90,6 @@ export function useAccounts() {
       console.log('[useAccounts] Cleaned up credentials:required listener')
     }
   }
-
-  useSetupQueryListeners(queryClient, [
-    { name: 'account:created', invalidateKey: QUERY_KEYS.lists() },
-    { name: 'account:updated', invalidateKey: QUERY_KEYS.lists() },
-    { name: 'account:deleted', invalidateKey: QUERY_KEYS.lists() },
-  ])
 
   onMounted(() => {
     setupCredentialsListener()

@@ -1,6 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
-import { useSetupQueryListeners } from './useQueryListeners'
 import type { Folder, FolderType } from '~/types/sync'
 
 const QUERY_KEYS = {
@@ -11,12 +10,6 @@ const QUERY_KEYS = {
 
 export function useFolders() {
   const queryClient = useQueryClient()
-
-  useSetupQueryListeners(queryClient, [
-    { name: 'folder:created', invalidateKey: QUERY_KEYS.lists() },
-    { name: 'folder:updated', invalidateKey: QUERY_KEYS.lists() },
-    { name: 'folder:deleted', invalidateKey: QUERY_KEYS.lists() },
-  ])
 
   const getFolderSortOrder = (folderType: FolderType): number => {
     const orderMap: Record<FolderType, number> = {

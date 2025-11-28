@@ -1,7 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 import type { ConversationDetail, ConversationListItem } from '~/types/conversation'
-import { useSetupQueryListeners } from './useQueryListeners'
 
 const QUERY_KEYS = {
   all: ['conversations'] as const,
@@ -14,15 +13,6 @@ const QUERY_KEYS = {
 }
 
 export function useConversation() {
-  const queryClient = useQueryClient()
-
-  useSetupQueryListeners(queryClient, [
-    { name: 'conversation:created', invalidateKey: QUERY_KEYS.lists() },
-    { name: 'conversation:updated', invalidateKey: QUERY_KEYS.lists() },
-    { name: 'conversation:deleted', invalidateKey: QUERY_KEYS.lists() },
-    { name: 'folder:updated', invalidateKey: QUERY_KEYS.lists() },
-  ])
-
   const useGetConversation = (conversationId: MaybeRef<string>) => {
     const resolvedConversationId = computed(() => unref(conversationId))
 

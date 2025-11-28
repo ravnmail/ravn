@@ -88,7 +88,7 @@ const saveFolderSettings = () => {
 
 
 onMounted(async () => {
-  await initSync(props.folderId)
+  await initSync({ folderId: props.folderId })
 })
 
 watch([sortBy, sortOrder, filterRead, filterHasAttachments], async () => {

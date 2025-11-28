@@ -1,5 +1,4 @@
 import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
 import type { EmailDetail, EmailListItem } from '~/types/email'
 
 interface EmailUpdatedEvent {
@@ -20,31 +19,9 @@ export interface AddLabelToEmailRequest {
   label_id: string
 }
 
-let emailListenersRegistered = false
-const emailUnlistenFns: Array<() => void> = []
-
 export function useEmails() {
   const isLoading = useState('emailsLoading', () => false)
   const error = useState<string | null>('emailsError', () => null)
-
-  onMounted(async () => {
-    if (emailListenersRegistered) return
-    emailListenersRegistered = true
-
-    const unlistenEmailUpdated = await listen<EmailUpdatedEvent>('email:updated', () => {
-      // Event handled by components/composables that track email state
-    })
-
-    const unlistenEmailDeleted = await listen<EmailDeletedEvent>('email:deleted', () => {
-      // Event handled by components/composables that track email state
-    })
-
-    emailUnlistenFns.push(unlistenEmailUpdated, unlistenEmailDeleted)
-  })
-
-  onUnmounted(() => {
-    emailUnlistenFns.forEach(unlisten => unlisten())
-  })
 
   const fetch = async (id: string): Promise<EmailDetail | null> => {
     isLoading.value = true

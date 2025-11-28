@@ -1,7 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { Label, CreateLabelRequest, UpdateLabelRequest } from '~/types/view'
-import { useSetupQueryListeners } from './useQueryListeners'
 
 const QUERY_KEYS = {
   all: ['labels'] as const,
@@ -13,12 +12,6 @@ const QUERY_KEYS = {
 
 export const useLabels = () => {
   const queryClient = useQueryClient()
-
-  useSetupQueryListeners(queryClient, [
-    { name: 'label:created', invalidateKey: QUERY_KEYS.lists() },
-    { name: 'label:updated', invalidateKey: QUERY_KEYS.lists() },
-    { name: 'label:deleted', invalidateKey: QUERY_KEYS.lists() },
-  ])
 
   const {
     data: labels,

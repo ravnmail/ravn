@@ -1,13 +1,16 @@
 <script lang="ts" setup>
 import { useMagicKeys, whenever } from '@vueuse/core'
+import { useQueryClient } from '@tanstack/vue-query'
 
 import { Toaster } from 'vue-sonner'
 import { AlertDialogProvider } from '@/composables/useAlertDialog'
 
 const router = useRouter()
+const queryClient = useQueryClient()
 
 useAppEvents()
 useTheme()
+useGlobalEventListeners(queryClient)
 
 // Global keyboard shortcuts
 const keys = useMagicKeys()
