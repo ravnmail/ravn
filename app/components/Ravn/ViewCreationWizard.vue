@@ -4,6 +4,9 @@ import type { ViewTemplate } from '~/types/viewTemplate'
 import { Button } from '~/components/ui/button'
 import IconNameField from '~/components/ui/IconNameField.vue'
 import IconName from '~/components/ui/IconName.vue'
+import EmailLabel from '~/components/ui/EmailLabel.vue'
+import { RadioGroupItem } from 'reka-ui'
+import { RadioGroup } from '~/components/ui/radio-group'
 
 const props = defineProps<{
   initialViewType?: 'kanban' | 'calendar' | 'list'
@@ -169,17 +172,16 @@ const dialogDescription = computed(() => {
         <UiDialogDescription>{{ dialogDescription }}</UiDialogDescription>
       </UiDialogHeader>
 
-      <div class="py-4">
-        <div
+      <div class="py-3">
+        <RadioGroup
           v-if="currentStep === 'type'"
-          class="space-y-4"
+          class="grid grid-cols-1 gap-3"
         >
-          <div class="grid grid-cols-1 gap-4">
-            <button
-              v-for="viewType in viewTypes"
-              :key="viewType.type"
-              :class="[
-                'p-4 border rounded-lg text-left transition-all',
+          <RadioGroupItem
+            v-for="viewType in viewTypes"
+            :key="viewType.type"
+            :class="[
+                'p-3 border rounded-lg text-left transition-all',
                 viewType.enabled
                   ? 'hover:bg-selection-background'
                   : 'opacity-50 cursor-not-allowed',
@@ -187,45 +189,43 @@ const dialogDescription = computed(() => {
                   ? 'border-selection-border bg-selection-background text-selection-foreground'
                   : 'border-border'
               ]"
-              :disabled="!viewType.enabled"
-              @click="viewType.enabled && handleViewTypeSelect(viewType.type)"
-            >
-              <div class="flex items-center gap-3">
+            :disabled="!viewType.enabled"
+            @click="viewType.enabled && handleViewTypeSelect(viewType.type)"
+          >
+            <div class="flex items-center gap-3">
+              <div class="h-12 w-12 rounded-lg bg-muted/20 flex items-center justify-center flex-shrink-0">
                 <Icon
                   :name="viewType.icon"
                   class="h-8 w-8"
                 />
-                <div>
-                  <h3 class="font-semibold flex items-center gap-2">
-                    {{ viewType.name }}
-                    <span
-                      v-if="!viewType.enabled"
-                      class="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded"
-                    >
+              </div>
+              <div>
+                <h3 class="font-semibold flex items-center gap-2">
+                  {{ viewType.name }}
+                  <span
+                    v-if="!viewType.enabled"
+                    class="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded"
+                  >
                       {{ t('components.viewWizard.comingSoon') }}
                     </span>
-                  </h3>
-                  <p class="text-sm text-muted-foreground mt-1">
-                    {{ viewType.description }}
-                  </p>
-                </div>
+                </h3>
+                <p class="text-sm text-muted-foreground mt-1">
+                  {{ viewType.description }}
+                </p>
               </div>
-            </button>
-          </div>
-        </div>
-
-        <!-- Step 2: Select Template -->
-        <div
+            </div>
+          </RadioGroupItem>
+        </RadioGroup>
+        <RadioGroup
           v-else-if="currentStep === 'template'"
-          class="space-y-4"
+          class="grid grid-cols-1 gap-3"
         >
-          <!-- Blank Option -->
-          <button
-            class="w-full p-6 border rounded-lg text-left hover:border-primary hover:bg-accent transition-all"
-            @click="handleTemplateSelect(null)"
+          <RadioGroupItem
+            class="w-full p-3 border border-border rounded-lg text-left hover:border-b-selection-border hover:bg-selection-background transition-all"
+            @select="handleTemplateSelect(null)"
           >
             <div class="flex items-start gap-4">
-              <div class="h-12 w-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+              <div class="h-12 w-12 rounded-lg bg-muted/20 flex items-center justify-center flex-shrink-0">
                 <Icon
                   class="h-6 w-6 text-muted-foreground"
                   name="lucide:plus"
@@ -238,127 +238,84 @@ const dialogDescription = computed(() => {
                 </p>
               </div>
             </div>
-          </button>
-
-          <!-- Templates -->
-          <div class="grid grid-cols-1 gap-4">
-            <button
-              v-for="template in availableTemplates"
-              :key="template.id"
-              class="p-6 border rounded-lg text-left hover:border-primary hover:bg-accent transition-all"
-              @click="handleTemplateSelect(template)"
-            >
-              <div class="flex items-start gap-4">
-                <div class="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Icon
-                    class="h-6 w-6 text-primary"
-                    name="lucide:layout-template"
+          </RadioGroupItem>
+          <RadioGroupItem
+            v-for="template in availableTemplates"
+            :key="template.id"
+            class="p-3 border border-border rounded-lg text-left hover:border-b-selection-border hover:bg-selection-background transition-all"
+            @click="handleTemplateSelect(template)"
+          >
+            <div class="flex items-start gap-4">
+              <div class="h-12 w-12 rounded-lg bg-muted/20 flex items-center justify-center flex-shrink-0">
+                <Icon
+                  class="h-6 w-6 text-primary"
+                  name="lucide:columns-3-cog"
+                />
+              </div>
+              <div class="flex-1">
+                <h3 class="font-semibold">{{ template.title }}</h3>
+                <p class="text-sm text-muted-foreground mt-1">
+                  {{ template.description }}
+                </p>
+                <div class="flex gap-2 mt-3 flex-wrap">
+                  <EmailLabel
+                    v-for="label in template.labels"
+                    :key="label.id"
+                    v-bind="label"
                   />
                 </div>
-                <div class="flex-1">
-                  <h3 class="font-semibold">{{ template.title }}</h3>
-                  <p class="text-sm text-muted-foreground mt-1">
-                    {{ template.description }}
-                  </p>
-                  <div class="flex gap-2 mt-3 flex-wrap">
-                    <span
-                      v-for="label in template.labels.slice(0, 5)"
-                      :key="label.id"
-                      :style="{ backgroundColor: label.color }"
-                      class="px-2 py-0.5 rounded text-xs text-white"
-                    >
-                      {{ label.name }}
-                    </span>
-                    <span
-                      v-if="template.labels.length > 5"
-                      class="px-2 py-0.5 rounded text-xs bg-muted text-muted-foreground"
-                    >
-                      +{{ template.labels.length - 5 }} more
-                    </span>
-                  </div>
-                </div>
               </div>
-            </button>
-          </div>
-        </div>
-
-        <!-- Step 3: Preview Template -->
+            </div>
+          </RadioGroupItem>
+        </RadioGroup>
         <div
           v-else-if="currentStep === 'preview'"
-          class="space-y-6"
+          class="space-y-4"
         >
           <div
             v-if="selectedTemplate"
-            class="space-y-6"
+            class="space-y-4"
           >
-            <!-- Template Info -->
             <div class="space-y-2">
-              <h3 class="font-semibold text-lg">{{ selectedTemplate.title }}</h3>
-              <p class="text-muted-foreground">{{ selectedTemplate.description }}</p>
+              <h3 class="font-semibold text-primary">{{ selectedTemplate.title }}</h3>
+              <p class="text-muted">{{ selectedTemplate.description }}</p>
             </div>
-
-            <!-- Labels -->
             <div class="space-y-2">
               <h4 class="font-medium">{{ t('components.viewWizard.preview.labelsTitle') }}</h4>
               <div class="flex flex-wrap gap-2">
-                <div
+                <EmailLabel
                   v-for="label in selectedTemplate.labels"
                   :key="label.id"
-                  class="flex items-center gap-2 px-3 py-2 rounded-lg border bg-card"
-                >
-                  <Icon
-                    :name="`lucide:${label.icon}`"
-                    :style="{ color: label.color }"
-                    class="h-4 w-4"
-                  />
-                  <span class="text-sm font-medium">{{ label.name }}</span>
-                  <div
-                    :style="{ backgroundColor: label.color }"
-                    class="h-3 w-3 rounded-full"
-                  />
-                </div>
+                  v-bind="label"
+                />
               </div>
             </div>
 
-            <!-- Swimlanes -->
             <div class="space-y-2">
               <h4 class="font-medium">{{ t('components.viewWizard.preview.swimlanesTitle') }}</h4>
               <div class="space-y-2">
                 <div
                   v-for="(swimlane, index) in selectedTemplate.swimlanes"
                   :key="index"
-                  class="p-4 rounded-lg border bg-card"
+                  class="p-4 rounded-lg border border-border"
                 >
-                  <div class="flex items-start gap-3">
-                    <Icon
-                      :name="`lucide:${swimlane.icon}`"
-                      :style="{ color: swimlane.color }"
-                      class="h-5 w-5 flex-shrink-0 mt-0.5"
+                  <div class="flex flex-col gap-3">
+                    <IconName
+                      :color="swimlane.color"
+                      :icon="swimlane.icon"
+                      :name="swimlane.name"
+                      class="text-primary"
                     />
-                    <div class="flex-1">
-                      <div class="flex items-center gap-2">
-                        <h5 class="font-medium">{{ swimlane.name }}</h5>
-                        <div
-                          :style="{ backgroundColor: swimlane.color }"
-                          class="h-3 w-3 rounded-full"
-                        />
-                      </div>
-                      <p class="text-sm text-muted-foreground mt-1">{{ swimlane.description }}</p>
-                      <div
-                        v-if="swimlane.labels.length > 0"
-                        class="flex gap-2 mt-2"
-                      >
-                        <span
-                          v-for="labelId in swimlane.labels"
-                          :key="labelId"
-                          :style="{
-                            backgroundColor: selectedTemplate.labels.find(l => l.id === labelId)?.color
-                          }"
-                          class="px-2 py-0.5 rounded text-xs text-white"
-                        >
-                          {{ selectedTemplate.labels.find(l => l.id === labelId)?.name }}
-                        </span>
-                      </div>
+                    <p class="text-sm text-muted-foreground mt-1">{{ swimlane.description }}</p>
+                    <div
+                      v-if="swimlane.labels.length > 0"
+                      class="flex flex-wrap gap-2"
+                    >
+                      <EmailLabel
+                        v-for="labelId in swimlane.labels"
+                        :key="labelId"
+                        v-bind=" selectedTemplate.labels.find(l => l.id === labelId)"
+                      />
                     </div>
                   </div>
                 </div>
@@ -445,7 +402,7 @@ const dialogDescription = computed(() => {
 
       <UiDialogFooter>
         <div class="flex justify-between w-full">
-          <UiButton
+          <Button
             v-if="currentStep !== 'type'"
             variant="outline"
             @click="goBack"
@@ -455,18 +412,18 @@ const dialogDescription = computed(() => {
               name="lucide:arrow-left"
             />
             {{ t('common.actions.back') }}
-          </UiButton>
+          </Button>
           <div v-else/>
 
           <div class="flex gap-2">
-            <UiButton
+            <Button
               variant="outline"
               @click="isDialogOpen = false"
             >
               {{ t('common.actions.cancel') }}
-            </UiButton>
+            </Button>
 
-            <UiButton
+            <Button
               v-if="currentStep === 'preview'"
               :disabled="isProcessing"
               @click="handleConfirmTemplate"
@@ -477,9 +434,9 @@ const dialogDescription = computed(() => {
                 name="lucide:loader-2"
               />
               {{ t('common.actions.continue') }}
-            </UiButton>
+            </Button>
 
-            <UiButton
+            <Button
               v-else-if="currentStep === 'customize'"
               :disabled="!customizations.name.trim() || isProcessing"
               @click="handleCreateView"
@@ -490,7 +447,7 @@ const dialogDescription = computed(() => {
                 name="lucide:loader-2"
               />
               {{ t('components.viewWizard.actions.createView') }}
-            </UiButton>
+            </Button>
           </div>
         </div>
       </UiDialogFooter>
