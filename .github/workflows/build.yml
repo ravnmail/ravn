@@ -53,12 +53,12 @@ jobs:
             VERSION="${TAG#refs/tags/}"
             VERSION="${VERSION#v}"
             echo "build-type=release" >> $GITHUB_OUTPUT
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "version=$VERSION+${SHORT_HASH}" >> $GITHUB_OUTPUT
           else
             echo "build-type=nightly" >> $GITHUB_OUTPUT
             # Read version from package.json and append commit hash
             BASE_VERSION=$(jq -r '.version' package.json)
-            echo "version=${BASE_VERSION}+${SHORT_HASH}" >> $GITHUB_OUTPUT
+            echo "version=${BASE_VERSION}+nightly-${SHORT_HASH}" >> $GITHUB_OUTPUT
           fi
 
   build-linux:
