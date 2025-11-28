@@ -1,7 +1,7 @@
 use crate::database::repositories::{EmailRepository, RepositoryFactory};
 use crate::services::corvus::{
     AskAiRequest, AvailableModel, ChatMessage, CorvusService, EmailAnalysis,
-    EmailCompletionRequest, EmailMetadata, GenerateSubjectRequest,
+    EmailCompletionRequest, EmailMetadata, GenerateSearchQueryRequest, GenerateSubjectRequest,
 };
 use crate::state::AppState;
 use serde::{Deserialize, Serialize};
@@ -42,6 +42,17 @@ pub struct GenerateSubjectContextRequest {
     pub recipients: Vec<String>,
     pub is_reply: bool,
     pub current_subject: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GenerateSearchQueryContextRequest {
+    pub natural_language_query: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GenerateSearchQueryResult {
+    pub query: String,
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -169,6 +180,30 @@ pub async fn generate_subject(
             log::error!("generate_subject error: {}", e);
             Ok(AutoCompletionResult {
                 completion: String::new(),
+                error: Some(e),
+            })
+        }
+    }
+}
+
+#[command]
+pub async fn generate_search_query(
+    state: State<'_, AppState>,
+    natural_language_query: String,
+) -> Result<GenerateSearchQueryResult, String> {
+    log::debug!("Received generate_search_query request");
+
+    let ai_service = get_ai_service(&state);
+    let request = GenerateSearchQueryRequest {
+        natural_language_query,
+    };
+
+    match ai_service.generate_search_query(request).await {
+        Ok(query) => Ok(GenerateSearchQueryResult { query, error: None }),
+        Err(e) => {
+            log::error!("generate_search_query error: {}", e);
+            Ok(GenerateSearchQueryResult {
+                query: String::new(),
                 error: Some(e),
             })
         }

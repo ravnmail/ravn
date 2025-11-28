@@ -70,6 +70,11 @@ pub struct GenerateSubjectRequest {
     pub current_subject: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct GenerateSearchQueryRequest {
+    pub natural_language_query: String,
+}
+
 impl CorvusService {
     pub fn new(settings: Arc<Settings>) -> Self {
         Self { settings }
@@ -546,6 +551,63 @@ Important:
                 e, response_text
             )
         })
+    }
+
+    pub async fn generate_search_query(
+        &self,
+        request: GenerateSearchQueryRequest,
+    ) -> Result<String, String> {
+        log::debug!("Processing search query generation request");
+
+        let client = self.get_client()?;
+        let model = self.get_model("fast")?;
+        let system_prompt = self.get_prompt("generateSearchQuery")?;
+
+        let prompt = format!(
+            "Convert this natural language query into a Tantivy search query:\n\n{}\n\nCurrent DateTime: {}",
+            request.natural_language_query,
+            chrono::Utc::now().to_rfc3339()
+        );
+
+        let messages = vec![
+            ChatCompletionRequestMessage::System(
+                async_openai::types::ChatCompletionRequestSystemMessage {
+                    content: system_prompt.into(),
+                    name: None,
+                },
+            ),
+            ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
+                content: prompt.into(),
+                name: None,
+            }),
+        ];
+
+        let mut request_builder = CreateChatCompletionRequestArgs::default();
+        request_builder.model(model);
+        request_builder.messages(messages);
+
+        let chat_request = request_builder
+            .build()
+            .map_err(|e| format!("Failed to build request: {}", e))?;
+
+        let response = client
+            .chat()
+            .create(chat_request)
+            .await
+            .map_err(|e| format!("OpenAI API request failed: {}", e))?;
+
+        response
+            .choices
+            .first()
+            .ok_or_else(|| "No choices in response".to_string())
+            .and_then(|choice| {
+                choice
+                    .message
+                    .content
+                    .clone()
+                    .ok_or_else(|| "No content in response".to_string())
+                    .map(|content| content.trim().to_string())
+            })
     }
 
     pub async fn get_available_models(&self) -> Result<Vec<AvailableModel>, String> {

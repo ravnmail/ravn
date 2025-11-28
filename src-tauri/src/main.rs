@@ -338,6 +338,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             corvus::generate_email_completion,
             corvus::ask_ai,
+            corvus::generate_search_query,
             corvus::generate_subject,
             corvus::analyze_email_with_ai,
             corvus::get_available_models,

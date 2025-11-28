@@ -2,14 +2,18 @@
 import type { EmailListItem } from '~/types/email'
 import { ScrollArea } from '~/components/ui/scroll-area'
 import { UnobstrusiveSheetContent } from '~/components/ui/sheet'
+import { Button } from '~/components/ui/button'
 import EmailViewer from '~/components/Ravn/EmailViewer.vue'
 import EmailListItemComponent from '~/components/Ravn/EmailListItem.vue'
 import TantivySearchFilter from '~/components/Ravn/TantivySearchFilter.vue'
+import AISearchInput from '~/components/Ravn/AISearchInput.vue'
 import { useTantivySearch, type SearchFields } from '~/composables/useTantivySearch'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+
+const useAIMode = ref<boolean>(false)
 const searchFields: SearchFields = {
   from: {
     type: 'text',
@@ -106,24 +110,58 @@ useHead({
 
 <template>
   <div class="flex flex-col w-full h-screen bg-background">
-    <div class="border-b border-border bg-card p-4 md:p-6">
+    <div class="border-b border-border bg-background p-4 md:p-6">
       <div class="max-w-6xl mx-auto space-y-4">
-        <div>
-          <h1 class="text-2xl md:text-3xl font-bold tracking-tight">
+        <!-- Search Mode Toggle -->
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             {{ t('search.title') }}
-          </h1>
-          <p class="text-sm text-muted-foreground mt-1">
-            {{ t('search.description') }}
-          </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              :class="[
+                'px-3 py-1.5 text-xs font-medium rounded transition-colors',
+                !useAIMode
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-muted hover:bg-muted text-foreground border border-border'
+              ]"
+              type="button"
+              @click="useAIMode = false"
+            >
+              {{ t('search.title') }}
+            </button>
+            <button
+              :class="[
+                'px-3 py-1.5 text-xs font-medium rounded transition-colors flex items-center gap-1',
+                useAIMode
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-muted hover:bg-muted text-foreground border border-border'
+              ]"
+              type="button"
+              @click="useAIMode = true"
+            >
+              <Icon
+                class="w-3 h-3"
+                name="lucide:sparkles"
+              />
+              {{ t('search.ai.toggle') }}
+            </button>
+          </div>
         </div>
-        <div class="mt-4">
-          <TantivySearchFilter
-            :fields="searchFields"
-            :model-value="searchQuery"
-            @search="handleSearch"
-            @update:model-value="searchQuery = $event"
-          />
-        </div>
+
+        <AISearchInput
+          v-if="useAIMode"
+          :model-value="searchQuery"
+          @search="handleSearch"
+          @update:model-value="searchQuery = $event"
+        />
+        <TantivySearchFilter
+          v-if="!useAIMode"
+          :fields="searchFields"
+          :model-value="searchQuery"
+          @search="handleSearch"
+          @update:model-value="searchQuery = $event"
+        />
       </div>
     </div>
     <div class="flex-1 overflow-hidden">
@@ -200,20 +238,33 @@ useHead({
           <p class="text-muted-foreground text-sm mt-2">
             {{ t('search.helpText') }}
           </p>
-      </div>
-    </div>
-    <UnobstrusiveSheetContent
-      v-if="selectedEmailIdFromRoute"
-      @close="onSheetChange(false)"
-    >
-      <ScrollArea class="h-full">
-        <div class="flex h-full flex-col">
-          <EmailViewer
-            :key="selectedEmailIdFromRoute"
-            :email-id="selectedEmailIdFromRoute"
-          />
         </div>
-      </ScrollArea>
-    </UnobstrusiveSheetContent>
+      </div>
+      <UnobstrusiveSheetContent
+        v-if="selectedEmailIdFromRoute"
+        @close="onSheetChange(false)"
+      >
+        <ScrollArea class="h-full">
+          <div class="flex h-full flex-col">
+            <EmailViewer
+              :key="selectedEmailIdFromRoute"
+              :email-id="selectedEmailIdFromRoute"
+            />
+          </div>
+        </ScrollArea>
+      </UnobstrusiveSheetContent>
+    </div>
   </div>
-</div></template>
+</template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

@@ -760,7 +760,22 @@
     "from": "From",
     "to": "To",
     "cc": "Cc",
-    "bcc": "Bcc"
+    "bcc": "Bcc",
+    "email": {
+      "from": "From",
+      "to": "To",
+      "cc": "Cc",
+      "subject": "Subject",
+      "body": "Body",
+      "isRead": "Read Status",
+      "receivedAt": "Received Date"
+    },
+    "search": {
+      "enterQuery": "Enter your search query...",
+      "editToken": "Edit Token",
+      "value": "Value",
+      "examples": "Examples"
+    }
   },
   "email": {
     "images_blocked": "Images are blocked to protect your privacy",
@@ -816,12 +831,18 @@
   },
   "search": {
     "title": "Search",
+    "pageTitle": "Search",
     "placeholder": "Search emails...",
     "searchEmails": "Search Emails",
     "results": "Search Results",
     "noResults": "No results found",
     "noResultsDescription": "Try different keywords or check your spelling",
     "searching": "Searching...",
+    "oneResult": "result found",
+    "multipleResults": "results found",
+    "clearSearch": "Clear search",
+    "helpText": "Enter a search query to find emails",
+    "query": "Query",
     "filters": {
       "title": "Filters",
       "unreadOnly": "Unread only",
@@ -846,6 +867,14 @@
     "shortcuts": {
       "openSearch": "Open search",
       "closeSearch": "Close search"
+    },
+    "ai": {
+      "toggle": "AI Search",
+      "title": "AI Search Assistant",
+      "description": "Describe what you're looking for in natural language",
+      "placeholder": "Find emails about...",
+      "searching": "Converting to search query...",
+      "error": "Failed to generate search query"
     }
   },
   "credentials": {
