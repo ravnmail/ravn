@@ -51,6 +51,7 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             TAG="${{ github.ref }}"
             VERSION="${TAG#refs/tags/}"
+            VERSION="${VERSION#v}"
             echo "build-type=release" >> $GITHUB_OUTPUT
             echo "version=$VERSION" >> $GITHUB_OUTPUT
           else
