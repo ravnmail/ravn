@@ -40,7 +40,7 @@ class="echo-code-block-toolbar">
           <Tooltip>
             <TooltipTrigger>
               <div
-                class="h-7 w-7 hover:bg-[#5a5d5e4f] rounded-sm flex justify-center items-center cursor-pointer"
+                class="h-7 w-7 hover:bg-[#5a5d5e4f] rounded-sm flex justify-center items-center"
                 @click="copyCode"
               >
                 <Icon
@@ -59,7 +59,7 @@ name="lucide:copy"/>
             <TooltipTrigger>
               <div
                 :class="{ 'bg-[#5a5d5e4f]': node.attrs.lineNumbers }"
-                class="h-7 w-7 hover:bg-[#5a5d5e4f] rounded-sm flex justify-center items-center cursor-pointer"
+                class="h-7 w-7 hover:bg-[#5a5d5e4f] rounded-sm flex justify-center items-center"
                 @click="toggleLineNumbers"
               >
                 <Icon

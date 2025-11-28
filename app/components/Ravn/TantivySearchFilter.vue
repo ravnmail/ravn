@@ -139,7 +139,7 @@ const parseTokens = (q: string): Token[] => {
 
 // === UI RENDERING ===
 const getTokenClass = (token: Token): string => {
-  const base = 'px-2 py-1 rounded text-xs font-mono font-semibold transition-colors border inline-flex items-center gap-1 hover:shadow-sm cursor-pointer'
+  const base = 'px-2 py-1 rounded text-xs font-mono font-semibold transition-colors border inline-flex items-center gap-1 hover:shadow-sm'
 
   const classes: Record<string, string> = {
     operator: `${base} bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700`,

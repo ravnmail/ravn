@@ -520,7 +520,7 @@ watch(() => props.folderId, () => {
             <template v-if="groupedConversations.groups[groupKey].length">
               <!-- Group header with expand/collapse -->
               <div
-                class="flex items-center gap-2 text-sm font-bold py-2 text-muted cursor-pointer hover:text-primary"
+                class="flex items-center gap-2 text-sm font-bold py-2 text-muted hover:text-primary"
                 @click="toggleGroup(groupKey)"
               >
                 <Icon

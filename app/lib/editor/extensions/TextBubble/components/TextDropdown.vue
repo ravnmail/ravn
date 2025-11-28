@@ -112,19 +112,20 @@ const activeItem = computed(() => {
 
 <template>
   <ActionDropdownButton
-:side-offset="5"
-:title="activeItem?.label">
+    :side-offset="5"
+    :title="activeItem?.label"
+  >
     <MenuCheckboxItem
       v-for="(item, index) in menus"
       :key="index"
       :model-value="item.isActive?.() || false"
-      class="cursor-pointer"
       @click="item.action"
     >
       <div class="flex items-center gap-2 px-2">
         <Icon
-:name="`lucide:${item.iconName}`"
-class="h3 w-3"/>
+          :name="`lucide:${item.iconName}`"
+          class="h3 w-3"
+        />
         <span> {{ item.label }}</span>
       </div>
     </MenuCheckboxItem>

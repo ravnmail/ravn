@@ -199,7 +199,7 @@ onUnmounted(() => {
         :key="contact.id"
         :class="{ 'bg-accent text-accent-foreground': index === selectedIndex }"
         :data-index="index"
-        class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
+        class="flex items-center gap-2 px-3 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
         @click="selectContact(contact)"
         @mouseenter="selectedIndex = index"
       >

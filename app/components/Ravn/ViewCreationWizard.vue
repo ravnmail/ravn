@@ -170,30 +170,28 @@ const dialogDescription = computed(() => {
       </UiDialogHeader>
 
       <div class="py-4">
-        <!-- Step 1: Select View Type -->
         <div
           v-if="currentStep === 'type'"
           class="space-y-4"
         >
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 gap-4">
             <button
               v-for="viewType in viewTypes"
               :key="viewType.type"
               :class="[
-                'p-6 border rounded-lg text-left transition-all',
+                'p-4 border rounded-lg text-left transition-all',
                 viewType.enabled
-                  ? 'hover:border-primary hover:bg-accent cursor-pointer'
+                  ? 'hover:bg-selection-background'
                   : 'opacity-50 cursor-not-allowed',
                 selectedViewType === viewType.type
-                  ? 'border-primary bg-accent'
+                  ? 'border-selection-border bg-selection-background text-selection-foreground'
                   : 'border-border'
               ]"
               :disabled="!viewType.enabled"
               @click="viewType.enabled && handleViewTypeSelect(viewType.type)"
             >
-              <div class="flex flex-col items-start gap-3">
+              <div class="flex items-center gap-3">
                 <Icon
-                  :class="viewType.enabled ? 'text-primary' : 'text-muted-foreground'"
                   :name="viewType.icon"
                   class="h-8 w-8"
                 />

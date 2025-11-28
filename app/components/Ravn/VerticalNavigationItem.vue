@@ -204,7 +204,7 @@ const cancelEdit = () => {
           <div class="flex items-center gap-1">
             <Icon
               v-if="children?.length"
-              :class="['shrink-0 transition-transform opacity-50 cursor-pointer', localExpanded ? 'transform rotate-90' : '']"
+              :class="['shrink-0 transition-transform opacity-50', localExpanded ? 'transform rotate-90' : '']"
               name="lucide:chevron-right"
               @click.stop.prevent="toggleExpanded"
             />

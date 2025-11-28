@@ -336,7 +336,7 @@ onUnmounted(() => {
                 v-for="provider in providers"
                 :key="provider.id"
                 :class="[
-                  'cursor-pointer transition-all hover:shadow-md',
+                  'transition-all hover:shadow-md',
                   flowState.provider === provider.id
                     ? 'ring-2 ring-primary'
                     : 'hover:border-primary/50'
@@ -456,7 +456,6 @@ onUnmounted(() => {
               v-model:checked="imapConfig.use_tls"
             />
             <UiLabel
-              class="cursor-pointer"
               for="use-tls"
             >
               {{ $t('pages.addAccount.imap.useTls') }} ({{ $t('pages.addAccount.tls.recommended') }})
@@ -534,7 +533,6 @@ onUnmounted(() => {
                   v-model:checked="smtpConfig.use_tls"
                 />
                 <UiLabel
-                  class="cursor-pointer"
                   for="smtp-use-tls"
                 >
                   {{ $t('pages.addAccount.smtp.useTls') }}
@@ -547,7 +545,6 @@ onUnmounted(() => {
                   v-model:checked="smtpConfig.use_different_credentials"
                 />
                 <UiLabel
-                  class="cursor-pointer"
                   for="smtp-different-creds"
                 >
                   {{ $t('pages.addAccount.smtp.differentPassword') }}

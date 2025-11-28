@@ -4,7 +4,7 @@ import { ScrollArea } from '~/components/ui/scroll-area'
 import { UnobstrusiveSheetContent } from '~/components/ui/sheet'
 import EmailViewer from '~/components/Ravn/EmailViewer.vue'
 import EmailListItemComponent from '~/components/Ravn/EmailListItem.vue'
-import TantivySearchFilter from '~/components/Ravn/TantivySearchFilterAdvanced.vue'
+import TantivySearchFilter from '~/components/Ravn/TantivySearchFilter.vue'
 import { useTantivySearch, type SearchFields } from '~/composables/useTantivySearch'
 
 const route = useRoute()
@@ -67,7 +67,7 @@ watch(searchQuery, (newQuery) => {
   if (newQuery && newQuery.trim() !== '') {
     performSearch()
   }
-})
+}, { immediate: true })
 const performSearch = async () => {
   if (searchQuery.value) {
     await search({ query: searchQuery.value, limit: 200 })
@@ -180,7 +180,7 @@ useHead({
               v-for="email in results"
               :key="email.id"
               :is-selected="selectedEmailIdFromRoute === email.id"
-              class="border-b border-border transition-colors hover:bg-muted/50 cursor-pointer"
+              class="border-b border-border transition-colors hover:bg-muted/50"
               v-bind="email"
               @click="selectEmail(email)"
             />
@@ -200,19 +200,6 @@ useHead({
           <p class="text-muted-foreground text-sm mt-2">
             {{ t('search.helpText') }}
           </p>
-
-          <!-- Quick Tips -->
-          <div class="mt-6 bg-muted/50 rounded-lg p-4 text-left space-y-2">
-            <p class="text-xs font-semibold text-muted-foreground">{{ t('search.quickTips') }}:</p>
-            <ul class="text-xs text-muted-foreground space-y-1">
-              <li>• <code class="bg-background px-1 rounded">from:sender@example.com</code></li>
-              <li>• <code class="bg-background px-1 rounded">"exact phrase"</code></li>
-              <li>• <code class="bg-background px-1 rounded">AND / OR / NOT</code></li>
-              <li>• <code class="bg-background px-1 rounded">is_read:true</code></li>
-              <li>• <code class="bg-background px-1 rounded">[2022-01-01 TO 2022-12-31]</code></li>
-            </ul>
-          </div>
-        </div>
       </div>
     </div>
     <UnobstrusiveSheetContent
@@ -220,11 +207,13 @@ useHead({
       @close="onSheetChange(false)"
     >
       <ScrollArea class="h-full">
-        <EmailViewer
-          :key="selectedEmailIdFromRoute"
-          :email-id="selectedEmailIdFromRoute"
-        />
+        <div class="flex h-full flex-col">
+          <EmailViewer
+            :key="selectedEmailIdFromRoute"
+            :email-id="selectedEmailIdFromRoute"
+          />
+        </div>
       </ScrollArea>
     </UnobstrusiveSheetContent>
   </div>
-</template>
+</div></template>
