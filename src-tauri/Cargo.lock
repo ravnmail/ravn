@@ -172,12 +172,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d902e3d592a523def97af8f317b08ce16b7ab854c1985a0c671e6f15cebc236"
 
 [[package]]
-name = "astral-tl"
-version = "0.7.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "915b5af1203c9c635c62edcbdaa36ee54b17f84809f7769912d356c35f9a6cd7"
-
-[[package]]
 name = "async-broadcast"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2392,43 +2386,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "html-escape"
-version = "0.2.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d1ad449764d627e22bfd7cd5e8868264fc9236e07c752972b4080cd351cb476"
-dependencies = [
- "utf8-width",
-]
-
-[[package]]
-name = "html-to-markdown-rs"
-version = "2.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbc167bf85e98554f91092b96371a6d9ded70ef1e9ca01c5f459689e4f8ee34e"
-dependencies = [
- "astral-tl",
- "base64 0.22.1",
- "html-escape",
- "html5ever 0.35.0",
- "markup5ever_rcdom",
- "once_cell",
- "regex",
- "thiserror 2.0.17",
-]
-
-[[package]]
-name = "html2text"
-version = "0.16.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1418e1f5886c4a3ac23a22a5590a4907935f13edb0526593dc02a769eecefdbe"
-dependencies = [
- "html5ever 0.36.1",
- "tendril",
- "thiserror 2.0.17",
- "unicode-width",
-]
-
-[[package]]
 name = "html5ever"
 version = "0.29.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3336,12 +3293,12 @@ dependencies = [
 
 [[package]]
 name = "markup5ever_rcdom"
-version = "0.35.0+unofficial"
+version = "0.36.0+unofficial"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8bcd53df4748257345b8bc156d620340ce0f015ec1c7ef1cff475543888a31d"
+checksum = "3e5fc8802e8797c0dfdd2ce5c21aa0aee21abbc7b3b18559100651b3352a7b63"
 dependencies = [
- "html5ever 0.35.0",
- "markup5ever 0.35.0",
+ "html5ever 0.36.1",
+ "markup5ever 0.36.1",
  "tendril",
  "xml5ever",
 ]
@@ -4888,7 +4845,7 @@ dependencies = [
 
 [[package]]
 name = "ravn"
-version = "2025.11.27"
+version = "2025.11.28"
 dependencies = [
  "aes-gcm",
  "async-compat",
@@ -4902,8 +4859,6 @@ dependencies = [
  "dotenv",
  "env_logger",
  "futures",
- "html-to-markdown-rs",
- "html2text",
  "json5",
  "keyring",
  "lettre",
@@ -4934,6 +4889,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tokio-native-tls",
+ "turndown",
  "url",
  "uuid",
 ]
@@ -7217,6 +7173,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
+name = "turndown"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f4c200d2982d1f6bfdb198b1938f2fb147b8647f761d5ee546c6f7263ca4d72"
+dependencies = [
+ "html5ever 0.36.1",
+ "markup5ever_rcdom",
+ "regex",
+ "tendril",
+]
+
+[[package]]
 name = "typeid"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7382,12 +7350,6 @@ name = "utf8-ranges"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fcfc827f90e53a02eaef5e535ee14266c1d569214c6aa70133a624d8a3164ba"
-
-[[package]]
-name = "utf8-width"
-version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1292c0d970b54115d14f2492fe0170adf21d68a1de108eebc51c1df4f346a091"
 
 [[package]]
 name = "utf8_iter"
@@ -8357,12 +8319,12 @@ dependencies = [
 
 [[package]]
 name = "xml5ever"
-version = "0.35.0"
+version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee3f1e41afb31a75aef076563b0ad3ecc24f5bd9d12a72b132222664eb76b494"
+checksum = "f57dd51b88a4b9f99f9b55b136abb86210629d61c48117ddb87f567e51e66be7"
 dependencies = [
  "log",
- "markup5ever 0.35.0",
+ "markup5ever 0.36.1",
 ]
 
 [[package]]

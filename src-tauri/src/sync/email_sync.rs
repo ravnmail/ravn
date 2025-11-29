@@ -16,11 +16,12 @@ use crate::search::SearchManager;
 use crate::services::notification_service::NotificationService;
 use crate::sync::conversion_mode::EmailConversionMode;
 use chrono::{DateTime, Utc};
-use html_to_markdown_rs::{convert, ConversionOptions, PreprocessingOptions, PreprocessingPreset};
+use regex::Regex;
 use sqlx::SqlitePool;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::Emitter;
+use turndown::Turndown;
 use uuid::Uuid;
 
 pub struct EmailSync {
@@ -964,14 +965,6 @@ impl EmailSync {
         })
     }
 
-    fn get_conversion_mode(&self) -> EmailConversionMode {
-        self.settings
-            .get::<String>("email.conversionMode")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(EmailConversionMode::Markdown)
-    }
-
     /// Upsert an email into the database using repository pattern
     /// Returns (email_id, inline_attachment_ids, is_new, db_email)
     async fn upsert_email(
@@ -982,7 +975,6 @@ impl EmailSync {
     ) -> SyncResult<(Uuid, Vec<Uuid>, bool, crate::database::models::email::Email)> {
         let repo_factory = RepositoryFactory::new(self.pool.clone());
         let email_repo = repo_factory.email_repository();
-        let conversion_mode = self.get_conversion_mode();
 
         let category = EmailCategorizer::categorize(
             email.headers.as_ref(),
@@ -1019,30 +1011,8 @@ impl EmailSync {
                     .map_or(true, |s| s.trim().is_empty())
             {
                 if let Some(ref html) = body_html {
-                    match conversion_mode {
-                        EmailConversionMode::Markdown => {
-                            let options = ConversionOptions {
-                                extract_metadata: false,
-                                preserve_tags: ["table"].iter().map(|s| s.to_string()).collect(),
-                                preprocessing: PreprocessingOptions {
-                                    enabled: true,
-                                    remove_forms: true,
-                                    remove_navigation: true,
-                                    preset: PreprocessingPreset::Aggressive,
-                                },
-                                ..ConversionOptions::default()
-                            };
-
-                            match convert(html, Some(options)) {
-                                Ok(markdown) => Some(markdown),
-                                Err(_) => email.body_plain.clone(),
-                            }
-                        }
-                        _ => match html2text::from_read(html.as_bytes(), 80) {
-                            Ok(text) => Some(text),
-                            Err(_) => email.body_plain.clone(),
-                        },
-                    }
+                    let converter = Turndown::new();
+                    Some(converter.convert(html))
                 } else {
                     email.body_plain.clone()
                 }

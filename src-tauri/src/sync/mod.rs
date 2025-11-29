@@ -24,7 +24,6 @@ pub mod sync_coordinator;
 pub mod sync_manager;
 pub mod sync_queue;
 pub mod types;
-
 pub use background_ai_analyzer::BackgroundAiAnalyzer;
 pub use background_avatar_fetcher::BackgroundAvatarFetcher;
 pub use background_body_fetcher::BackgroundBodyFetcher;
