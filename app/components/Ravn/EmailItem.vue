@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 
-import type { EmailListItem } from '~/types/email'
+import type { EmailCategory, EmailListItem } from '~/types/email'
 import useFormatting from '~/composables/useFormatting'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
 
@@ -67,6 +67,25 @@ const filteredLabels = computed(() => {
   return props.labels
 })
 
+const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = {
+  personal: {
+    name: 'lucide:user',
+    color: '#3b82f6',
+  },
+  promotions: {
+    name: 'lucide:tag',
+    color: '#4caf50',
+  },
+  updates: {
+    name: 'lucide:megaphone',
+    color: '#ff9800',
+  },
+  transactions: {
+    name: 'lucide:shopping-cart',
+    color: '#f44336',
+  },
+}
+
 </script>
 
 <template>
@@ -131,8 +150,14 @@ const filteredLabels = computed(() => {
             <div class="ml-auto flex items-center gap-2">
               <Icon
                 v-if="has_attachments"
-                class="shrink-0 opacity-50"
+                class="shrink-0"
                 name="lucide:paperclip"
+              />
+              <Icon
+                v-if="category"
+                :name="categoryIconMap[category].name"
+                :style="{ color: categoryIconMap[category].color }"
+                class="shrink-0"
               />
               <span
                 v-if="message_count"

@@ -3,6 +3,7 @@ import type { ConversationListItem } from '~/types/conversation'
 import useFormatting from '~/composables/useFormatting'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
 import { useDraggable } from '~/composables/useDragAndDrop'
+import type { EmailCategory } from '~/types/email'
 
 interface Props {
   conversation: ConversationListItem
@@ -109,6 +110,26 @@ const hasUnread = computed(() =>
 const hasAttachments = computed(() =>
   props.conversation.messages.some(m => m.has_attachments)
 )
+
+const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = {
+  personal: {
+    name: 'lucide:user',
+    color: '#3b82f6',
+  },
+  promotions: {
+    name: 'lucide:tag',
+    color: '#4caf50',
+  },
+  updates: {
+    name: 'lucide:megaphone',
+    color: '#ff9800',
+  },
+  transactions: {
+    name: 'lucide:shopping-cart',
+    color: '#f44336',
+  },
+}
+
 </script>
 
 <template>
@@ -183,8 +204,13 @@ const hasAttachments = computed(() =>
             <div class="ml-auto flex items-center gap-2">
               <Icon
                 v-if="hasAttachments"
-                class="shrink-0 opacity-50"
+                class="shrink-0"
                 name="lucide:paperclip"
+              />
+              <Icon
+                v-if="firstMessage.category"
+                :name="categoryIconMap[firstMessage.category].name"
+                :style="{ color: categoryIconMap[firstMessage.category].color }"
               />
               <span
                 v-if="conversation.message_count > 1"
