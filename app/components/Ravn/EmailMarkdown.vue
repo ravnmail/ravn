@@ -7,24 +7,13 @@ const props = defineProps<{
   imagesBlocked: boolean
 }>()
 
-const stripImageSources = (html: string): string => {
-  const doc = new DOMParser().parseFromString(html, 'text/html')
-
-  const images = doc.querySelectorAll('img')
-  images.forEach((img) => {
-    const src = img.getAttribute('src') || ''
-    if (src && !src.startsWith('data:') && !src.startsWith('/')) {
-      img.removeAttribute('src')
-      img.setAttribute('alt', img.getAttribute('alt') || '[Image]')
-    }
-  })
-
-  return doc.body.innerHTML
+const stripImageSources = (markdown: string): string => {
+  return markdown.replace(/!\s*\[([^\]]*)]\((?!cid:)[^)]+\)\s*/g, '')
 }
 
 const html = computed(() => {
-  const rendered = marked.parse(props.content) as string
-  return props.imagesBlocked ? stripImageSources(rendered) : rendered
+  const source = props.imagesBlocked ? stripImageSources (props.content) : props.content
+  return marked.parse(source) as string
 })
 
 const handleClick = (event: MouseEvent) => {

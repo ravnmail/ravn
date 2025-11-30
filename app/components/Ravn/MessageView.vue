@@ -404,29 +404,21 @@ const handleIframeLoad = (event: Event) => {
     />
     <div
       v-if="imagesBlocked && hasExternalImages"
-      class="flex items-center justify-between gap-3 p-2 bg-amber-50 border border-amber-200 rounded text-sm"
+      class="flex items-center justify-between bg-surface p-2 border-border border rounded text-xs"
     >
-      <div class="flex items-center gap-2 text-amber-900">
+      <div class="flex items-center gap-2">
         <Icon
           class="shrink-0"
           name="lucide:image-off"
         />
         <span>{{ $t('components.messageView.imagesBlocked') }}</span>
       </div>
-      <div class="flex gap-2 shrink-0">
-        <button
-          class="px-3 py-1.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-medium transition-colors"
-          @click="handleAllowImages"
-        >
-          <span>{{ $t('components.messageView.actions.showImages') }}</span>
-        </button>
-        <button
-          class="px-3 py-1.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-medium transition-colors"
-          @click="handleAllowAll"
-        >
-          <span>{{ $t('components.messageView.actions.showAndTrack') }}</span>
-        </button>
-      </div>
+      <Button
+        size="xs"
+        variant="outline"
+        @click="handleAllowImages"
+      >{{ $t('components.messageView.actions.showImages') }}
+      </Button>
     </div>
     <div class="flex flex-col gap-1">
       <div
