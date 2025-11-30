@@ -1,7 +1,7 @@
 {
   "name": "ravn",
   "description": "RAVN - the modern email client for digital natives",
-  "version": "2025.11.28",
+  "version": "2025.11.30",
   "author": "Michael Wallner @ Coder's Cantina",
   "license": "GPL-3.0-only",
   "type": "module",

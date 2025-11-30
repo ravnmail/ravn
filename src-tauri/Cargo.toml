@@ -1,6 +1,6 @@
 [package]
 name = "ravn"
-version = "2025.11.28"
+version = "2025.11.30"
 description = "A modern email client for digital natives."
 authors = ["Michael Wallner"]
 license = "GPL-3.0-only"
