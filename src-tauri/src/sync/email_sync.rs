@@ -33,6 +33,7 @@ pub struct EmailSync {
     app_handle: Option<tauri::AppHandle>,
     notification_service: Option<Arc<NotificationService>>,
     settings: Arc<Settings>,
+    turndown: Arc<Turndown>,
 }
 
 fn emit_folder_event<S: serde::Serialize + Clone>(
@@ -58,6 +59,9 @@ impl EmailSync {
         let repo_factory = RepositoryFactory::new(pool.clone());
         let contact_repo = Arc::new(repo_factory.contact_repository());
         let contact_extractor = Arc::new(ContactExtractor::new(contact_repo));
+        let mut options = turndown::TurndownOptions::default();
+        options.strip_tracking_images = true;
+        let turndown = Arc::new(Turndown::with_options(options));
 
         Self {
             attachment_handler: AttachmentHandler::new(pool.clone(), storage),
@@ -68,6 +72,7 @@ impl EmailSync {
             app_handle: None,
             notification_service: None,
             settings,
+            turndown,
         }
     }
 
@@ -1011,8 +1016,7 @@ impl EmailSync {
                     .map_or(true, |s| s.trim().is_empty())
             {
                 if let Some(ref html) = body_html {
-                    let converter = Turndown::new();
-                    Some(converter.convert(html))
+                    Some(self.turndown.convert(html))
                 } else {
                     email.body_plain.clone()
                 }
