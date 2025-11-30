@@ -226,10 +226,6 @@
     @apply ml-2;
   }
 
-  a {
-    @apply text-accent underline underline-offset-2 cursor-pointer;
-  }
-
   ul,
   ol {
     @apply pl-8 first:mt-0 last:mb-0;
@@ -291,7 +287,7 @@
   }
 
   a {
-    @apply text-accent transition-colors underline underline-offset-2;
+    @apply text-accent transition-colors underline underline-offset-2 cursor-pointer;
   }
 
   .selection {
