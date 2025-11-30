@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '~/components/ui/dropdown-menu'
 import { ListboxContent, ListboxGroup, ListboxGroupLabel, ListboxItem, ListboxRoot } from 'reka-ui'
 
@@ -19,8 +19,8 @@ function selectIcon(icon: string) {
   <DropdownMenu v-model="isDialogOpen">
     <DropdownMenuTrigger as-child>
       <Button
-        variant="outline"
         type="button"
+        variant="outline"
       >
         <Icon
           v-if="selectedIcon"
@@ -49,10 +49,10 @@ function selectIcon(icon: string) {
             <div class="grid grid-cols-8">
               <ListboxItem
                 v-for="option in group.items"
-                :key="option"
+                :key="`${i}-${option}`"
+                :title="option"
                 :value="option"
                 class="p-1.5"
-                :title="option"
               >
                 <Icon
                   :name="`lucide:${option}`"
