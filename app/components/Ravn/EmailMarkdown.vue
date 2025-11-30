@@ -12,6 +12,13 @@ const stripImageSources = (markdown: string): string => {
 }
 
 const html = computed(() => {
+  marked.use({
+    renderer: {
+      link: ({href, text}) => {
+        return `<a href="${href}" title="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`
+      },
+    },
+  })
   const source = props.imagesBlocked ? stripImageSources (props.content) : props.content
   return marked.parse(source) as string
 })
