@@ -10,6 +10,7 @@ import IconNameField from '~/components/ui/IconNameField.vue'
 import type { DragData } from '~/composables/useDragAndDrop'
 import { useDraggable, useDropTarget } from '~/composables/useDragAndDrop'
 import { invoke } from '@tauri-apps/api/core'
+import IconName from '~/components/ui/IconName.vue'
 
 const props = withDefaults(defineProps<NavigationFolder>(), {})
 
@@ -215,7 +216,7 @@ const cancelEdit = () => {
             <Icon
               :name="`lucide:${icon}`"
               :style="{ color: color }"
-              class="mr-2 shrink-0 text-foreground"
+              class="mr-1 shrink-0 text-foreground"
             />
             <span class="grow text-sm font-medium">{{ name }}</span>
             <span
