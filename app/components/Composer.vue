@@ -266,11 +266,6 @@ const validateForm = (): boolean => {
     return false
   }
 
-  if (!selectedAccount.value?.has_smtp_config) {
-    validationErrors.value.push(t('composer.noSmtpConfig'))
-    return false
-  }
-
   if (toEmails.value.length === 0) {
     validationErrors.value.push(t('composer.noRecipients'))
     return false
