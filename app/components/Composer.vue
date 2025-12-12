@@ -746,7 +746,7 @@ useKeyboardBindings({
         >
           <Icon
             :name="getFileIconForMimeType(file.type, file.name)"
-            type="ib"
+            mode="ib"
           />
           <div class="flex-1">
             <span class="text-sm font-medium">{{ file.name }}</span>

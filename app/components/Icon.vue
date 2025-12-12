@@ -2,10 +2,10 @@
 
 withDefaults(defineProps<{
   name: string;
-  type?: 'i' | 'ib';
+  mode?: 'i' | 'ib';
   size?: number;
 }>(), {
-  type: 'i',
+  mode: 'i',
   size: undefined
 })
 
@@ -13,7 +13,7 @@ withDefaults(defineProps<{
 
 <template>
   <span
-    :class="[type, `${type}-${name}`]"
+    :class="[mode, `${mode}-${name}`]"
     :style="{ fontSize: size ? size + 'px' : undefined }"
     aria-hidden="true"
   />
