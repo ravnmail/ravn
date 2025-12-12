@@ -158,20 +158,9 @@ pub async fn delete_contact(state: State<'_, AppState>, contact_id: Uuid) -> Res
         .map_err(|e| format!("Failed to delete contact: {}", e))
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ResyncContactCountersRequest {
-    pub account_id: Uuid,
-}
-
 #[tauri::command]
-pub async fn resync_contact_counters(
-    state: State<'_, AppState>,
-    request: ResyncContactCountersRequest,
-) -> Result<String, String> {
-    log::info!(
-        "Resyncing contact counters for account {}",
-        request.account_id
-    );
+pub async fn resync_contact_counters(state: State<'_, AppState>) -> Result<String, String> {
+    log::info!("Resyncing contact counters");
 
     let repo_factory = RepositoryFactory::new(state.db_pool.clone());
     let contact_repo = repo_factory.contact_repository();
@@ -179,26 +168,19 @@ pub async fn resync_contact_counters(
 
     // Step 1: Reset all counters to 0 for this account
     contact_repo
-        .reset_counters_by_account(request.account_id)
+        .reset_counters()
         .await
         .map_err(|e| format!("Failed to reset contact counters: {}", e))?;
 
-    log::debug!(
-        "Reset all contact counters for account {}",
-        request.account_id
-    );
+    log::debug!("Reset all contact counters",);
 
     // Step 2: Fetch all emails for this account with folder information
     let emails = email_repo
-        .find_with_folder_type(request.account_id)
+        .find_with_folder_type()
         .await
         .map_err(|e| format!("Failed to fetch emails: {}", e))?;
 
-    log::debug!(
-        "Found {} emails to process for account {}",
-        emails.len(),
-        request.account_id
-    );
+    log::debug!("Found {} emails to process", emails.len());
 
     let mut sent_count = 0;
     let mut received_count = 0;

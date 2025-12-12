@@ -1,4 +1,4 @@
-use crate::database::models::email::EmailAddress;
+use crate::database::models::email::{Email, EmailAddress};
 use crate::database::{error::DatabaseError, repositories::ContactRepository};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -12,11 +12,7 @@ impl ContactExtractor {
         Self { contact_repo }
     }
 
-    pub async fn extract_from_sender(
-        &self,
-        _account_id: Uuid,
-        from: &EmailAddress,
-    ) -> Result<Uuid, DatabaseError> {
+    pub async fn extract_from_sender(&self, from: &EmailAddress) -> Result<Uuid, DatabaseError> {
         self.contact_repo
             .increment_receive_count(&from.address, from.name.as_deref())
             .await
@@ -43,15 +39,16 @@ impl ContactExtractor {
 
     pub async fn extract_and_store_from_received_email(
         &self,
-        account_id: Uuid,
-        from: &EmailAddress,
-        to: &[EmailAddress],
-        cc: &[EmailAddress],
-        bcc: &[EmailAddress],
+        email: &Email,
     ) -> Result<(), DatabaseError> {
-        self.extract_from_sender(account_id, from).await?;
+        self.extract_from_sender(email.from()).await?;
 
-        for addr in to.iter().chain(cc.iter()).chain(bcc.iter()) {
+        for addr in email
+            .to()
+            .iter()
+            .chain(email.cc().iter())
+            .chain(email.bcc().iter())
+        {
             let _ = self
                 .contact_repo
                 .increment_receive_count(&addr.address, addr.name.as_deref())
@@ -63,7 +60,6 @@ impl ContactExtractor {
 
     pub async fn extract_and_store_from_sent_email(
         &self,
-        _account_id: Uuid,
         to: &[EmailAddress],
         cc: &[EmailAddress],
         bcc: &[EmailAddress],

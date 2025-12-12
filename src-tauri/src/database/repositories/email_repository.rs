@@ -51,10 +51,7 @@ pub trait EmailRepository {
     async fn find_synced_batch(&self, limit: i64, offset: i64)
         -> Result<Vec<Email>, DatabaseError>;
     async fn find_synced_by_account(&self, account_id: Uuid) -> Result<Vec<Email>, DatabaseError>;
-    async fn find_with_folder_type(
-        &self,
-        account_id: Uuid,
-    ) -> Result<Vec<(Email, FolderType)>, DatabaseError>;
+    async fn find_with_folder_type(&self) -> Result<Vec<(Email, FolderType)>, DatabaseError>;
     async fn undelete_by_account(&self, account_id: Uuid) -> Result<u64, DatabaseError>;
     // Sync operation methods
     async fn find_for_remote_operation(
@@ -612,12 +609,7 @@ impl EmailRepository for SqliteEmailRepository {
         .map_err(DatabaseError::ConnectionError)
     }
 
-    async fn find_with_folder_type(
-        &self,
-        account_id: Uuid,
-    ) -> Result<Vec<(Email, FolderType)>, DatabaseError> {
-        let account_id_str = account_id.to_string();
-
+    async fn find_with_folder_type(&self) -> Result<Vec<(Email, FolderType)>, DatabaseError> {
         #[derive(sqlx::FromRow)]
         struct EmailWithFolderType {
             #[sqlx(flatten)]
@@ -637,11 +629,9 @@ impl EmailRepository for SqliteEmailRepository {
                 f.folder_type
             FROM emails e
             JOIN folders f ON e.folder_id = f.id
-            WHERE e.account_id = ?
             ORDER BY e.sent_at ASC
             "#,
         )
-        .bind(account_id_str)
         .fetch_all(&self.pool)
         .await
         .map_err(DatabaseError::ConnectionError)?;
@@ -888,6 +878,10 @@ mod tests {
             sync_status: "synced".to_string(),
             tracking_blocked: true,
             images_blocked: true,
+            body_fetch_attempts: 0,
+            last_body_fetch_attempt: None,
+            change_key: None,
+            last_modified_at: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

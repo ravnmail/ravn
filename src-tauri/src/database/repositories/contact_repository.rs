@@ -33,7 +33,7 @@ pub trait ContactRepository {
         email: &str,
         name: Option<&str>,
     ) -> Result<Uuid, DatabaseError>;
-    async fn reset_counters_by_account(&self, account_id: Uuid) -> Result<(), DatabaseError>;
+    async fn reset_counters(&self) -> Result<(), DatabaseError>;
 
     async fn search_contacts(
         &self,
@@ -444,16 +444,12 @@ impl ContactRepository for SqliteContactRepository {
         .map_err(DatabaseError::ConnectionError)
     }
 
-    async fn reset_counters_by_account(&self, account_id: Uuid) -> Result<(), DatabaseError> {
-        let account_id = account_id.to_string();
-
+    async fn reset_counters(&self) -> Result<(), DatabaseError> {
         sqlx::query!(
             r#"
             UPDATE contacts
             SET send_count = 0, receive_count = 0, last_used_at = NULL
-            WHERE account_id = ?
-            "#,
-            account_id
+            "#
         )
         .execute(&self.pool)
         .await

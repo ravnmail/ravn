@@ -1128,6 +1128,11 @@ impl EmailSync {
                 .await
                 .map_err(|e| SyncError::DatabaseError(e.to_string()))?;
 
+            self.contact_extractor
+                .extract_and_store_from_received_email(&db_email)
+                .await
+                .map_err(|e| SyncError::DatabaseError(e.to_string()))?;
+
             (email_id, true, db_email)
         };
 
