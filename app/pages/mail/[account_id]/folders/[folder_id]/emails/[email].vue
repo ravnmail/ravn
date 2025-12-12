@@ -9,6 +9,6 @@ const emailId = useRoute().params.email as string
 <template>
   <EmailViewer
     :email-id="emailId"
-    class="flex-1 overflow-y-auto"
+    class="flex-1"
   />
 </template>

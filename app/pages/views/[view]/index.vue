@@ -13,7 +13,7 @@ const currentView = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full w-full select-none">
+  <div class="flex flex-col h-full w-full">
     <div class="p-4">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">

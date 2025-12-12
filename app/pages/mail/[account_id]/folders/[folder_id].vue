@@ -11,7 +11,7 @@ const accountId = computed(() => route.params.account_id as string)
     <RavnMailList
       :account-id="accountId"
       :folder-id="folderId"
-      class="h-full overflow-y-scroll shrink-0"
+      class="h-full shrink-0"
     />
     <NuxtPage/>
   </div>
