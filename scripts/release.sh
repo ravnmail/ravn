@@ -31,7 +31,7 @@ if [[ $local_commit != $remote_commit ]]; then
     fi
 fi
 
-year=$(date +"%Y")
+year=$(date +"%y")
 month=$(date +"%m" | sed 's/^0//')
 day=$(date +"%d" | sed 's/^0//')
 version="${year}.${month}.${day}"
