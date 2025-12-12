@@ -27,6 +27,9 @@ env:
   APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
   APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
   KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+  # Auto-update signing
+  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
 jobs:
   determine-build-type:
@@ -237,33 +240,86 @@ jobs:
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [determine-build-type, build-macos]
+    needs: [determine-build-type, build-linux, build-windows, build-macos]
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          
+          # Copy Linux AppImage
+          if [ -d "artifacts/linux-artifacts/appimage" ]; then
+            cp artifacts/linux-artifacts/appimage/*.AppImage* release/ 2>/dev/null || true
+            cp artifacts/linux-artifacts/appimage/*.AppImage.tar.gz* release/ 2>/dev/null || true
+          fi
+          
+          # Copy Windows MSI
+          if [ -d "artifacts/windows-artifacts/msi" ]; then
+            cp artifacts/windows-artifacts/msi/*.msi* release/ 2>/dev/null || true
+          fi
+          
+          # Copy macOS DMG
+          if [ -d "artifacts/macos-aarch64-apple-darwin-artifacts/dmg" ]; then
+            cp artifacts/macos-aarch64-apple-darwin-artifacts/dmg/*.dmg* release/ 2>/dev/null || true
+          fi
+          
+          echo "Release assets prepared:"
+          ls -lah release/
+
+      - name: Create Release with Assets
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.determine-build-type.outputs.version }}
-          release_name: Release ${{ needs.determine-build-type.outputs.version }}
+          name: Release ${{ needs.determine-build-type.outputs.version }}
           body: |
-            ## Release Information
+            ## Release v${{ needs.determine-build-type.outputs.version }}
+            
+            **Build Information:**
             - **Version**: ${{ needs.determine-build-type.outputs.version }}
             - **Commit**: ${{ needs.determine-build-type.outputs.short-hash }}
-            - **Build Date**: ${{ github.event.head_commit.timestamp }}
+            - **Release Date**: ${{ github.event.head_commit.timestamp }}
             
-            ## Artifacts
-            - Linux builds in `/linux-artifacts`
-            - Windows builds in `/windows-artifacts`
-            - macOS builds in `/macos-*-artifacts`
+            ## Download
+            Download the appropriate installer for your platform below.
+            
+            ### Supported Platforms
+            - **Linux**: AppImage format (run with `chmod +x` and double-click)
+            - **Windows**: MSI installer
+            - **macOS**: DMG installer (arm64)
+            
+            ## Installation Instructions
+            
+            ### Linux
+            ```bash
+            chmod +x RAVN-*.AppImage
+            ./RAVN-*.AppImage
+            ```
+            
+            ### Windows
+            Run the `.msi` file and follow the installer wizard.
+            
+            ### macOS
+            Double-click the `.dmg` file and drag the app to Applications.
+            
+            ---
+            
+            ## Changes
+            Add your changelog here
+          files: release/**/*
           draft: false
           prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   nightly-notification:
     name: Nightly Build Notification

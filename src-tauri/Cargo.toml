@@ -95,5 +95,8 @@ objc2-quick-look-ui = "0.3"
 objc2-foundation = "0.3"
 objc2 = "0.6"
 
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2.9"
+
 [dev-dependencies]
 tempfile = "3.23"
