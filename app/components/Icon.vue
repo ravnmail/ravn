@@ -1,15 +1,19 @@
 <script lang="ts" setup>
 
-defineProps<{
+withDefaults(defineProps<{
   name: string;
+  type?: 'i' | 'ib';
   size?: number;
-}>()
+}>(), {
+  type: 'i',
+  size: undefined
+})
 
 </script>
 
 <template>
   <span
-    :class="['i', `i-${name}`]"
+    :class="[type, `${type}-${name}`]"
     :style="{ fontSize: size ? size + 'px' : undefined }"
     aria-hidden="true"
   />

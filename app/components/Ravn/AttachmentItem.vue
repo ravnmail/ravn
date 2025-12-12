@@ -44,6 +44,7 @@ const handleDoubleClick = () => {
     <Icon
       :name="getFileIcon(attachment.content_type, attachment.filename)"
       class="shrink-0"
+      type="ib"
     />
     <div class="flex-1">
       <div class="text-sm font-medium max-w-48 truncate">

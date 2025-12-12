@@ -16,6 +16,7 @@ import { marked } from 'marked'
 import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
 import { Input } from '~/components/ui/input'
 import { useCorvus } from '~/composables/useCorvus'
+import { getFileIconForMimeType } from '~/lib/utils/fileIcons'
 
 interface Props {
   draft?: EmailDetail
@@ -744,13 +745,16 @@ useKeyboardBindings({
           variant="secondary"
         >
           <Icon
-            class="w-3 h-3"
-            name="lucide:file"
+            :name="getFileIconForMimeType(file.type, file.name)"
+            type="ib"
           />
-          <span class="text-xs">{{ file.name }} ({{ formatFileSize(file.size) }})</span>
+          <div class="flex-1">
+            <span class="text-sm font-medium">{{ file.name }}</span>
+            <div class="text-xs opacity-60">{{ formatFileSize(file.size) }}</div>
+          </div>
           <button
             :title="$t('composer.removeAttachment')"
-            class="hover:bg-destructive/20 rounded p-0.5 transition-colors"
+            class="rounded p-0.5 transition-colors hover:text-primary"
             @click="removeAttachment(index)"
           >
             <Icon

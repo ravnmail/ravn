@@ -4,6 +4,8 @@ import { save } from '@tauri-apps/plugin-dialog'
 import type { Attachment } from '~/types/email'
 import type { AttachmentData } from '~/composables/useAccountEmail'
 
+import { getFileIconForMimeType } from '~/lib/utils/fileIcons'
+
 interface AttachmentInfo {
   id: string
   email_id: string
@@ -143,24 +145,7 @@ export function useAttachments() {
   }
 
   const getFileIcon = (contentType: string, filename: string): string => {
-    if (contentType.startsWith('image/'))
-      return 'lucide:image'
-    if (contentType.startsWith('video/'))
-      return 'lucide:video'
-    if (contentType.startsWith('audio/'))
-      return 'lucide:music'
-    if (contentType === 'application/pdf')
-      return 'lucide:file-text'
-    if (contentType.includes('word') || filename.endsWith('.doc') || filename.endsWith('.docx'))
-      return 'lucide:file-text'
-    if (contentType.includes('excel') || contentType.includes('spreadsheet') || filename.endsWith('.xls') || filename.endsWith('.xlsx'))
-      return 'lucide:file-spreadsheet'
-    if (contentType.includes('powerpoint') || contentType.includes('presentation') || filename.endsWith('.ppt') || filename.endsWith('.pptx'))
-      return 'lucide:presentation'
-    if (contentType.includes('zip') || contentType.includes('compressed') || filename.endsWith('.zip') || filename.endsWith('.rar'))
-      return 'lucide:file-archive'
-    if (contentType.includes('text/') || filename.endsWith('.txt'))
-      return 'lucide:file-text'
+    return getFileIconForMimeType(contentType, filename)
 
     return 'lucide:file'
   }
