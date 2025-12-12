@@ -1,9 +1,11 @@
 use crate::config::Settings;
-use async_openai::config::OpenAIConfig;
-use async_openai::types::{
-    ChatCompletionRequestMessage, ChatCompletionRequestUserMessage,
-    CreateChatCompletionRequestArgs, CreateCompletionRequestArgs,
+use async_openai::config::{Config, OpenAIConfig};
+use async_openai::traits::RequestOptionsBuilder;
+use async_openai::types::chat::{
+    ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
+    ChatCompletionRequestUserMessage, CreateChatCompletionRequestArgs,
 };
+use async_openai::types::completions::CreateCompletionRequestArgs;
 use async_openai::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -130,7 +132,12 @@ impl CorvusService {
         let base_url = self.get_base_url()?;
         let config = OpenAIConfig::new()
             .with_api_key(api_key)
-            .with_api_base(base_url);
+            .with_api_base(base_url)
+            .with_header("HTTP-REFERER", "https://ravnmail.com")
+            .unwrap()
+            .with_header("X-Title", "RAVN Mail")
+            .unwrap();
+
         Ok(Client::with_config(config))
     }
 
@@ -570,12 +577,10 @@ Important:
         );
 
         let messages = vec![
-            ChatCompletionRequestMessage::System(
-                async_openai::types::ChatCompletionRequestSystemMessage {
-                    content: system_prompt.into(),
-                    name: None,
-                },
-            ),
+            ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
+                content: system_prompt.into(),
+                name: None,
+            }),
             ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
                 content: prompt.into(),
                 name: None,
