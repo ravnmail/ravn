@@ -396,7 +396,7 @@ watch(() => props.folderId, () => {
 </script>
 
 <template>
-  <div class="flex flex-col w-96 select-none">
+  <div class="flex flex-col">
     <div class="flex p-3 items-center border-b border-b-border">
       <h1 class="text-primary font-semibold">
         {{ currentFolder?.name }}
@@ -489,7 +489,7 @@ watch(() => props.folderId, () => {
         </Popover>
       </div>
     </div>
-    <ScrollArea class="m-2 flex-1">
+    <ScrollArea class="p-1 m-1 flex-1">
       <div
         v-if="groupedConversations.total === 0"
         class="h-full flex items-center justify-center py-20"

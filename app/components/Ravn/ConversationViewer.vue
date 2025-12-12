@@ -231,7 +231,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex h-screen bg-background">
+  <div class="flex h-screen bg-background w-full">
     <div
       v-if="conversation"
       class="flex-1 flex flex-col"

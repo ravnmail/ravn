@@ -29,7 +29,7 @@ whenever(cmdK, () => {
   />
   <NuxtLayout>
     <CommandPalette/>
-    <AlertDialogProvider class="w-screen h-screen">
+    <AlertDialogProvider class="h-screen">
       <NuxtPage/>
     </AlertDialogProvider>
     <Toaster

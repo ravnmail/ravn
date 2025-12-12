@@ -92,7 +92,7 @@ const handleComposerDiscarded = () => {
 <template>
   <nav
     :class="[sticky ? 'pt-12 h-screen bg-sidebar-background border-r' : 'fixed inset-y-24 rounded-r border-r border-t border-b left-0 pt-2 -translate-x-full transition-transform z-10', show ? 'translate-x-0' : '' ]"
-    class="min-w-64 w-64 bg-sidebar-background flex flex-col px-2 pb-2 gap-4 border-sidebar-border overflow-hidden"
+    class="bg-sidebar-background flex flex-col px-2 pb-2 gap-4 border-sidebar-border overflow-hidden"
   >
     <div
       v-if="sticky"
