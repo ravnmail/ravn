@@ -133,6 +133,28 @@ export function useFolders() {
         }
       }
     })
+    const sortChildren = (items: SidebarFolderItem[]) => {
+      items.sort((a, b) => {
+        const orderA = a.sort_order || 999
+        const orderB = b.sort_order || 999
+        if (orderA !== orderB) {
+          return orderA - orderB
+        }
+        return a.name.localeCompare(b.name)
+      })
+
+      items.forEach(item => {
+        if (item.children) {
+          sortChildren(item.children)
+        }
+      })
+    }
+
+    Object.values(accountMap).forEach(section => {
+      if (section.children) {
+        sortChildren(section.children)
+      }
+    })
 
     return Object.values(accountMap)
   }
