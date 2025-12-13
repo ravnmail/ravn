@@ -27,8 +27,8 @@ const { data: conversations } = useGetConversationsForFolder(
   0
 )
 
-const { useNavigationFolders, useUpdateSettingsMutation, useInitSyncMutation } = useFolders()
-const accountFolders = useNavigationFolders(props.accountId)
+const { folders, flatten, useUpdateSettingsMutation, useInitSyncMutation } = useFolders()
+const accountFolders = computed(() => [])
 
 const { mutateAsync: updateSettings } = useUpdateSettingsMutation()
 const { mutateAsync: initSync } = useInitSyncMutation()

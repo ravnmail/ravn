@@ -64,9 +64,11 @@ const { isOver, canDrop } = useDropTarget(folderRef, {
 const handleFolderDrop = async (data: DragData) => {
   try {
     await invoke('move_folder', {
-      accountId: props.accountId,
-      folderId: data.id,
-      newParentId: props.id || null,
+      request: {
+        account_id: props.account_id,
+        folder_id: data.id,
+        new_parent_id: props.id || null,
+      }
     })
   } catch (error) {
     console.error('Failed to move folder:', error)

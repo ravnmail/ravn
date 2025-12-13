@@ -17,8 +17,10 @@ const keys = useMagicKeys()
 const shortcut = keys['Meta+P']
 
 const { accounts } = useAccounts()
-const { useNavigationFolders, flatten } = useFolders()
+const { folders, mapFolderTree, flatten } = useFolders()
 const { views } = useViews()
+
+const accountFolders = computed(() => mapFolderTree(folders.value, accounts.value))
 
 whenever(shortcut, () => {
   isOpen.value = !isOpen.value
@@ -91,7 +93,7 @@ const handleSelect = (value: string) => {
           :heading="account.name"
         >
           <CommandItem
-            v-for="item in flatten(useNavigationFolders(account.id).value)"
+            v-for="item in flatten(accountFolders)"
             :key="item.id"
             :value="`ravn://mail/${account.id}/folders/${item.id}`"
           >

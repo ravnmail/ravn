@@ -3,17 +3,15 @@
 import IconName from '~/components/ui/IconName.vue'
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '~/components/ui/command'
 
-const { useNavigationFolders, flatten } = useFolders()
+const { accounts } = useAccounts()
+const { folders, mapFolderTree, flatten } = useFolders()
 
 const props = defineProps<{
-  accountId: string
   showHidden?: boolean
 }>()
 
-const data = useNavigationFolders(props.accountId)
-
 const flattened = computed(() => {
-  return flatten(data.value)
+  return flatten(mapFolderTree(folders.value, accounts.value))
 })
 
 </script>

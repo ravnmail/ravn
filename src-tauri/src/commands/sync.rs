@@ -431,45 +431,6 @@ pub struct MoveFolderRequest {
     pub new_parent_id: Option<Uuid>,
 }
 
-#[tauri::command]
-pub async fn move_folder(
-    state: State<'_, AppState>,
-    request: MoveFolderRequest,
-) -> Result<(), String> {
-    use crate::database::repositories::{FolderRepository, SqliteFolderRepository};
-
-    let folder_repo = SqliteFolderRepository::new(state.db_pool.clone());
-
-    let mut folder = folder_repo
-        .find_by_id(request.folder_id)
-        .await
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| format!("Folder {} not found", request.folder_id))?;
-
-    let old_parent_id = folder.parent_id;
-    folder.parent_id = request.new_parent_id;
-
-    folder_repo
-        .update(&folder)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if let Err(e) = state
-        .sync_coordinator
-        .move_folder(
-            request.account_id,
-            request.folder_id,
-            old_parent_id,
-            request.new_parent_id,
-        )
-        .await
-    {
-        log::warn!("Failed to sync folder move to provider: {}", e);
-    }
-
-    Ok(())
-}
-
 #[derive(Debug, Deserialize)]
 pub struct UpdateFolderSettingsRequest {
     pub folder_id: Uuid,

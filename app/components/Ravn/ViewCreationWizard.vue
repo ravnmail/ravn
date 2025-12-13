@@ -36,10 +36,10 @@ const {
   goBack,
 } = useViewWizard()
 
-const { useNavigationFolders, flatten } = useFolders()
-const accountFolders = useNavigationFolders('019ab4ec-729d-71b0-a370-c5116ca9358c')
+// const { useNavigationFolders, flatten } = useFolders()
+// const accountFolders = useNavigationFolders('019ab4ec-729d-71b0-a370-c5116ca9358c')
 
-const allFolders = computed(() => flatten(accountFolders?.value) || [])
+// const allFolders = computed(() => flatten(accountFolders?.value) || [])
 
 const customizations = ref({
   name: '',

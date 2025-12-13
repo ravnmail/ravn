@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
-use tauri::{Emitter, State};
-use uuid::Uuid;
-
+use crate::commands::sync::MoveFolderRequest;
 use crate::database::models::folder::{Folder, FolderSettings, FolderType};
 use crate::database::repositories::{FolderRepository, SqliteFolderRepository};
 use crate::state::AppState;
 use crate::sync::SyncFolder;
+use serde::{Deserialize, Serialize};
+use tauri::{Emitter, State};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FolderResponse {
@@ -197,6 +197,51 @@ pub async fn update_expanded(
         .update(&folder)
         .await
         .map_err(|e| format!("Failed to update folder: {}", e))?;
+
+    emit_folder_event(
+        &state.app_handle,
+        "folder:updated",
+        serde_json::json!(folder),
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn move_folder(
+    state: State<'_, AppState>,
+    request: MoveFolderRequest,
+) -> Result<(), String> {
+    use crate::database::repositories::{FolderRepository, SqliteFolderRepository};
+
+    let folder_repo = SqliteFolderRepository::new(state.db_pool.clone());
+
+    let mut folder = folder_repo
+        .find_by_id(request.folder_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Folder {} not found", request.folder_id))?;
+
+    let old_parent_id = folder.parent_id;
+    folder.parent_id = request.new_parent_id;
+
+    folder_repo
+        .update(&folder)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if let Err(e) = state
+        .sync_coordinator
+        .move_folder(
+            request.account_id,
+            request.folder_id,
+            old_parent_id,
+            request.new_parent_id,
+        )
+        .await
+    {
+        log::warn!("Failed to sync folder move to provider: {}", e);
+    }
 
     emit_folder_event(
         &state.app_handle,
