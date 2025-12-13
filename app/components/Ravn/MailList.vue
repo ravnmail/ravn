@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
 import { FormField } from '~/components/ui/form'
 import { Switch } from '~/components/ui/switch'
+import EmptyState from '~/components/ui/empty/EmptyState.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -413,7 +414,7 @@ watch(() => props.folderId, () => {
               />
             </Button>
           </PopoverTrigger>
-          <PopoverContent class="w-80">
+          <PopoverContent class="w-40 p-3">
             <select
               v-model="filterRead"
               class="text-xs px-2 py-1 rounded border border-border bg-background"
@@ -425,7 +426,6 @@ watch(() => props.folderId, () => {
 
             <!-- Attachments filter -->
             <Button
-              class="text-xs px-2 py-1 rounded border border-border hover:bg-accent"
               @click="filterHasAttachments = filterHasAttachments === true ? null : true"
             >
               <Icon
@@ -446,7 +446,7 @@ watch(() => props.folderId, () => {
               />
             </Button>
           </PopoverTrigger>
-          <PopoverContent class="w-80">
+          <PopoverContent class="w-80 p-3">
             <div class="flex flex-col gap-4">
               <FormField
                 :label="$t('components.mailList.sorting.label')"
@@ -490,26 +490,13 @@ watch(() => props.folderId, () => {
       </div>
     </div>
     <ScrollArea class="p-1 m-1 flex-1">
-      <div
+      <EmptyState
         v-if="groupedConversations.total === 0"
-        class="h-full flex items-center justify-center py-20"
-      >
-        <div class="text-center">
-          <div class="text-4xl mb-4">
-            {{ currentFolder?.folder_type === 'inbox' ? '🎉' : '📭' }}
-          </div>
-          <div class="text-lg font-semibold mb-2">
-            {{
-              currentFolder?.folder_type === 'inbox' ? $t('components.mailList.emptyState.inbox.title') : $t('components.mailList.emptyState.generic.title')
-            }}
-          </div>
-          <div class="text-sm text-muted">
-            {{
-              currentFolder?.folder_type === 'inbox' ? $t('components.mailList.emptyState.inbox.message') : $t('components.mailList.emptyState.generic.message')
-            }}
-          </div>
-        </div>
-      </div>
+        :description="currentFolder?.folder_type === 'inbox' ? $t('components.mailList.emptyState.inbox.message') : $t('components.mailList.emptyState.generic.message')"
+        :icon="currentFolder?.folder_type === 'inbox' ? '🎉' : '📭'"
+        :title="currentFolder?.folder_type === 'inbox' ? $t('components.mailList.emptyState.inbox.title') : $t('components.mailList.emptyState.generic.title')"
+        class="h-full"
+      />
 
       <template v-else>
         <template v-if="shouldGroup">
