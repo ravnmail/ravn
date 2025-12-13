@@ -97,9 +97,11 @@ export function useFolders() {
       const folderMap = new Map<string, Folder>()
       const rootFolders: Folder[] = []
 
-      folderList.forEach((folder) => {
-        folderMap.set(folder.id, toNavigationFolder(folder))
-      })
+      folderList
+        .filter(folder => !folder.hidden)
+        .forEach((folder) => {
+          folderMap.set(folder.id, toNavigationFolder(folder))
+        })
 
       folderMap.forEach((folder) => {
         if (folder.parent_id) {
