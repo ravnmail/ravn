@@ -10,14 +10,20 @@ import IconNameField from '~/components/ui/IconNameField.vue'
 import type { DragData } from '~/composables/useDragAndDrop'
 import { useDraggable, useDropTarget } from '~/composables/useDragAndDrop'
 import { invoke } from '@tauri-apps/api/core'
-import IconName from '~/components/ui/IconName.vue'
+import { Button } from '~/components/ui/button'
+import { PopoverContent, Popover, PopoverAnchor } from '~/components/ui/popover'
+import { SimpleTooltip } from '~/components/ui/tooltip'
+import type { SidebarNavigationItem, SidebarSectionItem } from '~/composables/useSidebarNavigation'
 
-const props = withDefaults(defineProps<NavigationFolder>(), {})
+const emits = defineEmits<{
+  (e: 'expanded', isExpanded: boolean): void
+}>()
+
+const props = withDefaults(defineProps<SidebarNavigationItem | SidebarSectionItem & { isExpanded: boolean }>(), {})
 
 const { t } = useI18n()
-const { updateExpanded, updateHidden, updateFolderProperties, initSync } = useFolders()
+const { updateHidden, updateFolderProperties, initSync } = useFolders()
 const { move } = useEmails()
-const localExpanded = ref(props.expanded || false)
 const isEditing = ref(false)
 const editValue = ref({ icon: props.icon, color: props.color, name: props.name })
 
@@ -38,6 +44,9 @@ const { isOver, canDrop } = useDropTarget(folderRef, {
     accepts: ['folder', 'email', 'conversation'],
   }),
   canDrop: (data: DragData) => {
+    if (!props.folder_type) {
+      return false
+    }
     if (data.type === 'folder') {
       return data.id !== String(props.id)
     }
@@ -96,21 +105,8 @@ const handleEmailDrop = async (data: DragData) => {
   }
 }
 
-// Watch for prop changes (from database updates)
-watch(() => props.expanded, (newVal) => {
-  localExpanded.value = newVal || false
-})
-
 const toggleExpanded = async () => {
-  const newExpanded = !localExpanded.value
-  localExpanded.value = newExpanded
-
-  try {
-    await updateExpanded({ folderId: props.id, isExpanded: newExpanded })
-  } catch (err) {
-    console.error('Failed to persist expanded state:', err)
-    localExpanded.value = !newExpanded
-  }
+  emits('expanded', !props.isExpanded)
 }
 
 const handleHide = async () => {
@@ -158,114 +154,116 @@ const cancelEdit = () => {
 
 <template>
   <div
-    v-if="!hidden"
+    :class="[
+      isOver && canDrop ? 'ring-1 ring-primary ring-offset-1 bg-selection' : '',
+      isOver && !canDrop ? 'ring-1 ring-destructive ring-offset-1' : '']"
     class="relative"
   >
-    <div
-      v-if="isEditing"
-      class="px-1 py-2"
+    <Popover
+      :open="isEditing"
+      @update:open="(isOpen) => { isEditing = isOpen }"
     >
-      <IconNameField
-        v-model="editValue"
-        class="mb-2"
-      />
-      <div class="flex gap-2 justify-end">
-        <button
-          class="px-3 py-1 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90"
+      <PopoverAnchor/>
+      <PopoverContent
+        :align-offset="8"
+        :side-offset="28"
+        align="start"
+        class="flex items-center"
+        side="bottom"
+      >
+        <IconNameField
+          v-model="editValue"
+          class="mr-1"
+        />
+        <Button
+          size="xs"
+          variant="ghost"
           @click="saveEdit"
         >
-          {{ t('components.verticalNavItem.actions.save') }}
-        </button>
-        <button
-          class="px-3 py-1 text-xs rounded border hover:bg-popover"
-          @click="cancelEdit"
-        >
-          {{ t('components.verticalNavItem.actions.cancel') }}
-        </button>
-      </div>
-    </div>
-    <DropdownMenu v-else>
+          <Icon
+            class="text-success"
+            name="lucide:check"
+          />
+        </Button>
+        <SimpleTooltip tooltip-markdown="press `ESC` to cancel">
+          <Button
+            size="xs"
+            variant="ghost"
+            @click="cancelEdit"
+          >
+            <Icon
+              class="text-destructive"
+              name="lucide:x"
+            />
+          </Button>
+        </SimpleTooltip>
+      </PopoverContent>
+    </Popover>
+    <DropdownMenu>
       <div
         ref="folderRef"
         :class="[
-          'overflow-hidden transition-all duration-200 rounded group',
-          isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab'
+          'flex items-center py-0.5',
+          isDragging ? 'opacity-50 cursor-grabbing' : '',
         ]"
       >
-        <NuxtLink
-          :class="[
-              'flex flex-col px-1 py-1.5 transition-all duration-200',
-              'hover:bg-selection',
-              isOver && canDrop ? 'ring-2 ring-primary ring-offset-1 bg-accent' : '',
-              isOver && !canDrop ? 'ring-2 ring-destructive ring-offset-1' : ''
-            ]"
-          :to="`/mail/${account_id}/folders/${id}`"
-          active-class="bg-selection text-primary"
+        <div
+          v-if="children?.length"
+          class="w-5 pl-1 h-full opacity-50 hover:opacity-100 text-primary transition-opacity"
+          @click.stop.prevent="toggleExpanded"
         >
-          <div class="flex items-center gap-1">
-            <Icon
-              v-if="children?.length"
-              :class="['shrink-0 transition-transform opacity-50', localExpanded ? 'transform rotate-90' : '']"
-              name="lucide:chevron-right"
-              @click.stop.prevent="toggleExpanded"
-            />
-            <span
-              v-else
-              class="w-4 shrink-0"
-            />
-            <Icon
-              :name="`lucide:${icon}`"
-              :style="{ color: color }"
-              class="mr-1 shrink-0 text-foreground"
-            />
-            <span class="grow text-sm font-medium">{{ name }}</span>
-            <span
-              v-if="unread_count"
-              class="ml-auto text-xs text-muted mr-2 group-hover:opacity-0"
-            >{{ unread_count }}</span>
-            <DropdownMenuTrigger as-child>
-              <Icon
-                class="absolute right-2 opacity-0 group-hover:opacity-50 hover:opacity-100 transition-opacity"
-                name="lucide:ellipsis"
-                @click.stop.prevent
-              />
-            </DropdownMenuTrigger>
-          </div>
-        </NuxtLink>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem @click="startEdit">
-            <Icon
-              class="w-4 h-4 mr-2"
-              name="lucide:pen"
-            />
-            {{ t('components.verticalNavItem.actions.edit') }}
-          </DropdownMenuItem>
-          <DropdownMenuItem @click="handleHide">
-            <Icon
-              class="w-4 h-4 mr-2"
-              name="lucide:eye-off"
-            />
-            {{ t('components.verticalNavItem.actions.hide') }}
-          </DropdownMenuItem>
-          <DropdownMenuItem @click="handleSync">
-            <Icon
-              class="w-4 h-4 mr-2"
-              name="lucide:refresh-cw"
-            />
-            {{ t('components.verticalNavItem.actions.sync') }}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
+          <Icon
+            :class="['transition-transform opacity-50', isExpanded ? 'transform rotate-90' : '']"
+            :size="14"
+            name="lucide:chevron-right"
+          />
+        </div>
+        <div
+          v-else
+          class="w-5 h-6 shrink-0"
+        />
+        <Icon
+          :name="`lucide:${icon}`"
+          :size="18"
+          :style="{ color: color }"
+          class="mr-1.5 shrink-0 text-foreground"
+        />
+        <span class="grow text-sm font-medium">{{ name }}</span>
+        <span
+          v-if="unread_count"
+          class="ml-auto font-semibold text-xs text-muted mr-2 group-hover:opacity-0"
+        >{{ unread_count }}</span>
+        <DropdownMenuTrigger
+          v-if="folder_type"
+          as-child
+        >
+          <Icon
+            class="absolute right-2 opacity-0 group-hover:opacity-50 hover:opacity-100 transition-opacity"
+            name="lucide:ellipsis"
+            @click.stop.prevent
+          />
+        </DropdownMenuTrigger>
       </div>
+      <DropdownMenuContent align="start">
+        <DropdownMenuItem @click="startEdit">
+          <Icon
+            name="lucide:pen"
+          />
+          {{ t('components.verticalNavItem.actions.edit') }}
+        </DropdownMenuItem>
+        <DropdownMenuItem @click="handleHide">
+          <Icon
+            name="lucide:eye-off"
+          />
+          {{ t('components.verticalNavItem.actions.hide') }}
+        </DropdownMenuItem>
+        <DropdownMenuItem @click="handleSync">
+          <Icon
+            name="lucide:refresh-cw"
+          />
+          {{ t('components.verticalNavItem.actions.sync') }}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
     </DropdownMenu>
-    <div
-      v-if="children?.length && localExpanded && !isEditing"
-      class="pl-3"
-    >
-      <VerticalNavigationItem
-        v-for="child in children"
-        :key="child.id"
-        v-bind="child"
-      />
-    </div>
   </div>
 </template>

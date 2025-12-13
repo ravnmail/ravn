@@ -1,15 +1,15 @@
 import { invoke } from '@tauri-apps/api/core'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
-import type { Folder, FolderType } from '~/types/sync'
+import type { Account, Folder, FolderType } from '~/types/sync'
+import type { SidebarFolderItem } from '~/composables/useSidebarNavigation'
 
 const QUERY_KEYS = {
   all: ['folders'] as const,
-  lists: () => [...QUERY_KEYS.all, 'list'] as const,
-  list: (accountId: string) => [...QUERY_KEYS.lists(), accountId] as const,
+  list: () => [...QUERY_KEYS.all, 'list'] as const,
 }
 
 export function useFolders() {
-  const queryClient = useQueryClient()
+  // const queryClient = useQueryClient()
 
   const getFolderSortOrder = (folderType: FolderType): number => {
     const orderMap: Record<FolderType, number> = {
@@ -25,26 +25,21 @@ export function useFolders() {
     return orderMap[folderType] || 999
   }
 
-  const toNavigationFolder = (folder: Folder): Folder => {
+  const toNavigationFolder = (folder: Folder): SidebarFolderItem => {
     return {
       ...folder,
+      href: `/mail/${folder.account_id}/folders/${folder.id}`,
+      type: 'folder',
       sort_order: getFolderSortOrder(folder.folder_type),
     }
   }
 
-  const useGetFolders = (accountId: string | Ref<string>) => {
+  const useGetFolders = () => {
     return useQuery({
-      queryKey: QUERY_KEYS.list(computed(() =>
-        typeof accountId === 'string' ? accountId : accountId.value
-      ).value),
+      queryKey: QUERY_KEYS.list(),
       queryFn: async () => {
-        const id = typeof accountId === 'string' ? accountId : accountId.value
-        return await invoke<Folder[]>('get_folders', { accountId: id })
-      },
-      enabled: computed(() => {
-        const id = typeof accountId === 'string' ? accountId : accountId.value
-        return !!id
-      }),
+        return await invoke<Folder[]>('get_folder_navigation')
+      }
     })
   }
 
@@ -89,59 +84,7 @@ export function useFolders() {
     },
   })
 
-  const useNavigationFolders = (accountId: string) => {
-    const { data: folders } = useGetFolders(accountId)
-
-    return computed(() => {
-      const folderList = folders.value || []
-      const folderMap = new Map<string, Folder>()
-      const rootFolders: Folder[] = []
-
-      folderList
-        .filter(folder => !folder.hidden)
-        .forEach((folder) => {
-          folderMap.set(folder.id, toNavigationFolder(folder))
-        })
-
-      folderMap.forEach((folder) => {
-        if (folder.parent_id) {
-          const parent = folderMap.get(folder.parent_id)
-          if (parent) {
-            if (!parent.children) {
-              parent.children = []
-            }
-            parent.children.push(folder)
-          } else {
-            rootFolders.push(folder)
-          }
-        } else {
-          rootFolders.push(folder)
-        }
-      })
-
-      const sortFolders = (folderList: Folder[]) => {
-        folderList.sort((a, b) => {
-          const orderA = a.sort_order || 999
-          const orderB = b.sort_order || 999
-          if (orderA !== orderB) {
-            return orderA - orderB
-          }
-          return a.name.localeCompare(b.name)
-        })
-
-        folderList.forEach((folder) => {
-          if (folder.children?.length) {
-            sortFolders(folder.children)
-          }
-        })
-      }
-
-      sortFolders(rootFolders)
-      return rootFolders
-    })
-  }
-
-  const flatten = (folders: Folder[], level: number = 0) => {
+  const flatten = (folders: SidebarFolderItem[], level: number = 0) => {
     let result: Array<Folder & { level: number }> = []
     folders.forEach(item => {
       result.push({ ...item, level })
@@ -152,9 +95,57 @@ export function useFolders() {
     return result
   }
 
+  const mapFolderTree = (folders: Folder[], accounts: Account[]): SidebarSectionItem[] => {
+    const accountMap: Record<string, SidebarSectionItem> = {}
+    accounts?.forEach(account => {
+      accountMap[account.id] = {
+        id: account.id,
+        title: account.name,
+        type: 'section',
+        children: [],
+      }
+    })
+
+    if (!folders || folders.length === 0) {
+      return Object.values(accountMap)
+    }
+
+    const folderMap: Record<string, SidebarFolderItem> = {}
+    folders?.forEach(folder => {
+      if (folder.hidden) {
+        return
+      }
+      const navFolder = toNavigationFolder(folder)
+      folderMap[folder.id] = navFolder
+
+      if (folder.parent_id) {
+        const parentFolder = folderMap[folder.parent_id]
+        if (parentFolder) {
+          parentFolder.children = parentFolder.children || []
+          parentFolder.children.push(navFolder)
+        }
+      }
+      else {
+        const accountSection = accountMap[folder.account_id]
+        if (accountSection) {
+          accountSection.children = accountSection.children || []
+          accountSection.children.push(navFolder)
+        }
+      }
+    })
+
+    return Object.values(accountMap)
+  }
+
+  const {
+    data: folders,
+  } = useGetFolders()
+
   return {
+    folders,
     useGetFolders,
-    useNavigationFolders,
+    mapFolderTree,
+    toNavigationFolder,
     useInitSyncMutation,
     initSync: useInitSyncMutation().mutateAsync,
     useUpdateExpandedMutation,
