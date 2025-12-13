@@ -22,6 +22,7 @@
           "x": 16,
           "y": 20
         },
+        "userAgent": "RAVN Mail Client",
         "fullscreen": false,
         "dragDropEnabled": false
       }
