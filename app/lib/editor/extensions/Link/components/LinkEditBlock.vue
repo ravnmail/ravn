@@ -48,7 +48,7 @@ onMounted(() => {
 <template>
   <div
     ref="target"
-    class="p-2 bg-white rounded-lg dark:bg-black shadow-sm border border-neutral-200 dark:border-neutral-800"
+    class="p-2 bg-popover border border-popover-border rounded-md shadow-md"
   >
     <form
       class="flex flex-col gap-2"
@@ -78,7 +78,7 @@ onMounted(() => {
           />
           <span class="absolute start-0 inset-y-0 flex items-center justify-center px-2">
             <Icon
-              class="size-5 text-muted-foreground"
+              class="text-muted-foreground"
               name="lucide:link"
             />
           </span>
@@ -86,6 +86,7 @@ onMounted(() => {
       </div>
       <Button
         class="mt-2 self-end"
+        size="sm"
         type="submit"
       >{{ t('composer.link.dialog.button.apply') }}
       </Button>

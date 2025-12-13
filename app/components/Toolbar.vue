@@ -4,6 +4,7 @@ import type { Editor } from '@tiptap/core'
 import type { ButtonViewReturn } from '@/types/composer'
 import { Separator } from '@/components/ui/separator'
 import { isFunction } from '@/lib/utils'
+import { ToolbarRoot } from 'reka-ui'
 
 interface Menu {
   button: ButtonViewReturn
@@ -60,7 +61,7 @@ const items = computed(() => {
 </script>
 
 <template>
-  <div
+  <ToolbarRoot
     v-if="items.length"
     class="sticky top-0 h-auto bg-toolbar-background z-10 overflow-visible"
   >
@@ -69,13 +70,6 @@ const items = computed(() => {
         v-for="(item, key) in items"
         :key="key"
       >
-        <div class="flex items-center">
-          <Separator
-            v-if="item.spacer"
-            class="h-[16px] mx-[10px]"
-            orientation="vertical"
-          />
-        </div>
         <component
           :is="item.button.component"
           :disabled="disabled || item.button.componentProps?.disabled"
@@ -100,5 +94,5 @@ const items = computed(() => {
         />
       </template>
     </div>
-  </div>
+  </ToolbarRoot>
 </template>

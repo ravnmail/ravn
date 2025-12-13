@@ -487,30 +487,8 @@ useKeyboardBindings({
     @dragover="handleDragOver"
     @drop="handleDrop"
   >
-    <div class="flex items-center justify-between px-4 py-3">
-      <div class="flex items-center gap-2">
-        {{ isDraft }}
-        <Badge
-          v-if="isDraft"
-          size="sm"
-          variant="secondary"
-        >
-          {{ t('composer.draft') }}
-        </Badge>
-        <span
-          v-if="lastSavedAt && !hasUnsavedChanges"
-          class="text-xs text-muted"
-        >
-          {{ t('composer.saved') }} {{ lastSavedAt.toLocaleTimeString() }}
-        </span>
-        <span
-          v-if="hasUnsavedChanges"
-          class="text-xs text-muted"
-        >
-          {{ t('composer.unsavedChanges') }}
-        </span>
-      </div>
-      <div class="flex items-center gap-2">
+    <div class="flex items-center justify-between pb-2">
+      <div class="flex items-center gap-2 ml-auto">
         <SimpleTooltip :tooltip="`${$t('composer.saveDraft')} (⌘S)`">
           <Button
             :disabled="isSavingDraft || isSending || !selectedAccountId"
@@ -563,7 +541,7 @@ useKeyboardBindings({
 
     <div
       v-if="validationErrors.length > 0"
-      class="px-4 py-2 bg-destructive-background/10 border-b border-destructive"
+      class="py-2 bg-destructive-background/10 border-b border-destructive"
     >
       <div
         v-for="(error, index) in validationErrors"
@@ -579,31 +557,29 @@ useKeyboardBindings({
     </div>
 
     <div>
-      <div class="flex items-start px-4 py-2">
+      <div class="flex items-start py-1">
         <label class="text-sm font-medium text-muted pt-2 w-16 flex-shrink-0">
           {{ $t('composer.from') }}
         </label>
-        <div class="flex-1">
-          <Select v-model="selectedAccountId">
-            <SelectTrigger class="w-full border-none shadow-none h-auto py-1 px-2 focus:ring-0">
-              <SelectValue :placeholder="$t('composer.selectAccount')"/>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="account in accounts"
-                :key="account.id"
-                :value="account.id"
-              >
-                <div class="flex items-center gap-2">
-                  <span>{{ account.name }} &lt;{{ account.email }}&gt;</span>
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <Select v-model="selectedAccountId">
+          <SelectTrigger class="w-full border-none shadow-none h-auto py-1 px-2 focus:ring-0">
+            <SelectValue :placeholder="$t('composer.selectAccount')"/>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem
+              v-for="account in accounts"
+              :key="account.id"
+              :value="account.id"
+            >
+              <div class="flex items-center gap-2">
+                <span>{{ account.name }} &lt;{{ account.email }}&gt;</span>
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      <div class="flex items-start px-4 py-2">
+      <div class="flex items-start py-1">
         <label class="text-sm font-medium text-muted pt-2 w-16 flex-shrink-0">
           {{ $t('composer.to') }}
         </label>
@@ -640,7 +616,7 @@ useKeyboardBindings({
       <!-- Cc field -->
       <div
         v-if="showCc"
-        class="flex items-start px-4 py-2"
+        class="flex items-start py-1"
       >
         <label class="text-sm font-medium text-muted pt-2 w-16 flex-shrink-0">
           {{ $t('composer.cc') }}
@@ -667,7 +643,7 @@ useKeyboardBindings({
       </div>
       <div
         v-if="showBcc"
-        class="flex items-start px-4 py-2"
+        class="flex items-start py-1"
       >
         <label class="text-sm font-medium text-muted pt-2 w-16 flex-shrink-0">
           {{ $t('composer.bcc') }}
@@ -692,7 +668,7 @@ useKeyboardBindings({
           </Button>
         </div>
       </div>
-      <div class="flex items-center px-4 py-2">
+      <div class="flex items-center py-1">
         <label class="text-sm font-medium text-muted w-16 flex-shrink-0">
           {{ $t('composer.subject') }}
         </label>
@@ -728,7 +704,7 @@ useKeyboardBindings({
 
     <div
       v-if="attachments.length > 0 || forwardedAttachments.length > 0"
-      class="px-4 py-2 bg-surface rounded "
+      class="my-1 p-2 bg-surface rounded"
     >
       <div class="flex items-center gap-2 mb-2">
         <Icon
@@ -746,10 +722,11 @@ useKeyboardBindings({
         >
           <Icon
             :name="getFileIconForMimeType(file.type, file.name)"
+            :size="24"
             mode="ib"
           />
           <div class="flex-1">
-            <span class="text-sm font-medium">{{ file.name }}</span>
+            <span class="text-sm font-medium max-w-64 truncate">{{ file.name }}</span>
             <div class="text-xs opacity-60">{{ formatFileSize(file.size) }}</div>
           </div>
           <button
@@ -809,7 +786,7 @@ useKeyboardBindings({
       <div class="w-full h-full max-w-none">
         <editor-content
           :editor="editor"
-          class="w-full h-full px-4 py-3 prose prose-sm max-w-none"
+          class="w-full h-full p-3 prose prose-sm max-w-none"
         />
       </div>
     </div>

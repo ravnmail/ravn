@@ -138,7 +138,7 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
     ref="itemRef"
     :class="[
       'relative overflow-hidden touch-pan-x rounded transition-opacity',
-      isDragging ? 'opacity-50 cursor-grabbing' : ''
+      isDragging ? 'opacity-30 cursor-grabbing' : ''
     ]"
   >
     <div
@@ -194,7 +194,7 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
           <div class="flex items-center gap-2">
             <div
               v-if="hasUnread"
-              class="w-2 h-2 bg-accent rounded-full"
+              class="w-2 h-2 bg-accent rounded-full shrink-0"
             />
             <span class="line-clamp-1 text-sm">{{ firstMessage.from.name || firstMessage.from.address }}</span>
             <span class="ml-auto text-sm opacity-60 text-nowrap">{{ formatEmailDate(firstMessage, 2) }}</span>

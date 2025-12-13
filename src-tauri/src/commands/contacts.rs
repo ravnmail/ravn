@@ -9,20 +9,17 @@ use crate::state::AppState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchContactsRequest {
-    pub account_id: Uuid,
     pub query: String,
     pub limit: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetTopContactsRequest {
-    pub account_id: Uuid,
     pub limit: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetContactsRequest {
-    pub account_id: Uuid,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
@@ -33,8 +30,7 @@ pub async fn search_contacts(
     request: SearchContactsRequest,
 ) -> Result<Vec<ContactSummary>, String> {
     log::debug!(
-        "Searching contacts for account {} with query: {}",
-        request.account_id,
+        "Searching contacts for account with query: {}",
         request.query
     );
 
@@ -42,11 +38,7 @@ pub async fn search_contacts(
     let contact_repo = repo_factory.contact_repository();
 
     contact_repo
-        .search_contacts(
-            request.account_id,
-            &request.query,
-            request.limit.unwrap_or(20),
-        )
+        .search_contacts(&request.query, request.limit.unwrap_or(20))
         .await
         .map_err(|e| format!("Failed to search contacts: {}", e))
 }
@@ -56,13 +48,11 @@ pub async fn get_top_contacts(
     state: State<'_, AppState>,
     request: GetTopContactsRequest,
 ) -> Result<Vec<ContactSummary>, String> {
-    log::debug!("Getting top contacts for account {}", request.account_id);
-
     let repo_factory = RepositoryFactory::new(state.db_pool.clone());
     let contact_repo = repo_factory.contact_repository();
 
     contact_repo
-        .get_top_contacts(request.account_id, request.limit.unwrap_or(10))
+        .get_top_contacts(request.limit.unwrap_or(10))
         .await
         .map_err(|e| format!("Failed to get top contacts: {}", e))
 }
@@ -72,17 +62,11 @@ pub async fn get_contacts(
     state: State<'_, AppState>,
     request: GetContactsRequest,
 ) -> Result<Vec<Contact>, String> {
-    log::debug!("Getting contacts for account {}", request.account_id);
-
     let repo_factory = RepositoryFactory::new(state.db_pool.clone());
     let contact_repo = repo_factory.contact_repository();
 
     contact_repo
-        .find_all(
-            request.account_id,
-            request.limit.unwrap_or(50),
-            request.offset.unwrap_or(0),
-        )
+        .find_all(request.limit.unwrap_or(50), request.offset.unwrap_or(0))
         .await
         .map_err(|e| format!("Failed to get contacts: {}", e))
 }
@@ -172,7 +156,7 @@ pub async fn resync_contact_counters(state: State<'_, AppState>) -> Result<Strin
         .await
         .map_err(|e| format!("Failed to reset contact counters: {}", e))?;
 
-    log::debug!("Reset all contact counters",);
+    log::info!("Reset all contact counters",);
 
     // Step 2: Fetch all emails for this account with folder information
     let emails = email_repo
@@ -180,7 +164,7 @@ pub async fn resync_contact_counters(state: State<'_, AppState>) -> Result<Strin
         .await
         .map_err(|e| format!("Failed to fetch emails: {}", e))?;
 
-    log::debug!("Found {} emails to process", emails.len());
+    log::info!("Found {} emails to process", emails.len());
 
     let mut sent_count = 0;
     let mut received_count = 0;

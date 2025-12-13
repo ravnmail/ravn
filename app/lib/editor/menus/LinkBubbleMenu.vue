@@ -46,10 +46,12 @@ function onSetLink(url: string, text?: string, openInNewTab?: boolean) {
     .run()
   showEdit.value = false
 }
+
 function unSetLink() {
   props.editor.chain().extendMarkRange('link').unsetLink().focus().run()
   showEdit.value = false
 }
+
 function onClickOutside() {
   const { state, view } = props.editor
   const { tr, selection } = state
@@ -78,15 +80,17 @@ function onClickOutside() {
     :update-delay="0"
   >
     <LinkEditBlock
-v-if="showEdit"
-:editor="editor"
-@on-set-link="onSetLink"
-@on-click-outside="onClickOutside" />
+      v-if="showEdit"
+      :editor="editor"
+      @on-set-link="onSetLink"
+      @on-click-outside="onClickOutside"
+    />
     <LinkViewBlock
-v-else
-:editor="editor"
-:link="link"
-@clear="unSetLink"
-@edit="showEdit = true" />
+      v-else
+      :editor="editor"
+      :link="link"
+      @clear="unSetLink"
+      @edit="showEdit = true"
+    />
   </BubbleMenu>
 </template>

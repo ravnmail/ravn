@@ -8,6 +8,7 @@ import EmailListItemComponent from '~/components/Ravn/EmailListItem.vue'
 import TantivySearchFilter from '~/components/Ravn/TantivySearchFilter.vue'
 import AISearchInput from '~/components/Ravn/AISearchInput.vue'
 import { useTantivySearch, type SearchFields } from '~/composables/useTantivySearch'
+import EmptyState from '~/components/ui/empty/EmptyState.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -148,7 +149,6 @@ useHead({
             </button>
           </div>
         </div>
-
         <AISearchInput
           v-if="useAIMode"
           :model-value="searchQuery"
@@ -164,7 +164,7 @@ useHead({
         />
       </div>
     </div>
-    <div class="flex-1 overflow-hidden">
+    <div class="flex-1 bg-surface overflow-hidden">
       <div
         v-if="loading"
         class="flex items-center justify-center h-full"
@@ -178,36 +178,26 @@ useHead({
           <p class="text-xs text-muted-foreground mt-1">{{ searchQuery }}</p>
         </div>
       </div>
-      <div
+      <EmptyState
         v-else-if="results.length === 0 && searchQuery"
-        class="flex items-center justify-center h-full"
+        :description="t('search.noResultsDescription')"
+        :title="t('search.noResults')"
+        class="h-full"
+        icon="🔎"
       >
-        <div class="text-center max-w-md mx-auto px-4">
-          <Icon
-            class="h-12 w-12 text-muted-foreground mx-auto mb-4"
-            name="lucide:inbox-x"
-          />
-          <h3 class="text-lg font-semibold">{{ t('search.noResults') }}</h3>
-          <p class="text-muted-foreground text-sm mt-2">
-            {{ t('search.noResultsDescription') }}
-          </p>
-          <p class="text-xs text-muted-foreground mt-4">
-            {{ t('search.query') }}: <code class="bg-muted px-2 py-1 rounded">{{ searchQuery }}</code>
-          </p>
-          <button
-            class="mt-4 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-            @click="searchQuery = undefined"
-          >
-            {{ t('search.clearSearch') }}
-          </button>
-        </div>
-      </div>
+        <button
+          class="mt-4 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+          @click="searchQuery = undefined"
+        >
+          {{ t('search.clearSearch') }}
+        </button>
+      </EmptyState>
       <ScrollArea
         v-else-if="results.length > 0"
         class="h-full"
       >
         <div class="max-w-6xl mx-auto">
-          <div class="p-4 md:p-6 border-b border-border bg-card/50 sticky top-0 z-10">
+          <div class="py-2 sticky top-0 z-10 bg-surface">
             <p class="text-sm text-muted-foreground">
               <strong>{{ totalResults }}</strong>
               {{ totalResults === 1 ? t('search.oneResult') : t('search.multipleResults') }}
@@ -225,21 +215,13 @@ useHead({
           </div>
         </div>
       </ScrollArea>
-      <div
+      <EmptyState
         v-else
-        class="flex items-center justify-center h-full"
-      >
-        <div class="text-center max-w-md mx-auto px-4">
-          <Icon
-            class="h-12 w-12 text-muted-foreground mx-auto mb-4"
-            name="lucide:search"
-          />
-          <h3 class="text-lg font-semibold">{{ t('search.title') }}</h3>
-          <p class="text-muted-foreground text-sm mt-2">
-            {{ t('search.helpText') }}
-          </p>
-        </div>
-      </div>
+        :description="t('search.helpText')"
+        :title="t('search.title')"
+        class="h-full"
+        icon="🔎"
+      />
       <UnobstrusiveSheetContent
         v-if="selectedEmailIdFromRoute"
         @close="onSheetChange(false)"
@@ -256,15 +238,3 @@ useHead({
     </div>
   </div>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

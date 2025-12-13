@@ -198,25 +198,10 @@ watch(
   }
 )
 
-watch(
-  () => props.tracking_blocked,
-  (newValue) => {
-    trackingBlocked.value = newValue
-  }
-)
-
 const handleAllowImages = async () => {
   const success = await allowImages(props.id)
   if (success) {
     imagesBlocked.value = false
-  }
-}
-
-const handleAllowAll = async () => {
-  const success = await allowAll(props.id)
-  if (success) {
-    imagesBlocked.value = false
-    trackingBlocked.value = false
   }
 }
 
@@ -250,7 +235,7 @@ const handleIframeLoad = (event: Event) => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col gap-3">
     <div class="flex flex-1 items-top">
       <div class="flex flex-1">
         <RavnAvatar
@@ -404,9 +389,9 @@ const handleIframeLoad = (event: Event) => {
     />
     <div
       v-if="imagesBlocked && hasExternalImages"
-      class="flex items-center justify-between bg-surface p-2 border-border border rounded text-xs"
+      class="flex items-center justify-between bg-surface p-1 border-border rounded text-xs"
     >
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 pl-1">
         <Icon
           class="shrink-0"
           name="lucide:image-off"
@@ -415,7 +400,7 @@ const handleIframeLoad = (event: Event) => {
       </div>
       <Button
         size="xs"
-        variant="outline"
+        variant="ghost"
         @click="handleAllowImages"
       >{{ $t('components.messageView.actions.showImages') }}
       </Button>

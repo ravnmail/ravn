@@ -1,5 +1,10 @@
 <script lang="ts" setup>
+import { check } from '@tauri-apps/plugin-updater'
 import { UnobstrusiveSheetContent } from '~/components/ui/sheet'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+
+import { toast } from 'vue-sonner'
 import Composer from '~/components/Composer.vue'
 import { ScrollArea } from '~/components/ui/scroll-area'
 import { Button } from '~/components/ui/button'
@@ -7,7 +12,6 @@ import { useStorage } from '@vueuse/core'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub,
   DropdownMenuSubContent, DropdownMenuSubTrigger,
   DropdownMenuTrigger
@@ -18,10 +22,22 @@ import { TreeItem, TreeRoot } from 'reka-ui'
 import type { TreeItemToggleEvent } from 'reka-ui'
 import type { SidebarNavigationItem, SidebarSectionItem } from '~/composables/useSidebarNavigation'
 
+import { version } from '~/../package.json'
+import { invoke } from '@tauri-apps/api/core'
+
+dayjs.extend(relativeTime)
+
 const { t } = useI18n()
 const route = useRoute()
-const isAddAccountModalOpen = ref(false)
 const showComposer = ref(false)
+
+const lastUpdated = computed(() => {
+  const buildDate = '2025-12-15T13:00:00Z'
+  if (buildDate) {
+    return dayjs(buildDate).fromNow()
+  }
+  return 'Unknown'
+})
 
 defineProps<{
   sticky?: boolean
@@ -62,7 +78,6 @@ const expanded = useStorage<string[]>('sidebar', [])
 const selectedFolderId = computed(() => {
   return route.params.folder_id as string || null
 })
-
 
 const handleFolderExpandedChange = (folderId: string, e: boolean) => {
   if (e) {
@@ -124,6 +139,57 @@ watch(Cmd_1, (newVal) => {
 const handleToggle = (e: TreeItemToggleEvent<SidebarNavigationItem>) => {
   if (e.detail.value?.type === 'folder' && e.detail.originalEvent instanceof PointerEvent) {
     e.preventDefault()
+  }
+}
+
+const openUrl = async (url: string) => {
+  await invoke('open_external_url', { url })
+}
+
+const lastCheck = useStorage<string>('last_update_check', null)
+const lastChecked = ref<string>('Never')
+const lastCheckedInterval = ref<number | null>(null)
+
+const updateLastChecked = () => {
+  if (lastCheck.value) {
+    lastChecked.value = dayjs(lastCheck.value).fromNow()
+  } else {
+    lastChecked.value = 'Never'
+  }
+}
+
+watch(lastCheck, () => {
+  updateLastChecked()
+  clearInterval(lastCheckedInterval.value!)
+  lastCheckedInterval.value = window.setInterval(() => {
+    updateLastChecked()
+  }, 60000)
+}, { immediate: true })
+
+onMounted(() => {
+  lastCheckedInterval.value = window.setInterval(() => {
+    updateLastChecked()
+  }, 60000)
+})
+
+onBeforeUnmount(() => {
+  if (lastCheckedInterval.value) {
+    clearInterval(lastCheckedInterval.value)
+  }
+})
+
+const checkForUpdate = async () => {
+  try {
+    lastCheck.value = new Date().toISOString()
+    const update = await check()
+    if (update) {
+      toast.info('A new update is available! Downloading now...')
+    } else {
+      toast.info('You are already on the latest version.')
+    }
+  } catch (error) {
+    console.error('Error checking for updates:', error)
+    toast.error('Failed to check for updates.')
   }
 }
 
@@ -215,10 +281,12 @@ const handleToggle = (e: TreeItemToggleEvent<SidebarNavigationItem>) => {
           <DropdownMenuItemRich
             icon="lucide:book-open"
             label="Documentation"
+            @select="openUrl('https://www.ravnmail.com/docs')"
           />
           <DropdownMenuItemRich
             icon="lucide:messages-square"
             label="Get Support"
+            @select="openUrl('https://discord.gg/WWTfdpCwWE')"
           />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
@@ -226,36 +294,28 @@ const handleToggle = (e: TreeItemToggleEvent<SidebarNavigationItem>) => {
               <span>More</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
-              <DropdownMenuItem>Rate Ravn</DropdownMenuItem>
-              <DropdownMenuItem>View on GitHub</DropdownMenuItem>
-              <DropdownMenuItem>Terms of Service</DropdownMenuItem>
+              <DropdownMenuItem @select="openUrl('https://github.com/ravnmail/ravn')">View on GitHub</DropdownMenuItem>
+              <DropdownMenuItem @select="openUrl('https://www.ravnmail.com/terms')">Terms of Service</DropdownMenuItem>
               <DropdownMenuSeparator/>
-              <DropdownMenuLabel>
-                <p>RAVN Mail v25.12.12<br>Updated 11 hours ago</p>
-              </DropdownMenuLabel>
+              <DropdownMenuItem
+                class="text-xs font-semibold text-muted"
+                @select="checkForUpdate"
+              >
+                <p>Ravn v{{ version }}<br>
+                Last Checked: {{ lastChecked }}
+                </p>
+              </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSeparator/>
-          <DropdownMenuLabel>What's new?</DropdownMenuLabel>
-          <DropdownMenuGroup>
-            <DropdownMenuItemRich
-              icon="lucide:star"
-              label="Rate Ravn"
-            />
-            <DropdownMenuItemRich
-              icon="lucide:github"
-              label="View on GitHub"
-            />
-          </DropdownMenuGroup>
+          <DropdownMenuItemRich
+            label="What's New"
+            @select="openUrl(`https://www.ravnmail.com/release-notes#${version}`)"
+          />
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
   </nav>
-
-  <RavnAddAccountModal
-    v-model:open="isAddAccountModalOpen"
-  />
-
   <UnobstrusiveSheetContent
     v-if="showComposer"
     @close="onComposerSheetChange"

@@ -8,6 +8,7 @@ import { BubbleMenu } from '@tiptap/vue-3'
 import type { MailKitOptions } from '~/lib/editor/extensions/Mailkit'
 import type { BubbleTypeMenu } from './BasicBubble'
 import { useTiptapStore } from '~/lib/editor/hooks'
+import { ToolbarRoot } from '../../../../../../../libraries/reka-ui/packages/core'
 
 interface Props {
   editor: Editor
@@ -64,22 +65,23 @@ const items = computed(() => {
 </script>
 <template>
   <BubbleMenu
-v-show="items.length && !store?.state.AIMenu"
-:editor="editor"
-:tippy-options="tippyOptions">
+    v-show="items.length && !store?.state.AIMenu"
+    :editor="editor"
+    :tippy-options="tippyOptions"
+  >
     <div
-      class="border border-neutral-200 dark:border-neutral-800 px-3 py-2 transition-all select-none pointer-events-auto shadow-sm rounded-sm bg-background w-auto max-w-[calc(-68px_+_100vw)] overflow-x-auto"
+      class="border border-popover-border bg-popover px-2 py-1 transition-all pointer-events-auto shadow-sm rounded-sm w-auto max-w-[calc(-68px_+_100vw)] overflow-x-auto"
     >
-      <div class="flex items-center flex-nowrap whitespace-nowrap h-[26px] justify-start relative gap-0.5">
+      <ToolbarRoot class="flex items-center flex-nowrap whitespace-nowrap h-[26px] justify-start relative gap-0.5">
         <template
-v-for="(item, key) in items"
-:key="key">
-          <!-- Divider -->
+          v-for="(item, key) in items"
+          :key="key"
+        >
           <Separator
-v-if="item.type === 'divider'"
-class="mx-1 me-1 h-[16px]"
-orientation="vertical" />
-          <!-- Buttons -->
+            v-if="item.type === 'divider'"
+            class="mx-1 me-1 h-4"
+            orientation="vertical"
+          />
           <component
             :is="item.component"
             v-else
@@ -88,16 +90,18 @@ orientation="vertical" />
             v-bind="item.componentProps"
           >
             <template
-v-for="(element, slotName, i) in item.componentSlots"
-:key="i"
-#[`${slotName}`]="values">
+              v-for="(element, slotName, i) in item.componentSlots"
+              :key="i"
+              #[`${slotName}`]="values"
+            >
               <component
-:is="element"
-v-bind="values?.props" />
+                :is="element"
+                v-bind="values?.props"
+              />
             </template>
           </component>
         </template>
-      </div>
+      </ToolbarRoot>
     </div>
   </BubbleMenu>
 </template>

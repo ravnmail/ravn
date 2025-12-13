@@ -31,12 +31,10 @@ const searchQuery = ref('')
 
 const { useSearchContacts, useGetTopContacts } = useContacts()
 const { data: topAccounts } = useGetTopContacts({
-  account_id: props.accountId,
-  limit: 6,
+  limit: 12,
 })
 const { data: results } = useSearchContacts(searchQuery, {
-  account_id: props.accountId,
-  limit: 6
+  limit: 12
 })
 
 const isOpen = ref(false)
@@ -186,7 +184,7 @@ onUnmounted(() => {
     </TagsInput>
     <div
       v-show="isOpen"
-      class="absolute left-0 right-0 top-full z-50 mt-1 bg-popover text-popover-foreground border border-border rounded-md shadow-lg max-h-96 overflow-y-auto"
+      class="absolute left-0 right-0 top-full p-1 z-50 mt-1 bg-popover text-popover-foreground border border-popover-border rounded-md shadow-lg max-h-96 overflow-y-auto"
     >
       <div
         v-if="suggestions.length === 0"
@@ -197,15 +195,15 @@ onUnmounted(() => {
       <div
         v-for="(contact, index) in suggestions"
         :key="contact.id"
-        :class="{ 'bg-accent text-accent-foreground': index === selectedIndex }"
+        :class="{ 'bg-selection text-selection-foreground': index === selectedIndex }"
         :data-index="index"
-        class="flex items-center gap-2 px-3 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
+        class="flex items-center gap-2 p-2 rounded hover:bg-selection hover:text-selection-foreground transition-colors"
         @click="selectContact(contact)"
         @mouseenter="selectedIndex = index"
       >
         <RavnAvatar
           :email="contact.email"
-          class="flex-shrink-0"
+          class="shrink-0"
         />
 
         <div class="flex-1 min-w-0">
@@ -219,10 +217,7 @@ onUnmounted(() => {
             {{ contact.email }}
           </div>
         </div>
-        <div
-          v-if="contact.send_count > 0"
-          class="flex-shrink-0 text-xs opacity-70"
-        >
+        <div class="flex-shrink-0 text-xs opacity-60">
           {{ contact.send_count }}
         </div>
       </div>

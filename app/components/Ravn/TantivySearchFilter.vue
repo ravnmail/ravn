@@ -1,5 +1,8 @@
 <script lang="ts" setup>
 
+import { Input } from '~/components/ui/input'
+import { InputField } from '~/components/ui/form'
+
 interface SearchField {
   type: 'text' | 'boolean' | 'datetime'
   label: string
@@ -139,7 +142,7 @@ const parseTokens = (q: string): Token[] => {
 
 // === UI RENDERING ===
 const getTokenClass = (token: Token): string => {
-  const base = 'px-2 py-1 rounded text-xs font-mono font-semibold transition-colors border inline-flex items-center gap-1 hover:shadow-sm'
+  const base = 'px-2 py-1 rounded text-xs font-semibold transition-colors border inline-flex items-center gap-1 hover:shadow-sm'
 
   const classes: Record<string, string> = {
     operator: `${base} bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700`,
@@ -248,25 +251,29 @@ onBeforeUnmount(() => {
     ref="containerRef"
     class="w-full space-y-3"
   >
-    <!-- Main Input Container -->
-    <div
-      class="flex flex-wrap gap-2 p-4 bg-background border border-input rounded-lg min-h-14 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 transition-all"
-    >
-      <!-- Display Tokens -->
+    <InputField
+      ref="inputRef"
+      v-model="query"
+      :actions="['clear']"
+      :placeholder="t('labels.search.enterQuery')"
+      class="w-full"
+      type="text"
+      @input="(e) => query = (e.target as HTMLInputElement).value"
+      @keydown="handleKeyDown"
+    />
+
+    <div class="flex flex-wrap gap-2">
       <div
         v-for="(token, index) in parseTokens(query)"
         :key="`token-${index}-${token.value}`"
         class="group relative"
       >
-        <button
-          :class="getTokenClass(token)"
-          type="button"
-          @click="startEdit(index)"
-        >
-          {{ token.value }}
-        </button>
-
-        <!-- Remove Button -->
+      <span
+        :class="getTokenClass(token)"
+        type="button"
+      >
+        {{ token.value }}
+      </span>
         <button
           class="absolute -top-1.5 -right-1.5 opacity-0 group-hover:opacity-100 w-4 h-4 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs transition-opacity"
           type="button"
@@ -275,96 +282,6 @@ onBeforeUnmount(() => {
           ×
         </button>
       </div>
-
-      <!-- Input Field (Free text) -->
-      <input
-        ref="inputRef"
-        :placeholder="t('labels.search.enterQuery')"
-        :value="query"
-        class="flex-1 min-w-48 bg-transparent border-none outline-none text-sm placeholder-muted-foreground font-mono"
-        type="text"
-        @input="(e) => query = (e.target as HTMLInputElement).value"
-        @keydown="handleKeyDown"
-      >
-
-      <!-- Clear Button -->
-      <button
-        v-if="query"
-        class="ml-auto h-6 w-6 p-0.5 rounded hover:bg-muted transition-colors flex-shrink-0 text-muted-foreground hover:text-foreground"
-        type="button"
-        @click="clearAll"
-      >
-        <svg
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <line
-            x1="18"
-            x2="6"
-            y1="6"
-            y2="18"
-          />
-          <line
-            x1="6"
-            x2="18"
-            y1="6"
-            y2="18"
-          />
-        </svg>
-      </button>
-    </div>
-
-    <!-- Token Editor Modal -->
-    <div
-      v-if="editingIndex !== null"
-      class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
-      @click.self="editingIndex = null"
-    >
-      <div class="bg-background border border-input rounded-lg shadow-xl p-6 max-w-md w-full space-y-4">
-        <h3 class="text-lg font-semibold">{{ t('labels.search.editToken') }}</h3>
-
-        <div class="space-y-2">
-          <label class="text-sm font-medium">{{ t('labels.search.value') }}</label>
-          <input
-            v-model="editingValue"
-            autofocus
-            class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            type="text"
-            @keydown.enter="saveEdit"
-            @keydown.escape="editingIndex = null"
-          >
-        </div>
-
-        <div class="flex gap-2 justify-end pt-2">
-          <button
-            class="px-4 py-2 border border-input rounded-md hover:bg-muted transition-colors"
-            type="button"
-            @click="editingIndex = null"
-          >
-            {{ t('labels.common.cancel') }}
-          </button>
-          <button
-            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
-            type="button"
-            @click="saveEdit"
-          >
-            {{ t('labels.common.save') }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Quick Reference -->
-    <div class="text-xs text-muted-foreground space-y-1 px-3 py-2 bg-muted/30 rounded">
-      <p class="font-semibold">{{ t('labels.search.examples') }}:</p>
-      <ul class="space-y-0.5 list-disc list-inside">
-        <li><code class="bg-background px-1 rounded">from:john@example.com AND subject:urgent</code></li>
-        <li><code class="bg-background px-1 rounded">"exact phrase"</code></li>
-        <li><code class="bg-background px-1 rounded">is_read:true</code></li>
-      </ul>
     </div>
   </div>
 </template>

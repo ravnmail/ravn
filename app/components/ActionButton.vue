@@ -73,11 +73,8 @@ const iconName = computed(() => {
             />
             <slot name="icon"/>
           </div>
-          <div
-            v-if="title"
-            class="ml-1 font-normal"
-          >{{ title }}
-          </div>
+          <span v-if="title">{{ title }}
+          </span>
           <slot/>
         </Toggle>
       </TooltipTrigger>
@@ -89,7 +86,7 @@ const iconName = computed(() => {
           <div>{{ tooltip }}</div>
           <div
             v-if="shortcutKeys && shortcutKeys.length"
-            class="flex gap-1 text-muted"
+            class="flex text-xs gap-1 opacity-60"
           >
             <span
               v-for="(shortcutKey, index) in shortcutKeys"

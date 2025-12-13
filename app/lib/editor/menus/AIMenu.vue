@@ -285,29 +285,36 @@ function handleKey(e) {
       :update-delay="0"
       plugin-key="AIMenu"
     >
-      <div :class="{ 'shake-animation': isShaking }" class="relative w-[450px] z-[99]" @keydown="handleKey">
+      <div
+        :class="{ 'shake-animation': isShaking }"
+        class="relative w-[450px] z-50"
+        @keydown="handleKey"
+      >
         <div
           v-show="(status === 'generating' || status === 'completed') && result"
-          class="border rounded-md shadow-sm bg-popover"
+          class="border rounded-md shadow-sm bg-popover border-popover-border"
         >
-          <div ref="resultContainer" class="p-3 block overflow-y-auto max-h-56">
+          <div
+            ref="resultContainer"
+            class="p-2 block overflow-y-auto max-h-56"
+          >
             <div
               :style="{
                 padding: 0,
                 minHeight: 'auto',
               }"
-              class="text-sm text-foreground EchoContentView"
+              class="text-sm"
               v-html="result"
             />
           </div>
         </div>
         <form
-          class="relative w-full items-center flex bg-background mt-3 rounded-md shadow-sm"
+          class="relative w-full items-center flex bg-popover mt-3 rounded-md shadow-sm"
           @submit="handleGenerate"
         >
           <div
             v-if="status === 'generating'"
-            class="text_loading_animation border w-full rounded-md pl-10 pr-20 h-12 py-1 flex items-center text-sm text-foreground"
+            class="text_loading_animation border border-popover-border h-8 w-full rounded-md px-10 py-1 flex items-center text-sm text-foreground"
           >
             {{ t('composer.AI.generating') }}
           </div>
@@ -316,31 +323,49 @@ function handleKey(e) {
             ref="inputRef"
             v-model="prompt"
             :placeholder="t('composer.AI.placeholder')"
-            class="pl-10 pr-20 h-12 outline-none ring-0 focus-visible:ring-0"
+            class="px-10 outline-none ring-0 focus-visible:ring-0"
           />
-          <span class="absolute start-0 inset-y-0 flex items-center justify-center px-2">
-            <Icon class="w-5 h-5 text-purple-500" name="ravn:raven" />
+          <span class="absolute start-1 inset-y-0 flex items-center justify-center px-2">
+            <Icon
+              class="text-ai"
+              name="ravn:raven"
+            />
           </span>
           <Button
             v-if="status === 'generating'"
-            class="absolute end-0 inset-y-0 flex items-center justify-center px-2 h-4 m-2"
+            class="absolute end-1 top-1 inset-y-0 flex items-center justify-center size-6"
+            size="rounded"
+            variant="ai"
             @click="handleClose"
           >
-            {{ t('composer.AI.stop') }}
+            <Icon
+              class="shrink-0"
+              name="lucide:x-circle"
+            />
           </Button>
           <Button
             v-else
             :disabled="!prompt"
-            class="absolute end-0 inset-y-0 flex items-center justify-center m-2"
+            class="absolute end-1 top-1 inset-y-0 flex items-center justify-center size-6"
             size="rounded"
             variant="ai"
             @click="handleGenerate"
           >
-            <Icon class="shrink-0" name="lucide:arrow-up" />
+            <Icon
+              class="shrink-0"
+              name="lucide:arrow-up"
+            />
           </Button>
         </form>
-        <div v-show="status === 'init' && shortcutMenus.length && !prompt" class="mt-1 max-w-56">
-          <Menu ref="menuRef" :items="shortcutMenus" @item-click="shortcutClick" />
+        <div
+          v-show="status === 'init' && shortcutMenus.length && !prompt"
+          class="mt-1 max-w-56"
+        >
+          <Menu
+            ref="menuRef"
+            :items="shortcutMenus"
+            @item-click="shortcutClick"
+          />
         </div>
         <AiCompletion
           v-if="status === 'completed' && prompt === ''"

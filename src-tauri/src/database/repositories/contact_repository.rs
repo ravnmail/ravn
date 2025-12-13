@@ -12,12 +12,7 @@ pub trait ContactRepository {
     // Core CRUD operations
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Contact>, DatabaseError>;
     async fn find_by_email(&self, email: &str) -> Result<Option<Contact>, DatabaseError>;
-    async fn find_all(
-        &self,
-        account_id: Uuid,
-        limit: i64,
-        offset: i64,
-    ) -> Result<Vec<Contact>, DatabaseError>;
+    async fn find_all(&self, limit: i64, offset: i64) -> Result<Vec<Contact>, DatabaseError>;
     async fn create(&self, contact: &Contact) -> Result<Uuid, DatabaseError>;
     async fn update(&self, contact: &Contact) -> Result<(), DatabaseError>;
     async fn delete(&self, id: Uuid) -> Result<(), DatabaseError>;
@@ -37,15 +32,10 @@ pub trait ContactRepository {
 
     async fn search_contacts(
         &self,
-        account_id: Uuid,
         query: &str,
         limit: i64,
     ) -> Result<Vec<ContactSummary>, DatabaseError>;
-    async fn get_top_contacts(
-        &self,
-        account_id: Uuid,
-        limit: i64,
-    ) -> Result<Vec<ContactSummary>, DatabaseError>;
+    async fn get_top_contacts(&self, limit: i64) -> Result<Vec<ContactSummary>, DatabaseError>;
 
     async fn update_avatar(
         &self,
@@ -117,21 +107,15 @@ impl ContactRepository for SqliteContactRepository {
             .map_err(DatabaseError::ConnectionError)
     }
 
-    async fn find_all(
-        &self,
-        account_id: Uuid,
-        limit: i64,
-        offset: i64,
-    ) -> Result<Vec<Contact>, DatabaseError> {
+    async fn find_all(&self, limit: i64, offset: i64) -> Result<Vec<Contact>, DatabaseError> {
         sqlx::query_as::<_, Contact>(
-            "SELECT * FROM contacts WHERE account_id = ? ORDER BY display_name, email LIMIT ? OFFSET ?"
+            "SELECT * FROM contacts ORDER BY display_name, email LIMIT ? OFFSET ?",
         )
-            .bind(account_id.to_string())
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(DatabaseError::ConnectionError)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(DatabaseError::ConnectionError)
     }
 
     async fn create(&self, contact: &Contact) -> Result<Uuid, DatabaseError> {
@@ -279,11 +263,9 @@ impl ContactRepository for SqliteContactRepository {
 
     async fn search_contacts(
         &self,
-        account_id: Uuid,
         query: &str,
         limit: i64,
     ) -> Result<Vec<ContactSummary>, DatabaseError> {
-        let account_id = account_id.to_string();
         let search_pattern = format!("%{}%", query);
         let alt_search_pattern = format!("{}%", query);
 
@@ -292,8 +274,7 @@ impl ContactRepository for SqliteContactRepository {
             SELECT
                 id, email, display_name, avatar_path, send_count, receive_count, last_used_at
             FROM contacts
-            WHERE account_id = ? AND
-                (email LIKE ? OR display_name LIKE ? OR first_name LIKE ? OR last_name LIKE ?)
+            WHERE email LIKE ? OR display_name LIKE ? OR first_name LIKE ? OR last_name LIKE ?
             ORDER BY
                 CASE WHEN email LIKE ? THEN 3
                      WHEN display_name LIKE ? THEN 2
@@ -303,7 +284,6 @@ impl ContactRepository for SqliteContactRepository {
                 last_used_at DESC
             LIMIT ?
             "#,
-            account_id,
             search_pattern,
             search_pattern,
             search_pattern,
@@ -315,6 +295,8 @@ impl ContactRepository for SqliteContactRepository {
         .fetch_all(&self.pool)
         .await
         .map_err(DatabaseError::ConnectionError)?;
+
+        log::info!("Fetched search contacts: {:?}", results);
 
         let summaries = results
             .into_iter()
@@ -350,30 +332,24 @@ impl ContactRepository for SqliteContactRepository {
         Ok(summaries)
     }
 
-    async fn get_top_contacts(
-        &self,
-        account_id: Uuid,
-        limit: i64,
-    ) -> Result<Vec<ContactSummary>, DatabaseError> {
-        let account_id = account_id.to_string();
-
+    async fn get_top_contacts(&self, limit: i64) -> Result<Vec<ContactSummary>, DatabaseError> {
         let results = sqlx::query!(
             r#"
             SELECT
                 id, email, display_name, avatar_path, send_count, receive_count, last_used_at
             FROM contacts
-            WHERE account_id = ?
             ORDER BY
                 send_count * 2 + receive_count DESC,
                 last_used_at DESC
             LIMIT ?
             "#,
-            account_id,
             limit
         )
         .fetch_all(&self.pool)
         .await
         .map_err(DatabaseError::ConnectionError)?;
+
+        log::info!("Fetched top contacts: {:?}", results);
 
         let summaries = results
             .into_iter()

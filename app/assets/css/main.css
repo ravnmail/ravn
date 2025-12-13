@@ -9,9 +9,12 @@
   --ease-mini-bounce: cubic-bezier(0.17, 0.89, 0.47, 1.13);
   --ease-embellishment: cubic-bezier(0.42, 0, 0, 1);
 
+  --text-2xs: 0.625rem;
   --text-xs: 0.75rem;
   --text-sm: 0.825rem;
   --text-base: 16px;
+
+  --font-mono: 'Fira Code', monospace;
 }
 
 @theme inline {
@@ -429,7 +432,7 @@
   }
 
   code {
-    @apply bg-gray-50 border border-gray-100 rounded p-0.5 text-sm;
+    @apply font-mono bg-popover border border-popover-border text-popover-foreground rounded px-1 p-0.5 text-sm;
   }
 
   pre code {

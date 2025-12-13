@@ -30,4 +30,34 @@ export const sheetVariants = cva(
   },
 )
 
+export const unobstrusiveSheetVariants = cva(
+  "fixed pointer-events-none z-50 transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+  {
+    variants: {
+      side: {
+        right: "inset-y-0 right-0 h-full data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
+      },
+    },
+    defaultVariants: {
+      side: "right",
+    },
+  },
+)
+
+export const unobstrusiveSheetContentVariants = cva(
+  "bg-background p-3 shadow-lg border-border pointer-events-auto",
+  {
+    variants: {
+      side: {
+        right: "flex h-full border-l inset-y-0 right-0 h-full data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
+      },
+    },
+    defaultVariants: {
+      side: "right",
+    },
+  },
+)
+
 export type SheetVariants = VariantProps<typeof sheetVariants>
+export type UnobstrusiveSheetVariants = VariantProps<typeof unobstrusiveSheetVariants>
+export type UnobstrusiveSheetContentVariants = VariantProps<typeof unobstrusiveSheetContentVariants>

@@ -54,7 +54,7 @@ function handleClose() {
 </script>
 
 <template>
-  <div class="bg-popover mt-2 text-foreground overflow-auto flex-wrap border rounded-md p-2 max-w-60">
+  <div class="bg-popover mt-1 flex-wrap border border-popover-border rounded p-1 max-w-60">
     <div class="flex flex-col gap-1">
       <MenuItem @click="handleReplace">
         <Icon name="lucide:replace"/>
@@ -65,7 +65,7 @@ function handleClose() {
         {{ t('composer.AI.insert') }}
       </MenuItem>
       <MenuItem @click="handleGenerate">
-        <Icon name="lucide:redo"/>
+        <Icon name="lucide:refresh-cw"/>
         {{ t('composer.AI.regenerate') }}
       </MenuItem>
       <MenuItem @click="handleClose">

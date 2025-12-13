@@ -19,6 +19,7 @@ import {
 import { SimpleTooltip } from '@/components/ui/tooltip'
 import { IndentProps, setNodeIndentMarkup } from '@/lib/utils/indent'
 import { getShortcutKeys } from '@/lib/utils/platform'
+import DropdownMenuItemRich from '~/components/ui/dropdown-menu/DropdownMenuItemRich.vue'
 
 type PluginRefType = Plugin<{
   locked: boolean
@@ -152,7 +153,6 @@ watch(
   () => menuOpen.value,
   val => {
     if (val) {
-      // 显示时锁定drop handle
       props.editor.commands.setHighlightParagraph(currentNodePos.value)
       props.editor.commands.setMeta('lockDragHandle', true)
     } else {
@@ -177,28 +177,24 @@ watch(
     v-show="!disabled"
     ref="dragElement"
     :class="className"
-    style="transition-property: top, left; transition-timing-function: ease-in-out; transition-duration: 0.2s"
   >
-    <div
-      class="flex items-center gap-0.5"
-      style="transition-property: top, left; transition-timing-function: ease-in-out; transition-duration: 0.2s"
-    >
+    <div class="flex items-center gap-0.5">
       <SimpleTooltip
         :tooltip-markdown="t('composer.draghandle.add')"
         side="bottom"
       >
-      <Button
-        :disabled="disabled"
-        class="!w-5 !h-5 rounded-sm"
-        size="icon"
-        variant="ghost"
-        @click="handleAdd"
-      >
-        <Icon
-          class="text-neutral-400"
-          name="lucide:plus"
-        />
-      </Button>
+        <Button
+          :disabled="disabled"
+          class="!w-5 !h-5 rounded-sm"
+          size="icon"
+          variant="ghost"
+          @click="handleAdd"
+        >
+          <Icon
+            class="text-muted"
+            name="lucide:plus"
+          />
+        </Button>
       </SimpleTooltip>
       <DropdownMenu v-model:open="menuOpen">
         <DropdownMenuTrigger :disable="disabled">
@@ -213,7 +209,7 @@ watch(
               variant="ghost"
             >
               <Icon
-                class="text-neutral-400"
+                class="text-muted"
                 name="lucide:grip-vertical"
               />
             </Button>
@@ -224,61 +220,51 @@ watch(
           class="w-48"
           side="bottom"
         >
-          <DropdownMenuItem
-            class="flex gap-3 focus:text-red-500 focus:bg-red-400 hover:bg-red-400 bg-opacity-10 hover:bg-opacity-20 focus:bg-opacity-30 dark:hover:bg-opacity-20"
+          <DropdownMenuItemRich
+            :label="t('composer.remove')"
+            icon="lucide:trash-2"
             @click="deleteNode"
-          >
-            <Icon name="lucide:trash-2"/>
-            <span>{{ t('composer.remove') }}</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            class="flex gap-3"
+          />
+          <DropdownMenuItemRich
+            :label="t('composer.clear.tooltip')"
+            icon="lucide:paint-roller"
             @click="resetTextFormatting"
-          >
-            <Icon name="lucide:paint-roller"/>
-            <span>{{ t('composer.clear.tooltip') }}</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            class="flex gap-3"
+          />
+          <DropdownMenuItemRich
+            :label="t('composer.copyToClipboard')"
+            icon="lucide:clipboard"
             @click="copyNodeToClipboard"
-          >
-            <Icon name="lucide:clipboard"/>
-            <span>{{ t('composer.copyToClipboard') }}</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
+          />
+          <DropdownMenuItemRich
+            :label="t('composer.copy')"
             class="flex gap-3"
+            icon="lucide:copy"
             @click="duplicateNode"
-          >
-            <Icon name="lucide:copy"/>
-            <span>{{ t('composer.copy') }}</span>
-          </DropdownMenuItem>
+          />
           <DropdownMenuSeparator/>
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger class="flex gap-3">
+            <DropdownMenuSubTrigger>
               <Icon name="lucide:indent-increase"/>
               <span>{{ t('composer.indent.tooltip') }}</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
               <DropdownMenuSubContent>
-                <DropdownMenuItem
+                <DropdownMenuItemRich
                   :disabled="currentNode?.attrs?.indent >= IndentProps.max"
-                  class="flex gap-3"
+                  :label="t('composer.indent.tooltip')"
+                  :shortcut="getShortcutKeys(['Tab'])"
+                  icon="lucide:indent-increase"
                   @click="increaseIndent"
-                >
-                  <Icon name="lucide:indent-increase"/>
-                  <span>{{ t('composer.indent.tooltip') }}</span>
-                  <span class="ml-auto text-xs text-neutral-400">{{ getShortcutKeys(['Tab']) }}</span>
-                </DropdownMenuItem>
+                />
 
-                <DropdownMenuItem
+                <DropdownMenuItemRich
                   :disabled="currentNode?.attrs?.indent <= IndentProps.min"
-                  class="flex gap-3"
+                  :label="t('composer.outdent.tooltip')"
+                  :shortcut="getShortcutKeys(['Shift, Tab'])"
+                  icon="lucide:indent-decrease"
                   @click="decreaseIndent"
-                >
-                  <Icon name="lucide:indent-decrease"/>
-                  <span>{{ t('composer.outdent.tooltip') }}</span>
-                  <span class="ml-auto text-xs text-neutral-400">{{ getShortcutKeys(['Shift', 'Tab']) }}</span>
-                </DropdownMenuItem>
+
+                />
               </DropdownMenuSubContent>
             </DropdownMenuPortal>
           </DropdownMenuSub>

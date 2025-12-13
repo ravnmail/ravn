@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider, SimpleTooltip } from '@/components/ui/tooltip'
 import type { Editor } from '@tiptap/vue-3'
 import ActionDropdownButtonSplit from '@/components/ActionDropdownButtonSplit.vue'
 import { MenuItem } from '@/components/ui/menu'
@@ -85,37 +85,32 @@ function toggleOrderedList(item: OrderedListOption) {
     :tooltip="tooltip"
     class="min-w-4 w-full grid grid-cols-3 gap-1"
   >
-    <TooltipProvider>
-      <Tooltip
-        v-for="item in OrderedListOptions"
-        :key="item.value"
-        :delay-duration="0"
+    <SimpleTooltip
+      v-for="item in OrderedListOptions"
+      :key="item.value"
+      :delay-duration="0"
+      :tooltip="t(item.label)"
+      side="bottom"
+    >
+      <MenuItem
+        class="p-0!"
+        @click="toggleOrderedList(item)"
       >
-        <TooltipTrigger as-child>
-          <MenuItem
-            class="p-0"
-            @click="toggleOrderedList(item)"
+        <div
+          :class="[active === item.value ? 'bg-selection border ' : '']"
+          class="h-10 flex flex-col w-12 border-input rounded-sm border overflow-clip"
+        >
+          <ol
+            :style="{ listStyleType: item.value, lineHeight: 1 }"
+            class="text-muted pl-3 flex-1 list-inside"
           >
-            <div
-              :class="[active === item.value ? 'bg-accent border border-accent-foreground' : '']"
-              class="h-[72px] flex flex-col w-[72px] box-border rounded-sm border"
-            >
-              <ol
-                :style="{ listStyleType: item.value, lineHeight: 1 }"
-                class="text-[12px] pl-3 flex-1 list-outside flex flex-col items-center justify-center"
-              >
-                <li
-                  v-for="i in 3"
-                  :key="i"
-                >
-                  <hr class="border-0 bg-gray-200 h-[3px] w-6 my-1">
-                </li>
-              </ol>
-            </div>
-          </MenuItem>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">{{ t(item.label) }}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+            <li
+              v-for="i in 3"
+              :key="i"
+            />
+          </ol>
+        </div>
+      </MenuItem>
+    </SimpleTooltip>
   </ActionDropdownButtonSplit>
 </template>

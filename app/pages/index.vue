@@ -14,6 +14,7 @@ import {
 import FolderMenu from '~/components/Ravn/FolderMenu.vue'
 import { DropdownMenuPortal } from 'reka-ui'
 import DropdownMenuItemRich from '~/components/ui/dropdown-menu/DropdownMenuItemRich.vue'
+import { invoke } from '@tauri-apps/api/core'
 
 const isLoading = ref(false)
 const { reindexAll } = useSearch()
@@ -187,9 +188,9 @@ const handleThemeChange = async (themeId: string) => {
         </div>
 
         <Button
-          @click="testToast('This is a test toast notification!')"
+          @click="invoke('resync_contact_counters')"
         >
-          Show Test Toast
+          Resync Contact Counters
         </Button>
       </div>
     </div>

@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 import type { MenuListProps } from './types'
 
-// 选中的索引
+
 const selectedCommandIndex = ref(0)
 const selectedGroupIndex = ref(0)
-// 滚动ref
+
 const scrollContainer = ref<HTMLDivElement | null>(null)
 
 const { t } = useI18n()
@@ -19,9 +19,9 @@ defineExpose({ onKeyDown })
 
 watch([() => selectedCommandIndex.value, () => selectedGroupIndex.value], async () => {
   if (!scrollContainer.value) return
-  await nextTick() // 等待 DOM 更新完成
+  await nextTick()
   const activeItemIndex = selectedGroupIndex.value * 1000 + selectedCommandIndex.value
-  // 取当前选中的dom元素
+
   const activeItem = activeItemRefs.value[activeItemIndex]
   if (activeItem) {
     activeItem.scrollIntoView({
@@ -114,18 +114,18 @@ function setActiveItemRef(groupIndex: number, commandIndex: number, el: unknown)
 <template>
   <div
     ref="scrollContainer"
-    class="bg-white rounded-lg dark:bg-black shadow-sm border border-neutral-200 dark:border-neutral-800 text-black max-h-[min(80vh,24rem)] overflow-auto flex-wrap mb-8 p-1"
+    class="bg-popover border-popover-border border p-1 rounded-md shadow-md max-h-80 overflow-y-auto"
   >
     <div
       v-if="items?.length"
-      class="grid grid-cols-1 gap-0.5 min-w-64"
+      class="grid grid-cols-1 gap-px min-w-64"
     >
       <template
         v-for="(group, groupIndex) in items"
         :key="group.title"
       >
         <div
-          className="text-neutral-500 text-[0.65rem] col-[1/-1] mx-2 mt-2 font-semibold tracking-wider select-none uppercase first:mt-0.5"
+          className="text-muted text-xs col-[1/-1] mx-2 mt-2 font-semibold tracking-wider select-none uppercase first:mt-0.5"
         >
           {{ group.title }}
         </div>
@@ -135,15 +135,16 @@ function setActiveItemRef(groupIndex: number, commandIndex: number, el: unknown)
           :ref="el => setActiveItemRef(groupIndex, commandIndex, el)"
           :class="[
             selectedGroupIndex === groupIndex && selectedCommandIndex === commandIndex
-              ? 'bg-accent text-neutral-800 dark:bg-neutral-900 dark:text-neutral-200'
-              : 'hover:bg-accent hover:text-neutral-800 dark:hover:bg-neutral-900 dark:hover:text-neutral-200',
+              ? 'bg-selection text-selection-foreground'
+              : 'hover:bg-selection hover:text-selection-foreground',
           ]"
-          class="flex items-center gap-3 px-2 py-1.5 text-sm text-neutral-800 dark:text-neutral-200 text-left w-full rounded-sm outline-none transition-colors"
+          class="flex items-center gap-2 px-2 py-1.5 text-sm text-left w-full rounded-sm outline-none transition-colors"
           @click="createCommandClickHandler(groupIndex, commandIndex)"
         >
           <Icon
             v-if="command.iconName"
             :name="`lucide:${command.iconName}`"
+            :size="16"
           />
           <span class="grow">{{ command.label }}</span>
           <span class="text-muted">{{ command.shortcut }}</span>
@@ -154,7 +155,7 @@ function setActiveItemRef(groupIndex: number, commandIndex: number, el: unknown)
       v-else
       class="p-3"
     >
-      <span class="text-xs text-gray-800 dark:text-gray-100">{{ t('composer.slash.empty') }}</span>
+      <span class="text-xs text-muted">{{ t('composer.slash.empty') }}</span>
     </div>
   </div>
 </template>

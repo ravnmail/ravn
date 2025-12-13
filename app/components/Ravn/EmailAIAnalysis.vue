@@ -21,20 +21,20 @@ const handleResponseClick = (response: { title: string, content: string }) => {
 </script>
 
 <template>
-  <div class="bg-surface rounded-md overflow-hidden">
+  <div class="bg-surface rounded-lg overflow-hidden border-l-3 border-ai">
     <div
       v-if="isAnalyzing"
       class="flex items-center space-x-2 text-sm text-gray-400 p-3 text-ai"
     >
       <Icon
-        class="w-4 h-4 animate-spin "
+        class="w-4 h-4 animate-spin"
         name="lucide:loader-2"
       />
       <span>{{ t('components.aiAnalysis.analyzing') }}</span>
     </div>
     <div
       v-if="error && !isAnalyzing"
-      class="p-4"
+      class="p-3"
     >
       <div class="flex items-start space-x-3 text-red-400">
         <Icon
@@ -53,16 +53,10 @@ const handleResponseClick = (response: { title: string, content: string }) => {
     </div>
     <div
       v-else-if="analysis && !isAnalyzing"
-      class="p-4 space-y-4"
+      class="p-3 space-y-4"
     >
-      <div class="flex items-center gap-3 text-foreground select-auto">
-        {{ analysis.gist }}
-      </div>
+      <div class="gap-3 text-foreground select-auto">{{ analysis.gist }}</div>
       <div v-if="analysis.responses && analysis.responses.length > 0">
-        <p class="font-medium text-ai mb-3 flex items-center space-x-2 text-sm">
-          <Icon name="ravn:raven"/>
-          <span>{{ t('components.aiAnalysis.quickReply') }}</span>
-        </p>
         <div class="flex flex-wrap gap-2">
           <Button
             v-for="(response, index) in analysis.responses"

@@ -9,12 +9,11 @@ import type {
 
 const QUERY_KEYS = {
   all: ['contacts'] as const,
-  lists: () => [...QUERY_KEYS.all, 'list'] as const,
-  list: (accountId?: string) => [...QUERY_KEYS.lists(), { accountId }] as const,
+  list: () => [...QUERY_KEYS.all, 'list'] as const,
   search: () => [...QUERY_KEYS.all, 'search'] as const,
   searchResults: (query?: string) => [...QUERY_KEYS.search(), { query }] as const,
   top: () => [...QUERY_KEYS.all, 'top'] as const,
-  topList: (accountId?: string) => [...QUERY_KEYS.top(), { accountId }] as const,
+  topList: () => [...QUERY_KEYS.top()] as const,
   details: () => [...QUERY_KEYS.all, 'detail'] as const,
   detail: (id: string) => [...QUERY_KEYS.details(), id] as const,
   byEmail: (email: string) => [...QUERY_KEYS.all, 'email', email] as const,
@@ -29,7 +28,7 @@ export function useContacts() {
     error,
     refetch: refetchContacts,
   } = useQuery({
-    queryKey: QUERY_KEYS.lists(),
+    queryKey: QUERY_KEYS.list(),
     queryFn: async () => {
       return await invoke<Contact[]>('get_contacts', {})
     },
@@ -38,7 +37,7 @@ export function useContacts() {
 
   const useGetContacts = (request: GetContactsRequest) => {
     return useQuery({
-      queryKey: QUERY_KEYS.list(request.account_id),
+      queryKey: QUERY_KEYS.list(),
       queryFn: async () => {
         return await invoke<Contact[]>('get_contacts', { request })
       },
@@ -47,14 +46,14 @@ export function useContacts() {
 
   const useGetTopContacts = (request: GetTopContactsRequest) => {
     return useQuery({
-      queryKey: QUERY_KEYS.topList(request.account_id),
+      queryKey: QUERY_KEYS.topList(),
       queryFn: async () => {
         return await invoke<ContactSummary[]>('get_top_contacts', { request })
       },
     })
   }
 
-  const useSearchContacts = (q: MaybeRef<string>, options: { account_id: string, limit: number }) => {
+  const useSearchContacts = (q: MaybeRef<string>, options: { limit: number }) => {
     const params = computed(() => ({
       ...options,
       query: unref(q),
@@ -63,7 +62,6 @@ export function useContacts() {
     return useQuery({
       queryKey: computed(() => QUERY_KEYS.searchResults(params.value.query)),
       queryFn: async () => {
-        console.log('Searching contacts with request:', params.value)
         return await invoke<ContactSummary[]>('search_contacts', {
           request: params.value
         })
@@ -113,26 +111,26 @@ export function useContacts() {
       return await invoke<string>('create_contact', { contact })
     },
     onMutate: async (newContact) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.list(newContact.account_id) })
-      const previousContacts = queryClient.getQueryData<Contact[]>(QUERY_KEYS.list(newContact.account_id))
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.list() })
+      const previousContacts = queryClient.getQueryData<Contact[]>(QUERY_KEYS.list())
 
       const optimisticContact: Contact = {
         ...newContact,
         id: `temp-${Date.now()}`,
       }
 
-      queryClient.setQueryData(QUERY_KEYS.list(newContact.account_id), (old: Contact[] | undefined) => {
+      queryClient.setQueryData(QUERY_KEYS.list(), (old: Contact[] | undefined) => {
         return [...(old || []), optimisticContact]
       })
 
       return { previousContacts }
     },
     onSuccess: (_contactId, newContact) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.list(newContact.account_id) })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.list() })
     },
     onError: (_error, newContact, context) => {
       if (context?.previousContacts) {
-        queryClient.setQueryData(QUERY_KEYS.list(newContact.account_id), context.previousContacts)
+        queryClient.setQueryData(QUERY_KEYS.list(), context.previousContacts)
       }
     },
   })
@@ -143,13 +141,13 @@ export function useContacts() {
       return contact
     },
     onMutate: async (updatedContact) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.list(updatedContact.account_id) })
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.list() })
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.detail(updatedContact.id) })
 
-      const previousContacts = queryClient.getQueryData<Contact[]>(QUERY_KEYS.list(updatedContact.account_id))
+      const previousContacts = queryClient.getQueryData<Contact[]>(QUERY_KEYS.list())
       const previousDetail = queryClient.getQueryData<Contact>(QUERY_KEYS.detail(updatedContact.id))
 
-      queryClient.setQueryData(QUERY_KEYS.list(updatedContact.account_id), (old: Contact[] | undefined) => {
+      queryClient.setQueryData(QUERY_KEYS.list(), (old: Contact[] | undefined) => {
         return (old || []).map(c => c.id === updatedContact.id ? updatedContact : c)
       })
 
@@ -162,7 +160,7 @@ export function useContacts() {
     },
     onError: (_error, updatedContact, context) => {
       if (context?.previousContacts) {
-        queryClient.setQueryData(QUERY_KEYS.list(updatedContact.account_id), context.previousContacts)
+        queryClient.setQueryData(QUERY_KEYS.list(), context.previousContacts)
       }
       if (context?.previousDetail) {
         queryClient.setQueryData(QUERY_KEYS.detail(updatedContact.id), context.previousDetail)
@@ -175,13 +173,13 @@ export function useContacts() {
       await invoke('delete_contact', { contactId })
     },
     onMutate: async (contactId) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.lists() })
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.list() })
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.detail(contactId) })
 
       const previousContacts = queryClient.getQueryData<Contact[]>(QUERY_KEYS.lists())
       const previousDetail = queryClient.getQueryData<Contact>(QUERY_KEYS.detail(contactId))
 
-      queryClient.setQueryData(QUERY_KEYS.lists(), (old: Contact[] | undefined) => {
+      queryClient.setQueryData(QUERY_KEYS.list(), (old: Contact[] | undefined) => {
         return (old || []).filter(c => c.id !== contactId)
       })
 
@@ -189,7 +187,7 @@ export function useContacts() {
     },
     onError: (_error, contactId, context) => {
       if (context?.previousContacts) {
-        queryClient.setQueryData(QUERY_KEYS.lists(), context.previousContacts)
+        queryClient.setQueryData(QUERY_KEYS.list(), context.previousContacts)
       }
       if (context?.previousDetail) {
         queryClient.setQueryData(QUERY_KEYS.detail(contactId), context.previousDetail)

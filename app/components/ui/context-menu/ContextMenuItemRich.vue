@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 import { cn } from '@/lib/utils'
-import { DropdownMenuItem, type DropdownMenuItemProps, useForwardProps } from 'reka-ui'
+import { ContextMenuItem, type ContextMenuItemProps, useForwardProps } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
-import DropdownMenuShortcut from '~/components/ui/dropdown-menu/DropdownMenuShortcut.vue'
+import ContextMenuShortcut from '~/components/ui/context-menu/ContextMenuShortcut.vue'
 
-const props = defineProps<DropdownMenuItemProps & {
+const props = defineProps<ContextMenuItemProps & {
   class?: HTMLAttributes['class'],
   icon?: string,
   iconColor?: string,
@@ -23,10 +23,10 @@ const forwardedProps = useForwardProps(delegatedProps)
 </script>
 
 <template>
-  <DropdownMenuItem
+  <ContextMenuItem
     :class="cn(
       'relative flex items-center rounded-md gap-2 px-2 py-1.5 text-sm font-medium outline-none transition-colors focus:bg-selection focus:text-selection-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0',
-      inset && 'pl-7',
+      inset && 'pl-8',
       props.class,
     )"
     v-bind="forwardedProps"
@@ -41,10 +41,10 @@ const forwardedProps = useForwardProps(delegatedProps)
       v-if="label"
       class="flex-1"
     >{{ label }}</span>
-    <DropdownMenuShortcut
+    <ContextMenuShortcut
       v-if="shortcut"
     >
       {{ Array.isArray(shortcut) ? shortcut.join(", ") : shortcut }}
-    </DropdownMenuShortcut>
-  </DropdownMenuItem>
+    </ContextMenuShortcut>
+  </ContextMenuItem>
 </template>

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 import { sticky } from 'tippy.js'
 import type { Editor } from '@tiptap/vue-3'
 import { BubbleMenu, isActive } from '@tiptap/vue-3'
@@ -20,7 +20,6 @@ const { t } = useLocale()
 const shouldShow = ({ editor }) => {
   return isActive(editor.view.state, 'columns')
 }
-// 获取参考元素的位置
 const getReferenceClientRect = () => {
   const renderContainer = getRenderContainer(props.editor, 'columns')
   const rect = renderContainer?.getBoundingClientRect() || new DOMRect(-1000, -1000, 0, 0)
@@ -36,9 +35,7 @@ const onDelete = () => {
 <template>
   <BubbleMenu
     :editor="editor"
-    plugin-key="columns"
     :should-show="shouldShow"
-    :update-delay="0"
     :tippy-options="{
       offset: [0, 8],
       popperOptions: {
@@ -48,15 +45,17 @@ const onDelete = () => {
       plugins: [sticky],
       sticky: 'popper',
     }"
+    :update-delay="0"
+    plugin-key="columns"
   >
     <div class="p-2 bg-white rounded-lg dark:bg-black shadow-sm border border-neutral-200 dark:border-neutral-800">
       <div class="flex gap-1 items-center">
         <ActionButton
-          icon="Trash"
-          :tooltip="t('composer.remove')"
           :action="onDelete"
           :is-active="() => editor.isActive('columns', { layout: ColumnLayout.SidebarLeft })"
+          :tooltip="t('composer.remove')"
           :tooltip-options="{ sideOffset: 15 }"
+          icon="Trash"
         />
       </div>
     </div>

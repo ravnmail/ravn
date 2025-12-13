@@ -11,7 +11,6 @@ const props = defineProps<Props>()
 const { t } = useI18n()
 const emit = defineEmits<{
   select: [attachment: Attachment, event: MouseEvent]
-  contextmenu: [event: MouseEvent, attachment: Attachment]
   dblclick: [attachment: Attachment]
 }>()
 
@@ -21,10 +20,6 @@ const handleClick = (event: MouseEvent) => {
   emit('select', props.attachment, event)
 }
 
-const handleContextMenu = (event: MouseEvent) => {
-  event.preventDefault()
-  emit('contextmenu', event, props.attachment)
-}
 
 const handleDoubleClick = () => {
   emit('dblclick', props.attachment)
@@ -34,15 +29,15 @@ const handleDoubleClick = () => {
 <template>
   <div
     :class="[
-      'flex items-center gap-3 px-3 py-2 rounded transition-colors border border-border',
-      selected ? 'bg-accent border-b-accent text-accent-foreground' : 'bg-surface text-foreground',
+      'flex items-center gap-2 p-2 rounded transition-colors border border-border',
+      selected ? 'bg-selection text-selection-foreground' : 'bg-surface text-foreground',
     ]"
     @click="handleClick"
-    @contextmenu="handleContextMenu"
     @dblclick="handleDoubleClick"
   >
     <Icon
       :name="getFileIcon(attachment.content_type, attachment.filename)"
+      :size="24"
       class="shrink-0"
       mode="ib"
     />

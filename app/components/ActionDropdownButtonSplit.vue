@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import ActionButton from './ActionButton.vue'
 import type { ButtonViewReturnComponentProps } from '@/types/composer'
 import { cn } from '@/lib/utils'
 import { computed } from 'vue'
 import { buttonVariants } from '~/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '~/components/ui/dropdown-menu'
 
 interface Props extends ButtonViewReturnComponentProps {
   icon?: string
@@ -29,52 +29,51 @@ const props = withDefaults(defineProps<Props>(), {
   isActive: undefined,
   shortcutKeys: undefined,
   variant: 'ghost',
-  size: 'sm',
+  size: 'bar',
   class: '',
-  btn_class: '',
+  btn_class: 'rounded-r-none',
 })
 
 const triggerButtonClasses = computed(() => {
   return [
     buttonVariants({ variant: props.variant, size: props.size }),
-    'rounded-l-none border-l border-l-surface !px-0'
+    'rounded-l-none !px-0'
   ].filter(Boolean)
 })
 
 </script>
 
 <template>
-  <div
-    :class="[isActive?.() && 'bg-muted']"
-    class="flex items-center hover:bg-muted rounded-md"
+  <DropdownMenu
+    v-slot="{ open }"
+    as-child
   >
     <ActionButton
       :action="action"
-      :class="btn_class"
+      :custom-class="btn_class"
       :disabled="disabled"
       :icon="icon"
       :shortcut-keys="shortcutKeys"
       :title="title"
       :tooltip="tooltip"
     />
-    <Popover>
-      <PopoverTrigger
-        :class="triggerButtonClasses"
-        :disabled="disabled"
-      >
-        <Icon
-          class="w-3 h-3 ml-1 flex-shrink-0"
-          name="lucide:chevron-down"
-        />
-      </PopoverTrigger>
-      <PopoverContent
-        :class="cn('min-w-32 p-1 w-full', props.class)"
-        align="start"
-        side="bottom"
-        v-bind="$attrs"
-      >
-        <slot/>
-      </PopoverContent>
-    </Popover>
-  </div>
+    <DropdownMenuTrigger
+      :class="triggerButtonClasses"
+      :disabled="disabled"
+    >
+      <Icon
+        class="w-3 h-3 ml-1 flex-shrink-0"
+        name="lucide:chevron-down"
+      />
+    </DropdownMenuTrigger>
+    <DropdownMenuContent
+      :align-offset="-32"
+      :class="cn('min-w-32 p-1 w-full', props.class)"
+      align="start"
+      side="bottom"
+      v-bind="$attrs"
+    >
+      <slot/>
+    </DropdownMenuContent>
+  </DropdownMenu>
 </template>

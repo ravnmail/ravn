@@ -1,6 +1,13 @@
 <script lang="ts" setup>
 import type { Attachment } from '~/types/email'
 import AttachmentItem from '~/components/Ravn/AttachmentItem.vue'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuSeparator,
+  ContextMenuTrigger
+} from '~/components/ui/context-menu'
+import ContextMenuItemRich from '~/components/ui/context-menu/ContextMenuItemRich.vue'
 
 interface Props {
   attachments: Attachment[]
@@ -11,9 +18,6 @@ const props = defineProps<Props>()
 const { t } = useI18n()
 const selectedIds = ref<Set<string>>(new Set())
 const lastSelectedIndex = ref<number | null>(null)
-const contextMenuVisible = ref(false)
-const contextMenuPosition = ref({ x: 0, y: 0 })
-const contextMenuAttachments = ref<Attachment[]>([])
 
 const { openAttachment, quicklookAttachments, saveToDownloads, saveToCustomLocation } = useAttachments()
 
@@ -33,32 +37,19 @@ const handleSelect = (attachment: Attachment, event: MouseEvent) => {
       newSelectedIds.add(props.attachments[i].id)
     }
     selectedIds.value = newSelectedIds
-  }
-  else if (event.metaKey || event.ctrlKey) {
+  } else if (event.metaKey || event.ctrlKey) {
     const newSelectedIds = new Set(selectedIds.value)
     if (newSelectedIds.has(attachment.id)) {
       newSelectedIds.delete(attachment.id)
-    }
-    else {
+    } else {
       newSelectedIds.add(attachment.id)
     }
     selectedIds.value = newSelectedIds
     lastSelectedIndex.value = index
-  }
-  else {
+  } else {
     selectedIds.value = new Set([attachment.id])
     lastSelectedIndex.value = index
   }
-}
-
-const handleContextMenu = (event: MouseEvent, attachment: Attachment) => {
-  if (!selectedIds.value.has(attachment.id)) {
-    selectedIds.value = new Set([attachment.id])
-  }
-
-  contextMenuAttachments.value = selectedAttachments.value
-  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
-  contextMenuVisible.value = true
 }
 
 const handleDoubleClick = (attachment: Attachment) => {
@@ -66,31 +57,19 @@ const handleDoubleClick = (attachment: Attachment) => {
 }
 
 const handleQuickLook = () => {
-  quicklookAttachments(contextMenuAttachments.value)
-  contextMenuVisible.value = false
+  quicklookAttachments(selectedAttachments.value)
 }
 
 const handleSaveToDownloads = async () => {
-  for (const attachment of contextMenuAttachments.value) {
+  for (const attachment of selectedAttachments.value) {
     await saveToDownloads(attachment)
   }
-  contextMenuVisible.value = false
 }
 
 const handleSaveToCustom = async () => {
-  if (contextMenuAttachments.value.length === 1) {
-    await saveToCustomLocation(contextMenuAttachments.value[0])
+  for (const attachment of selectedAttachments.value) {
+    await saveToCustomLocation(attachment)
   }
-  else {
-    for (const attachment of contextMenuAttachments.value) {
-      await saveToCustomLocation(attachment)
-    }
-  }
-  contextMenuVisible.value = false
-}
-
-const closeContextMenu = () => {
-  contextMenuVisible.value = false
 }
 
 const handleKeydown = (event: KeyboardEvent) => {
@@ -100,15 +79,27 @@ const handleKeydown = (event: KeyboardEvent) => {
   }
 }
 
+const handleContext = (attachment: Attachment) => {
+  if (!selectedIds.value.has(attachment.id)) {
+    selectedIds.value = new Set([attachment.id])
+    lastSelectedIndex.value = props.attachments.findIndex(a => a.id === attachment.id)
+  }
+}
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
-  window.addEventListener('click', closeContextMenu)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('click', closeContextMenu)
 })
+
+const list = useTemplateRef('list')
+const contextMenu = useTemplateRef('contextMenu')
+onClickOutside(list, (e) => {
+  selectedIds.value = new Set()
+}, { ignore: [contextMenu] })
+
 </script>
 
 <template>
@@ -116,63 +107,42 @@ onUnmounted(() => {
     v-if="attachments.length > 0"
     class="border-t border-border pt-3"
   >
-    <div class="flex flex-wrap gap-3">
-      <AttachmentItem
-        v-for="attachment in attachments"
-        :key="attachment.id"
-        :attachment="attachment"
-        :selected="selectedIds.has(attachment.id)"
-        @contextmenu="handleContextMenu"
-        @dblclick="handleDoubleClick"
-        @select="(att, event) => handleSelect(att, event)"
-      />
-    </div>
-
-    <Teleport to="body">
-      <div
-        v-if="contextMenuVisible"
-        :style="{
-          position: 'fixed',
-          left: `${contextMenuPosition.x}px`,
-          top: `${contextMenuPosition.y}px`,
-          zIndex: 9999,
-        }"
-        class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[200px]"
-        @click.stop
+    <ContextMenu>
+      <ContextMenuTrigger
+        ref="list"
+        class="inline-flex flex-wrap gap-1"
       >
-        <button
-          class="w-full px-4 py-2 text-left text-sm hover:bg-gray-700 flex items-center gap-2"
-          @click="handleQuickLook"
-        >
-          <Icon
-            class="w-4 h-4"
-            name="lucide:eye"
-          />
-          <span>{{ t('components.attachments.contextMenu.quickLook') }}</span>
-          <span class="ml-auto text-xs text-gray-500">{{ t('components.attachments.shortcuts.space') }}</span>
-        </button>
-        <div class="h-px bg-gray-700 my-1" />
-        <button
-          class="w-full px-4 py-2 text-left text-sm hover:bg-gray-700 flex items-center gap-2"
-          @click="handleSaveToDownloads"
-        >
-          <Icon
-            class="w-4 h-4"
-            name="lucide:download"
-          />
-          <span>{{ t('components.attachments.contextMenu.saveToDownloads') }}</span>
-        </button>
-        <button
-          class="w-full px-4 py-2 text-left text-sm hover:bg-gray-700 flex items-center gap-2"
-          @click="handleSaveToCustom"
-        >
-          <Icon
-            class="w-4 h-4"
-            name="lucide:folder"
-          />
-          <span>{{ t('components.attachments.contextMenu.saveTo') }}</span>
-        </button>
-      </div>
-    </Teleport>
+        <AttachmentItem
+          v-for="attachment in attachments"
+          :key="attachment.id"
+          :attachment="attachment"
+          :selected="selectedIds.has(attachment.id)"
+          @contextmenu="() => handleContext(attachment)"
+          @dblclick="handleDoubleClick"
+          @select="(att, event) => handleSelect(att, event)"
+        />
+      </ContextMenuTrigger>
+      <ContextMenuContent
+        ref="contextMenu"
+      >
+        <ContextMenuItemRich
+          :label="t('components.attachments.contextMenu.quickLook')"
+          icon="lucide:eye"
+          shortcut="Space"
+          @select="handleQuickLook"
+        />
+        <ContextMenuSeparator/>
+        <ContextMenuItemRich
+          :label="t('components.attachments.contextMenu.saveToDownloads')"
+          icon="lucide:download"
+          @select="handleSaveToDownloads"
+        />
+        <ContextMenuItemRich
+          :label="t('components.attachments.contextMenu.saveTo')"
+          icon="lucide:folder"
+          @select="handleSaveToCustom"
+        />
+      </ContextMenuContent>
+    </ContextMenu>
   </div>
 </template>

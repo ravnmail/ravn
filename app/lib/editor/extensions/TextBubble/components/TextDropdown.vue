@@ -1,13 +1,14 @@
 <script lang="ts" setup>
-import { MenuCheckboxItem } from '@/components/ui/menu'
 import type { Editor } from '@tiptap/vue-3'
 import ActionDropdownButton from '@/components/ActionDropdownButton.vue'
+import { DropdownMenuCheckboxItem } from '~/components/ui/dropdown-menu'
 
 interface ContentTypeMenu {
   name: string
   label: string
   iconName: string
   action?: (value?: unknown) => void
+  shortcut?: string
   isActive: () => boolean
 }
 
@@ -46,6 +47,7 @@ const menus = computed<ContentTypeMenu[]>(() => {
     {
       name: 'heading1',
       label: t('composer.headings.h1'),
+      shortcut: '#',
       isActive: () => props.editor.isActive('heading', { level: 1 }),
       iconName: 'heading-1',
       action: () => props.editor.chain().focus().clearNodes().toggleHeading({ level: 1 }).focus().run(),
@@ -53,6 +55,7 @@ const menus = computed<ContentTypeMenu[]>(() => {
     {
       name: 'heading2',
       label: t('composer.headings.h2'),
+      shortcut: '##',
       isActive: () => props.editor.isActive('heading', { level: 2 }),
       iconName: 'heading-2',
       action: () => props.editor.chain().focus().clearNodes().toggleHeading({ level: 2 }).focus().run(),
@@ -60,6 +63,7 @@ const menus = computed<ContentTypeMenu[]>(() => {
     {
       name: 'heading3',
       label: t('composer.headings.h3'),
+      shortcut: '###',
       isActive: () => props.editor.isActive('heading', { level: 3 }),
       iconName: 'heading-3',
       action: () => props.editor.chain().focus().clearNodes().toggleHeading({ level: 3 }).focus().run(),
@@ -67,6 +71,7 @@ const menus = computed<ContentTypeMenu[]>(() => {
     {
       name: 'bulletList',
       label: t('composer.bulletlist.tooltip'),
+      shortcut: '-',
       isActive: () => props.editor.isActive('bulletList'),
       iconName: 'list',
       action: () => props.editor.chain().focus().clearNodes().toggleBulletList().focus().run(),
@@ -74,6 +79,7 @@ const menus = computed<ContentTypeMenu[]>(() => {
     {
       name: 'numberedList',
       label: t('composer.orderedlist.tooltip'),
+      shortcut: '1.',
       isActive: () => props.editor.isActive('orderedList'),
       iconName: 'list-ordered',
       action: () => props.editor.chain().focus().clearNodes().toggleOrderedList().focus().run(),
@@ -88,6 +94,7 @@ const menus = computed<ContentTypeMenu[]>(() => {
     {
       name: 'blockquote',
       label: t('composer.blockquote.tooltip'),
+      shortcut: '>',
       isActive: () => props.editor.isActive('blockquote'),
       iconName: 'text-quote',
       action: () => props.editor.chain().focus().clearNodes().toggleBlockquote().focus().run(),
@@ -115,19 +122,18 @@ const activeItem = computed(() => {
     :side-offset="5"
     :title="activeItem?.label"
   >
-    <MenuCheckboxItem
+    <DropdownMenuCheckboxItem
       v-for="(item, index) in menus"
       :key="index"
       :model-value="item.isActive?.() || false"
-      @click="item.action"
+      class="flex gap-2"
+      @select="item.action"
     >
-      <div class="flex items-center gap-2 px-2">
-        <Icon
-          :name="`lucide:${item.iconName}`"
-          class="h3 w-3"
-        />
-        <span> {{ item.label }}</span>
-      </div>
-    </MenuCheckboxItem>
+      <Icon
+        :name="`lucide:${item.iconName}`"
+        :size="16"
+      />
+      <span class="grow">{{ item.label }}</span>
+    </DropdownMenuCheckboxItem>
   </ActionDropdownButton>
 </template>

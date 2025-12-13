@@ -17,7 +17,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
 
 <template>
   <TagsInputRoot
-    :class="cn('flex h-9 flex-wrap gap-2 items-center rounded-md border border-input bg-input px-3 py-1 text-sm shadow-sm', props.class)"
+    :class="cn('flex h-8 flex-wrap gap-2 items-center rounded-md border border-input bg-input px-2 py-1 text-sm shadow-sm', props.class)"
     v-bind="forwarded"
   >
     <slot/>

@@ -35,7 +35,7 @@ const props = withDefaults(defineProps<Props>(), {
     <Tooltip :delay-duration="0">
       <TooltipTrigger as-child>
         <Button
-          :class="cn('h-[32px] !px-1.5 py-0', props.class)"
+          :class="cn('!px-1.5 py-0', props.class)"
           :disabled="disabled"
           size="xs"
           variant="ghost"
@@ -66,7 +66,7 @@ const props = withDefaults(defineProps<Props>(), {
           <div>{{ tooltip }}</div>
           <div
             v-if="shortcutKeys && shortcutKeys.length"
-            class="flex"
+            class="flex text-xs gap-1 opacity-60"
           >
             <span>{{ getShortcutKeys(shortcutKeys) }}</span>
           </div>

@@ -14,6 +14,7 @@ import { Button } from '~/components/ui/button'
 import { PopoverContent, Popover, PopoverAnchor } from '~/components/ui/popover'
 import { SimpleTooltip } from '~/components/ui/tooltip'
 import type { SidebarNavigationItem, SidebarSectionItem } from '~/composables/useSidebarNavigation'
+import DropdownMenuItemRich from '~/components/ui/dropdown-menu/DropdownMenuItemRich.vue'
 
 const emits = defineEmits<{
   (e: 'expanded', isExpanded: boolean): void
@@ -201,7 +202,7 @@ const cancelEdit = () => {
         </SimpleTooltip>
       </PopoverContent>
     </Popover>
-    <DropdownMenu>
+    <DropdownMenu v-slot="{ open }">
       <div
         ref="folderRef"
         :class="[
@@ -233,38 +234,35 @@ const cancelEdit = () => {
         <span class="grow text-sm font-medium">{{ name }}</span>
         <span
           v-if="unread_count"
-          class="ml-auto font-semibold text-xs text-muted mr-2 group-hover:opacity-0"
+          :class="['ml-auto font-semibold text-xs text-muted mr-2', open ? 'opacity-0' : 'group-hover:opacity-0']"
         >{{ unread_count }}</span>
         <DropdownMenuTrigger
           v-if="folder_type"
           as-child
         >
           <Icon
-            class="absolute right-2 opacity-0 group-hover:opacity-50 hover:opacity-100 transition-opacity"
+            :class="['absolute right-2 opacity-0 transition-opacity', open ? 'opacity-100' : ' group-hover:opacity-50 hover:opacity-100']"
             name="lucide:ellipsis"
             @click.stop.prevent
           />
         </DropdownMenuTrigger>
       </div>
       <DropdownMenuContent align="start">
-        <DropdownMenuItem @click="startEdit">
-          <Icon
-            name="lucide:pen"
-          />
-          {{ t('components.verticalNavItem.actions.edit') }}
-        </DropdownMenuItem>
-        <DropdownMenuItem @click="handleHide">
-          <Icon
-            name="lucide:eye-off"
-          />
-          {{ t('components.verticalNavItem.actions.hide') }}
-        </DropdownMenuItem>
-        <DropdownMenuItem @click="handleSync">
-          <Icon
-            name="lucide:refresh-cw"
-          />
-          {{ t('components.verticalNavItem.actions.sync') }}
-        </DropdownMenuItem>
+        <DropdownMenuItemRich
+          :label="t('components.verticalNavItem.actions.edit')"
+          icon="lucide:pen"
+          @click="startEdit"
+        />
+        <DropdownMenuItemRich
+          :label="t('components.verticalNavItem.actions.hide')"
+          icon="lucide:eye-off"
+          @click="handleHide"
+        />
+        <DropdownMenuItemRich
+          :label="t('components.verticalNavItem.actions.sync')"
+          icon="lucide:refresh-cw"
+          @click="handleSync"
+        />
       </DropdownMenuContent>
     </DropdownMenu>
   </div>

@@ -9,17 +9,17 @@
       :key="item.label"
       :class="[
         'relative flex items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors',
-        item.isSelected ? 'bg-accent text-accent-foreground' : '',
-        'hover:bg-accent hover:text-accent-foreground',
+        item.isSelected ? 'bg-selection text-selection-foreground' : '',
+        'hover:bg-selection hover:text-selection-foreground',
       ]"
       @click="handleClick(item)"
       @mouseenter="handleMouseEnter(index)"
     >
       <span>{{ item.label }}</span>
       <Icon
-        v-if="item.children && item.isSelected"
-        class="ml-auto h-4 w-4"
-        name="ChevronRight"
+        v-if="item.children"
+        class="ml-auto"
+        name="lucide:chevron-right"
       />
       <div
         v-if="item.children && item.isSelected"
@@ -31,8 +31,8 @@
             :key="subItem.label"
             :class="[
               'flex items-center rounded-sm px-2 py-1.5 text-sm whitespace-nowrap outline-none transition-colors',
-              subItem.isSelected ? 'bg-accent text-accent-foreground' : '',
-              'hover:bg-accent hover:text-accent-foreground',
+              subItem.isSelected ? 'bg-selection text-selection-foreground' : '',
+              'hover:bg-selection hover:text-selection-foreground',
             ]"
             @click="handleClick(subItem)"
             @mouseenter="handleSubItemMouseEnter(index, subIndex)"

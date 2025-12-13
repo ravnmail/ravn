@@ -56,13 +56,6 @@ const settingsNav = computed<SettingsNavItem[]>(() => [
             </NuxtLink>
           </nav>
         </ScrollArea>
-
-        <!-- Footer -->
-        <div class="border-t border-border px-6 py-4">
-          <p class="text-xs text-muted-foreground">
-            RAVN v{{ $config.public.version || '2025.8.24' }}
-          </p>
-        </div>
       </div>
     </aside>
 

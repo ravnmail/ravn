@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import { DropdownMenuSubTrigger, type DropdownMenuSubTriggerProps, useForwardProps, } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 
-const props = defineProps<DropdownMenuSubTriggerProps & { class?: HTMLAttributes['class'] }>()
+const props = defineProps<DropdownMenuSubTriggerProps & { class?: HTMLAttributes['class'], inset?: boolean }>()
 
 const delegatedProps = computed(() => {
   const { class: _, ...delegated } = props
@@ -17,7 +17,8 @@ const forwardedProps = useForwardProps(delegatedProps)
 <template>
   <DropdownMenuSubTrigger
     :class="cn(
-      'flex cursor-default font-medium items-center rounded-sm gap-2 px-2 py-1.5 text-sm outline-none focus:bg-selection focus:text-selection-foreground data-[state=open]:bg-selection data-[state=open]:text-selection-foreground',
+      'flex cursor-default items-center rounded-sm gap-2 px-2 py-1.5 text-sm font-medium outline-none focus:bg-selection focus:text-selection-foreground data-[state=open]:bg-selection data-[state=open]:text-selection-foreground',
+      inset && 'pl-8',
       props.class,
     )"
     v-bind="forwardedProps"

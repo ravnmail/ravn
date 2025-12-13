@@ -35,7 +35,6 @@ export interface SearchContactsRequest {
 }
 
 export interface GetTopContactsRequest {
-  account_id: string
   limit?: number
 }
 
