@@ -31,7 +31,7 @@ const accountId = computed(() => route.params.account_id as string)
     <ResizableHandle/>
     <ResizablePanel
       id="mail-viewer-panel"
-      :min-size="10"
+      :min-size="50"
       class="-ml-px"
     >
       <NuxtPage/>

@@ -19,6 +19,7 @@ import type { TreeItemToggleEvent } from 'reka-ui'
 import type { SidebarNavigationItem, SidebarSectionItem } from '~/composables/useSidebarNavigation'
 
 const { t } = useI18n()
+const route = useRoute()
 const isAddAccountModalOpen = ref(false)
 const showComposer = ref(false)
 
@@ -57,6 +58,11 @@ const topItems = computed(() => {
 
 const { sections } = useSidebarNavigation()
 const expanded = useStorage<string[]>('sidebar', [])
+
+const selectedFolderId = computed(() => {
+  return route.params.folder_id as string || null
+})
+
 
 const handleFolderExpandedChange = (folderId: string, e: boolean) => {
   if (e) {
@@ -156,6 +162,7 @@ const handleToggle = (e: TreeItemToggleEvent<SidebarNavigationItem>) => {
             v-model:expanded="expanded"
             :get-key="({id}) => id"
             :items="sections"
+            :model-value="{ id: selectedFolderId }"
           >
             <TreeItem
               v-for="(item, i) in flattenItems"
@@ -163,7 +170,7 @@ const handleToggle = (e: TreeItemToggleEvent<SidebarNavigationItem>) => {
               v-slot="{ isExpanded }"
               :class="[item.level === 1 && i > 0 ? 'mt-4' : '']"
               :style="{ 'padding-left': `${item.level - 2}rem` }"
-              class="group mb-px bg-transparent overflow-clip focus:bg-selection focus:text-selection-foreground hover:bg-sidebar-item-hover-background rounded"
+              class="group mb-px bg-transparent overflow-clip focus:bg-selection data-selected:bg-sidebar-item-hover-background data-selected:text-selection-foreground  focus:text-selection-foreground hover:bg-sidebar-item-hover-background rounded"
               v-bind="item.bind"
               @select="onSelect(item.value, item.level)"
               @toggle="(e) => handleToggle(e)"
