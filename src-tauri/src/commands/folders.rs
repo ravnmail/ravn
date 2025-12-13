@@ -89,6 +89,42 @@ pub async fn get_folders(
 }
 
 #[tauri::command]
+pub async fn get_folder_navigation(
+    state: State<'_, AppState>,
+) -> Result<Vec<FolderResponse>, String> {
+    log::info!("Getting folder navigation");
+
+    let folder_repo = SqliteFolderRepository::new(state.db_pool.clone());
+
+    let folders = folder_repo
+        .get_all()
+        .await
+        .map_err(|e| format!("Failed to fetch navigation folders: {}", e))?;
+
+    let responses = folders.into_iter().map(FolderResponse::from).collect();
+
+    Ok(responses)
+}
+
+#[tauri::command]
+pub async fn get_folder(
+    state: State<'_, AppState>,
+    folder_id: Uuid,
+) -> Result<FolderResponse, String> {
+    log::info!("Getting folder {}", folder_id);
+
+    let folder_repo = SqliteFolderRepository::new(state.db_pool.clone());
+
+    let folder = folder_repo
+        .find_by_id(folder_id)
+        .await
+        .map_err(|e| format!("Failed to fetch folder: {}", e))?
+        .ok_or_else(|| format!("Folder {} not found", folder_id))?;
+
+    Ok(FolderResponse::from(folder))
+}
+
+#[tauri::command]
 pub async fn init_folder_sync(
     state: State<'_, AppState>,
     folder_id: Uuid,

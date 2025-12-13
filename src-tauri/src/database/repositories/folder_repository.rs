@@ -6,6 +6,7 @@ use uuid::Uuid;
 #[async_trait]
 pub trait FolderRepository {
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Folder>, DatabaseError>;
+    async fn get_all(&self) -> Result<Vec<Folder>, DatabaseError>;
     async fn find_by_account(&self, account_id: Uuid) -> Result<Vec<Folder>, DatabaseError>;
     async fn find_by_parent(&self, parent_id: Uuid) -> Result<Vec<Folder>, DatabaseError>;
     async fn find_by_type(
@@ -51,6 +52,12 @@ impl FolderRepository for SqliteFolderRepository {
     async fn find_by_parent(&self, parent_id: Uuid) -> Result<Vec<Folder>, DatabaseError> {
         sqlx::query_as::<_, Folder>("SELECT * FROM folders WHERE parent_id = ? ORDER BY sort_order")
             .bind(parent_id.to_string())
+            .fetch_all(&self.pool)
+            .await
+            .map_err(DatabaseError::ConnectionError)
+    }
+    async fn get_all(&self) -> Result<Vec<Folder>, DatabaseError> {
+        sqlx::query_as::<_, Folder>("SELECT * FROM folders ORDER BY folders.account_id, sort_order")
             .fetch_all(&self.pool)
             .await
             .map_err(DatabaseError::ConnectionError)

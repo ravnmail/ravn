@@ -371,6 +371,8 @@ fn main() {
             emails::delete,
             emails::fetch_body,
             emails::update_blocking,
+            folders::get_folder_navigation,
+            folders::get_folder,
             folders::get_folders,
             folders::init_folder_sync,
             folders::update_expanded,
