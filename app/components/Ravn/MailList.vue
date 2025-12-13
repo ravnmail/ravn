@@ -489,7 +489,7 @@ watch(() => props.folderId, () => {
         </Popover>
       </div>
     </div>
-    <ScrollArea class="p-1 m-1 flex-1">
+    <ScrollArea class="p-2">
       <EmptyState
         v-if="groupedConversations.total === 0"
         :description="currentFolder?.folder_type === 'inbox' ? $t('components.mailList.emptyState.inbox.message') : $t('components.mailList.emptyState.generic.message')"
@@ -497,7 +497,6 @@ watch(() => props.folderId, () => {
         :title="currentFolder?.folder_type === 'inbox' ? $t('components.mailList.emptyState.inbox.title') : $t('components.mailList.emptyState.generic.title')"
         class="h-full"
       />
-
       <template v-else>
         <template v-if="shouldGroup">
           <div
