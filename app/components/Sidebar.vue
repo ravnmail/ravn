@@ -87,12 +87,24 @@ const handleComposerDiscarded = () => {
   showComposer.value = false
 }
 
+
+const { bottom: scrollAreaHeight, top: scrollAreaTop } = useElementBounding(useTemplateRef('scrollArea'))
+const { bottom: scrollContentHeight, top: scrollContentTop } = useElementBounding(useTemplateRef('scrollContentRef'))
+
+const needsBottomBorder = computed(() => {
+  return scrollContentHeight.value > scrollAreaHeight.value
+})
+
+const needsTopBorder = computed(() => {
+  return scrollAreaTop.value > scrollContentTop.value
+})
+
 </script>
 
 <template>
   <nav
-    :class="[sticky ? 'pt-12 h-screen bg-sidebar-background border-r' : 'fixed inset-y-24 rounded-r border-r border-t border-b left-0 pt-2 -translate-x-full transition-transform z-10', show ? 'translate-x-0' : '' ]"
-    class="bg-sidebar-background flex flex-col px-2 pb-2 gap-4 border-sidebar-border overflow-hidden"
+    :class="[sticky ? 'pt-12 h-screen bg-sidebar-background border-r' : 'fixed w-64 inset-y-24 rounded-r border-r border-t border-b left-0 pt-2 -translate-x-full transition-transform z-10', show ? 'translate-x-0' : '' ]"
+    class="bg-sidebar-background flex flex-col px-2 pb-2 border-sidebar-border overflow-hidden gap-2"
   >
     <div
       v-if="sticky"
@@ -100,18 +112,29 @@ const handleComposerDiscarded = () => {
       data-tauri-drag-region
     />
     <SidebarSection :items="topItems"/>
-    <ScrollArea class="h-screen -mx-1 px-1">
-      <div class="flex flex-col flex-1 gap-4">
-        <ViewNavigation/>
+    <ScrollArea
+      ref="scrollArea"
+      :class="['h-screen -mx-1 px-1 border-y border-transparent mt-2 transition-border duration-300',
+      needsBottomBorder ? 'border-b-sidebar-border' : '',
+      needsTopBorder ? 'border-t-sidebar-border' : ''
+      ]"
+    >
+      <div>
         <div
-          v-for="account in accounts"
-          :key="account.id"
-          class="flex flex-col gap-1"
+          ref="scrollContentRef"
+          class="flex flex-col flex-1 gap-4"
         >
-          <FolderNavigation
-            :account-id="account.id"
-            :account-name="account.name"
-          />
+          <ViewNavigation/>
+          <div
+            v-for="account in accounts"
+            :key="account.id"
+            class="flex flex-col gap-1"
+          >
+            <FolderNavigation
+              :account-id="account.id"
+              :account-name="account.name"
+            />
+          </div>
         </div>
       </div>
     </ScrollArea>
