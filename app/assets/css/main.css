@@ -191,6 +191,13 @@
   }
 }
 
+.tooltip {
+  code {
+    @apply font-mono opacity-70;
+  }
+}
+
+
 .ProseMirror {
   @apply py-4 px-8 space-y-3 max-w-screen-md mx-auto outline-none h-full;
 

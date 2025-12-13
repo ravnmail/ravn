@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 
 import IconGrid from '~/components/ui/IconGrid.vue'
 import ColorSelect from '~/components/ui/ColorSelect.vue'
@@ -41,7 +41,7 @@ const update = (key: keyof typeof localValue.value, value: unknown) => {
     :label="label"
     :name="name"
   >
-    <div class="flex gap-2">
+    <div class="flex gap-1">
       <IconGrid
         :model-value="localValue.icon"
         @update:model-value="update('icon', $event)"
@@ -52,6 +52,7 @@ const update = (key: keyof typeof localValue.value, value: unknown) => {
       />
       <Input
         :model-value="localValue.name"
+        autofocus
         @update:model-value="update('name', $event)"
       />
     </div>

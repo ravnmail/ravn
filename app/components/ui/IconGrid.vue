@@ -2,7 +2,6 @@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '~/components/ui/dropdown-menu'
 import { ListboxContent, ListboxGroup, ListboxGroupLabel, ListboxItem, ListboxRoot } from 'reka-ui'
 
-import { Button } from '~/components/ui/button'
 import iconList from './iconlist.json'
 
 const selectedIcon = defineModel<string | null>()
@@ -17,20 +16,17 @@ function selectIcon(icon: string) {
 
 <template>
   <DropdownMenu v-model="isDialogOpen">
-    <DropdownMenuTrigger as-child>
-      <Button
-        type="button"
-        variant="outline"
-      >
-        <Icon
-          v-if="selectedIcon"
-          :name="`lucide:${selectedIcon}`"
-        />
-        <span
-          v-else
-          class="h-4 w-4 rounded bg-input"
-        />
-      </Button>
+    <DropdownMenuTrigger
+      class="flex items-center justify-between rounded-md border border-input px-2 py-1 font-semibold shadow-sm ring-offset-background data-[placeholder]:text-muted focus:outline-none focus:ring-1 focus:ring-ring hover:bg-input disabled:cursor-not-allowed disabled:opacity-50 [&>span]:truncate text-start gap-2"
+    >
+      <Icon
+        v-if="selectedIcon"
+        :name="`lucide:${selectedIcon}`"
+      />
+      <span
+        v-else
+        class="h-4 w-4 rounded bg-input"
+      />
     </DropdownMenuTrigger>
     <DropdownMenuContent class="sm:max-w-[700px] max-h-80 overflow-y-auto">
       <ListboxRoot

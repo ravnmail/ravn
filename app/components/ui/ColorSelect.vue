@@ -11,11 +11,11 @@ const selectedColor = defineModel<string | null>()
 <template>
   <Select v-model="selectedColor">
     <SelectTrigger
-      class="flex items-center justify-between rounded-md border border-input px-3 py-2 text-sm font-semibold shadow-sm ring-offset-background data-[placeholder]:text-muted focus:outline-none focus:ring-1 focus:ring-ring hover:bg-input disabled:cursor-not-allowed disabled:opacity-50 [&>span]:truncate text-start gap-2"
+      class="flex items-center justify-between rounded-md border border-input px-2 py-1 text-sm font-semibold shadow-sm ring-offset-background data-[placeholder]:text-muted focus:outline-none focus:ring-1 focus:ring-ring hover:bg-input disabled:cursor-not-allowed disabled:opacity-50 [&>span]:truncate text-start gap-2"
     >
       <span
         :style="`background-color: ${selectedColor}`"
-        class="h-4 w-4 rounded"
+        class="h-3.5 w-3.5 rounded"
       />
     </SelectTrigger>
     <SelectContent>
