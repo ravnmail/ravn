@@ -89,44 +89,28 @@ impl BackgroundAvatarFetcher {
         let repo_factory = RepositoryFactory::new(pool.clone());
         let account_repo = repo_factory.account_repository();
 
-        let accounts = account_repo
-            .find_all()
-            .await
-            .map_err(|e| SyncError::DatabaseError(format!("Failed to fetch accounts: {}", e)))?;
-
-        for account in accounts {
-            let account_id = account.id;
-
-            if let Err(e) = Self::fetch_avatars_for_account(pool, avatar_service, account_id).await
-            {
-                log::error!(
-                    "[BackgroundAvatarFetcher] Failed to fetch avatars for account {}: {}",
-                    account_id,
-                    e
-                );
-            }
+        if let Err(e) = Self::fetch_avatars(pool, avatar_service).await {
+            log::error!("[BackgroundAvatarFetcher] Failed to fetch avatars: {}", e);
         }
 
         Ok(())
     }
 
-    async fn fetch_avatars_for_account(
+    async fn fetch_avatars(
         pool: &SqlitePool,
         avatar_service: &Arc<AvatarService>,
-        account_id: Uuid,
     ) -> SyncResult<()> {
         let repo_factory = RepositoryFactory::new(pool.clone());
         let contact_repo = repo_factory.contact_repository();
 
         let contacts = contact_repo
-            .find_contacts_without_avatars(account_id, FETCH_BATCH_SIZE)
+            .find_contacts_without_avatars(FETCH_BATCH_SIZE)
             .await
             .map_err(|e| SyncError::DatabaseError(format!("Failed to fetch contacts: {}", e)))?;
 
-        log::debug!(
-            "[BackgroundAvatarFetcher] Found {} contacts without avatars for account {}",
-            contacts.len(),
-            account_id
+        log::info!(
+            "[BackgroundAvatarFetcher] Found {} contacts without avatars for account",
+            contacts.len()
         );
 
         for contact in contacts {

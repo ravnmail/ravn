@@ -625,7 +625,8 @@ impl EmailRepository for SqliteEmailRepository {
                 e.body_plain, e.body_html, e.other_mails, e.category, e.received_at, e.sent_at,
                 e.scheduled_send_at, e.flags, e.headers, e.size, e.is_read, e.is_flagged,
                 e.is_draft, e.has_attachments, e.is_deleted, e.sync_status, e.tracking_blocked,
-                e.images_blocked, e.ai_cache, e.created_at, e.updated_at,
+                e.images_blocked, e.ai_cache, e.created_at, e.updated_at, e.body_fetch_attempts,
+                e.last_body_fetch_attempt, e.change_key, e.last_modified_at,
                 f.folder_type
             FROM emails e
             JOIN folders f ON e.folder_id = f.id

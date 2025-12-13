@@ -55,7 +55,6 @@ pub trait ContactRepository {
     ) -> Result<(), DatabaseError>;
     async fn find_contacts_without_avatars(
         &self,
-        account_id: Uuid,
         limit: i64,
     ) -> Result<Vec<Contact>, DatabaseError>;
 }
@@ -424,20 +423,16 @@ impl ContactRepository for SqliteContactRepository {
 
     async fn find_contacts_without_avatars(
         &self,
-        account_id: Uuid,
         limit: i64,
     ) -> Result<Vec<Contact>, DatabaseError> {
-        let account_id = account_id.to_string();
-
         sqlx::query_as::<_, Contact>(
             r#"
             SELECT * FROM contacts
-            WHERE account_id = ? AND avatar_type = 'unprocessed'
+            WHERE avatar_type = 'unprocessed'
             ORDER BY receive_count + send_count DESC, last_used_at DESC
             LIMIT ?
             "#,
         )
-        .bind(account_id)
         .bind(limit)
         .fetch_all(&self.pool)
         .await

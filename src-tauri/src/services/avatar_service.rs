@@ -133,7 +133,7 @@ impl AvatarService {
                 AvatarProvider::Favicon => self.get_favicon_url(email),
             };
 
-            log::debug!(
+            log::info!(
                 "Attempting to fetch avatar from {} for {}",
                 provider.as_str(),
                 email
