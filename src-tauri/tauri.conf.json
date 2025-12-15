@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "RAVN",
+  "productName": "Ravn",
   "identifier": "com.coderscantina.ravn",
   "build": {
     "frontendDist": "../dist",
@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "RAVN",
+        "title": "Ravn",
         "width": 800,
         "height": 600,
         "resizable": true,
@@ -22,7 +22,7 @@
           "x": 16,
           "y": 20
         },
-        "userAgent": "RAVN Mail Client",
+        "userAgent": "Ravn Mail",
         "fullscreen": false,
         "dragDropEnabled": false
       }
@@ -57,7 +57,7 @@
     "category": "Productivity",
     "homepage": "https://www.ravnmail.com",
     "shortDescription": "The modern email client for digital natives",
-    "longDescription": "RAVN is a modern email client designed for digital natives, featuring kanban-based email handling, powerful search capabilities, markdown composition, and multi-account support.",
+    "longDescription": "Ravn is a modern email client designed for digital natives, featuring kanban-based email handling, powerful search capabilities, markdown composition, and multi-account support.",
     "macOS": {
       "bundleVersion": "COMMIT_HASH",
       "entitlements": null,
