@@ -62,10 +62,7 @@ pub trait EmailRepository {
     async fn update_read_status(&self, id: Uuid, is_read: bool) -> Result<(), DatabaseError>;
     async fn update_flagged_status(&self, id: Uuid, is_flagged: bool) -> Result<(), DatabaseError>;
     async fn update_ai_cache(&self, id: Uuid, ai_cache_json: &str) -> Result<(), DatabaseError>;
-    async fn find_pending_ai_analysis(
-        &self,
-        limit: i64,
-    ) -> Result<Vec<(Uuid, Option<String>, Option<String>, Option<String>)>, DatabaseError>;
+    async fn find_pending_ai_analysis(&self, limit: i64) -> Result<Vec<Uuid>, DatabaseError>;
 }
 
 pub struct SqliteEmailRepository {
@@ -739,13 +736,10 @@ impl EmailRepository for SqliteEmailRepository {
         Ok(())
     }
 
-    async fn find_pending_ai_analysis(
-        &self,
-        limit: i64,
-    ) -> Result<Vec<(Uuid, Option<String>, Option<String>, Option<String>)>, DatabaseError> {
+    async fn find_pending_ai_analysis(&self, limit: i64) -> Result<Vec<Uuid>, DatabaseError> {
         let results = sqlx::query!(
             r#"
-            SELECT e.id, e.subject, e.body_plain, e.body_html
+            SELECT e.id
             FROM emails e
             INNER JOIN folders f ON e.folder_id = f.id
             WHERE e.ai_cache IS NULL
@@ -766,9 +760,8 @@ impl EmailRepository for SqliteEmailRepository {
         results
             .into_iter()
             .map(|record| {
-                let id = Uuid::parse_str(&record.id)
-                    .map_err(|e| DatabaseError::InvalidData(format!("Invalid email ID: {}", e)))?;
-                Ok((id, record.subject, record.body_plain, record.body_html))
+                Uuid::parse_str(&record.id)
+                    .map_err(|e| DatabaseError::InvalidData(format!("Invalid email ID: {}", e)))
             })
             .collect()
     }

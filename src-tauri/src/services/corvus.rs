@@ -1,4 +1,5 @@
 use crate::config::Settings;
+use crate::database::models::email::Email;
 use async_openai::config::{Config, OpenAIConfig};
 use async_openai::traits::RequestOptionsBuilder;
 use async_openai::types::chat::{
@@ -472,62 +473,99 @@ impl CorvusService {
         Ok(rx)
     }
 
-    pub async fn analyze_email(
-        &self,
-        subject: String,
-        content: String,
-        received_at: Option<String>,
-    ) -> Result<EmailAnalysis, String> {
-        log::debug!("Processing email analysis request");
+    pub async fn analyze_email(&self, email: &Email) -> Result<EmailAnalysis, String> {
+        log::debug!("Processing email analysis request for email {}", email.id);
 
         let client = self.get_client()?;
         let model = self.get_model("normal")?;
-        let mut system_prompt = self.get_prompt("analyzeEmail")?;
-        system_prompt.push_str(&self.build_writing_style_context());
+        let system_prompt = self.get_prompt("analyzeEmail")?;
+        let writing_style = self.get_writing_style().unwrap_or_default();
+
+        // Extract email fields
+        let from = format!(
+            "{} <{}>",
+            email.from().name.clone().unwrap_or_default(),
+            email.from().address
+        )
+        .trim_start_matches(" <")
+        .trim_end_matches(">")
+        .to_string();
+
+        let to = email
+            .to()
+            .iter()
+            .map(|addr| {
+                format!(
+                    "{} <{}>",
+                    addr.name.clone().unwrap_or_default(),
+                    addr.address
+                )
+                .trim_start_matches(" <")
+                .trim_end_matches(">")
+                .to_string()
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let cc = email
+            .cc()
+            .iter()
+            .map(|addr| {
+                format!(
+                    "{} <{}>",
+                    addr.name.clone().unwrap_or_default(),
+                    addr.address
+                )
+                .trim_start_matches(" <")
+                .trim_end_matches(">")
+                .to_string()
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let subject = email
+            .subject
+            .clone()
+            .unwrap_or_else(|| "(No subject)".to_string());
+        let content = email
+            .body_plain
+            .clone()
+            .or_else(|| email.body_html.clone())
+            .unwrap_or_default();
 
         let current_datetime = chrono::Utc::now().to_rfc3339();
-        let received_at = received_at.unwrap_or_else(|| current_datetime.clone());
+        let received_at = email.received_at.to_rfc3339();
 
-        let prompt = format!(
-            r#"Analyze the following email and provide:
-1. A concise gist (1-2 sentences) summarizing the key point or request
-2. 1-4 appropriate response suggestions with titles and content
-
-Current DateTime: {}
+        let user_prompt = format!(
+            r#"Current DateTime: {}
 
 Email Details:
+From: {}
+To: {}
+Cc: {}
 Subject: {}
 Received At: {}
 Content:
-{}
-
-Respond with ONLY a valid JSON response in this exact format:
-{{
-  "gist": "Brief summary of the email",
-  "responses": [
-    {{
-      "title": "Response option title",
-      "content": "Full response content in plain text"
-    }}
-  ]
-}}
-
-Important:
-- You must respond in valid JSON object only! No additional text, markup or explanations
-- Gist should be actionable and highlight what requires attention
-- Responses should be professional, contextual, and ready to send
-- Match the tone and language of the original email
-- Provide 1-4 response options depending on the email context
-- Response content should be complete, well-structured messages"#,
-            current_datetime, subject, received_at, content,
+{}"#,
+            current_datetime, from, to, cc, subject, received_at, content,
         );
 
-        let messages = vec![ChatCompletionRequestMessage::User(
-            ChatCompletionRequestUserMessage {
-                content: prompt.into(),
+        let system_with_style = if writing_style.is_empty() {
+            system_prompt
+        } else {
+            format!("{}\n{}", system_prompt, writing_style)
+        };
+
+        let messages = vec![
+            ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
+                content: system_with_style.into(),
                 name: None,
-            },
-        )];
+            }),
+            ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
+                content: user_prompt.into(),
+                name: None,
+            }),
+        ];
 
         let mut request_builder = CreateChatCompletionRequestArgs::default();
         request_builder.model(model);

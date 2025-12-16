@@ -1,3 +1,4 @@
+use crate::database::models::email::Email;
 use crate::database::repositories::{EmailRepository, RepositoryFactory};
 use crate::services::corvus::{
     AskAiRequest, AvailableModel, ChatMessage, CorvusService, EmailAnalysis,
@@ -220,7 +221,7 @@ pub async fn analyze_email_with_ai(
     let repo_factory = RepositoryFactory::new(state.db_pool.clone());
     let email_repo = repo_factory.email_repository();
 
-    let email = email_repo
+    let email: Email = email_repo
         .find_by_id(email_id)
         .await
         .map_err(|e| format!("Failed to fetch email: {}", e))?
@@ -236,25 +237,9 @@ pub async fn analyze_email_with_ai(
         }
     }
 
-    let email_content = email
-        .body_plain
-        .clone()
-        .or_else(|| email.body_html.clone())
-        .ok_or_else(|| "Email has no content".to_string())?;
-
-    let subject = email
-        .subject
-        .clone()
-        .unwrap_or_else(|| "(No subject)".to_string());
-
     let ai_service = get_ai_service(&state);
 
-    let received_at = Some(email.received_at.to_string());
-
-    match ai_service
-        .analyze_email(subject, email_content, received_at)
-        .await
-    {
+    match ai_service.analyze_email(&email).await {
         Ok(analysis) => {
             let analysis_json = serde_json::to_string(&analysis)
                 .map_err(|e| format!("Failed to serialize analysis: {}", e))?;

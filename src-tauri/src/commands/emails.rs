@@ -53,6 +53,7 @@ pub struct SendFromAccountRequest {
     pub body: String,
     pub attachments: Vec<AttachmentData>,
     pub draft_id: Option<Uuid>,
+    pub conversation_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,6 +66,7 @@ pub struct SaveDraftRequest {
     pub subject: String,
     pub body: String,
     pub scheduled_send_at: Option<String>,
+    pub conversation_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -271,6 +273,7 @@ pub async fn send_email_from_account(
                 draft_email.folder_id = sent_folder.id;
                 draft_email.is_draft = false;
                 draft_email.sent_at = Some(Utc::now());
+                draft_email.conversation_id = request.conversation_id.clone();
                 draft_email.sync_status = "synced".to_string();
 
                 email_repo
@@ -305,7 +308,7 @@ pub async fn send_email_from_account(
                 account_id: account.id,
                 folder_id: sent_folder.id,
                 message_id,
-                conversation_id: None,
+                conversation_id: request.conversation_id.clone(),
                 remote_id: None,
                 from: Json(EmailAddress {
                     address: account.email.clone(),
@@ -415,6 +418,7 @@ pub async fn save_draft(
         draft.bcc = Json(request.bcc);
         draft.subject = Some(request.subject);
         draft.body_html = Some(request.body);
+        draft.conversation_id = request.conversation_id;
         draft.scheduled_send_at = scheduled_send_at;
         draft.updated_at = Utc::now();
 
@@ -438,7 +442,7 @@ pub async fn save_draft(
             account_id: account.id,
             folder_id: draft_folder.id,
             message_id,
-            conversation_id: None,
+            conversation_id: request.conversation_id,
             remote_id: None,
             from: Json(EmailAddress {
                 address: account.email.clone(),
@@ -715,10 +719,14 @@ pub async fn update_read(
         .map_err(|e| format!("Failed to update read status: {}", e))?;
 
     emit_email_event(&state.app_handle, "email:updated", serde_json::json!(email));
-    emit_email_event(&state.app_handle, "folder:updated", serde_json::json!({
-        "account_id": email.account_id.to_string(),
-        "id": email.folder_id.to_string()
-    }));
+    emit_email_event(
+        &state.app_handle,
+        "folder:updated",
+        serde_json::json!({
+            "account_id": email.account_id.to_string(),
+            "id": email.folder_id.to_string()
+        }),
+    );
 
     Ok(())
 }

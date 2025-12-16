@@ -13,7 +13,6 @@ const { t } = useI18n()
 
 interface Props {
   modelValue: string[]
-  accountId: string
   placeholder?: string
   delimiter?: RegExp
 }

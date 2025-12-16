@@ -906,10 +906,7 @@ impl ImapProvider {
             return Ok(Vec::new());
         }
 
-        log::debug!(
-            "[IMAP] Fetching headers for {} emails",
-            uids.len()
-        );
+        log::debug!("[IMAP] Fetching headers for {} emails", uids.len());
 
         let mut emails: Vec<SyncEmail> = Vec::new();
         for uid in uids {
@@ -1156,10 +1153,7 @@ impl EmailProvider for ImapProvider {
             });
         }
 
-        log::debug!(
-            "Fetching {} emails",
-            uids.len()
-        );
+        log::debug!("Fetching {} emails", uids.len());
 
         // 2) Iterate per UID: map to seq num, fetch by seq, and parse using fallback UID
         let mut emails: Vec<SyncEmail> = Vec::new();

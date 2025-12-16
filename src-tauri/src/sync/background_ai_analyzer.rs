@@ -84,21 +84,21 @@ impl BackgroundAiAnalyzer {
         active_analysis: &Arc<RwLock<HashMap<Uuid, bool>>>,
     ) -> SyncResult<()> {
         let email_repo = SqliteEmailRepository::new(pool.clone());
-        let pending_emails = email_repo
+        let pending_email_ids = email_repo
             .find_pending_ai_analysis(ANALYSIS_BATCH_SIZE)
             .await
             .map_err(|e| SyncError::DatabaseError(e.to_string()))?;
 
-        if pending_emails.is_empty() {
+        if pending_email_ids.is_empty() {
             return Ok(());
         }
 
         log::debug!(
             "[BackgroundAiAnalyzer] Found {} personal inbox emails pending AI analysis",
-            pending_emails.len()
+            pending_email_ids.len()
         );
 
-        for (email_id, subject, body_plain, body_html) in pending_emails {
+        for email_id in pending_email_ids {
             {
                 let analysis = active_analysis.read().await;
                 if analysis.get(&email_id).copied().unwrap_or(false) {
@@ -122,9 +122,6 @@ impl BackgroundAiAnalyzer {
                     &app_handle_clone,
                     &ai_service_clone,
                     email_id,
-                    subject,
-                    body_plain,
-                    body_html,
                 )
                 .await
                 {
@@ -156,24 +153,22 @@ impl BackgroundAiAnalyzer {
         app_handle: &tauri::AppHandle,
         ai_service: &Arc<CorvusService>,
         email_id: Uuid,
-        subject: Option<String>,
-        body_plain: Option<String>,
-        body_html: Option<String>,
     ) -> SyncResult<()> {
-        let email_content = body_plain
-            .or(body_html)
-            .ok_or_else(|| SyncError::Other("Email has no content".to_string()))?;
+        let email_repo = SqliteEmailRepository::new(pool.clone());
+        let email = email_repo
+            .find_by_id(email_id)
+            .await
+            .map_err(|e| SyncError::DatabaseError(e.to_string()))?
+            .ok_or_else(|| SyncError::Other("Email not found".to_string()))?;
 
-        let subject = subject.unwrap_or_else(|| "(No subject)".to_string());
         let analysis = ai_service
-            .analyze_email(subject, email_content, None)
+            .analyze_email(&email)
             .await
             .map_err(|e| SyncError::Other(e))?;
 
         let analysis_json = serde_json::to_string(&analysis)
             .map_err(|e| SyncError::Other(format!("Failed to serialize analysis: {}", e)))?;
 
-        let email_repo = SqliteEmailRepository::new(pool.clone());
         email_repo
             .update_ai_cache(email_id, &analysis_json)
             .await

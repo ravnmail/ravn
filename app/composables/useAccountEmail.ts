@@ -17,7 +17,8 @@ export interface SendFromAccountRequest {
   subject: string
   body: string
   attachments: AttachmentData[]
-  draft_id?: number
+  draft_id?: string
+  conversation_id?: string
 }
 
 export interface SaveDraftRequest {
@@ -29,6 +30,7 @@ export interface SaveDraftRequest {
   subject: string
   body: string
   scheduled_send_at?: string
+  conversation_id?: string
 }
 
 export interface AttachmentData {

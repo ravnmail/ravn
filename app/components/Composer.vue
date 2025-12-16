@@ -12,18 +12,18 @@ import { Badge } from '~/components/ui/badge'
 import { SimpleTooltip } from '~/components/ui/tooltip'
 import type { EmailAddress, EmailDetail } from '~/types/email'
 import type { SaveDraftRequest, SendFromAccountRequest } from '~/composables/useAccountEmail'
-import { marked } from 'marked'
 import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
 import { Input } from '~/components/ui/input'
 import { useCorvus } from '~/composables/useCorvus'
 import { getFileIconForMimeType } from '~/lib/utils/fileIcons'
+import { marked } from 'marked'
 
 interface Props {
   draft?: EmailDetail
   replyTo?: EmailDetail
   isReplyAll?: boolean
   forward?: EmailDetail
-  initialAccountId?: number
+  initialAccountId?: string
   initialContent?: string
 }
 
@@ -32,7 +32,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   sent: []
   discarded: []
-  saved: [draftId: number]
+  saved: [draftId: string]
   change: []
 }>()
 
@@ -51,24 +51,25 @@ const {
 const { loadAttachmentsForForward } = useAttachments()
 const {
   isGeneratingSubject,
-  subjectError,
-  generatedSubject,
   generateSubjectStreaming,
 } = useCorvus()
 
 const selectedAccountId = ref<string | null>(null)
-const toEmails = ref<string[]>([])
-const ccEmails = ref<string[]>([])
-const bccEmails = ref<string[]>([])
-const subject = ref('')
-const body = ref<string>(props.initialContent || '\n')
+const draft = ref<Partial<EmailDetail>>({
+  to: [],
+  cc: [],
+  bcc: [],
+  subject: '',
+  body_html: props.initialContent || '\n',
+  conversation_id: undefined,
+})
 const attachments = ref<File[]>([])
 const forwardedAttachments = ref<AttachmentData[]>([])
 const showCc = ref(false)
 const showBcc = ref(false)
 const validationErrors = ref<Array<string | CleanTranslation>>([])
 const currentDraftId = ref<string | null>(null)
-const autoSaveInterval = ref<Timeout | null>(null)
+const autoSaveInterval = ref<ReturnType<typeof setInterval> | null>(null)
 const hasUnsavedChanges = ref(false)
 const lastSavedAt = ref<Date | null>(null)
 const isDraggingOver = ref(false)
@@ -82,20 +83,21 @@ const markAsChanged = () => {
 
 watch(accounts, (newAccounts) => {
   if (newAccounts.length > 0 && !selectedAccountId.value) {
-    selectedAccountId.value = newAccounts[0].id
+    const firstAccount = newAccounts[0]
+    if (firstAccount) {
+      selectedAccountId.value = String(firstAccount.id)
+    }
   }
 })
 
-const isDraft = computed(() => !!props.draft || currentDraftId.value !== null)
-
 const selectedAccount = computed(() => {
-  return accounts.value.find(a => a.id === selectedAccountId.value)
+  return accounts.value.find(a => String(a.id) === selectedAccountId.value)
 })
 
 const canSend = computed(() => {
   return (
     selectedAccountId.value !== null
-    && toEmails.value.length > 0
+    && (draft.value.to?.length ?? 0) > 0
     && !isSending.value
     && !isSavingDraft.value
   )
@@ -107,9 +109,9 @@ const editor = new Editor({
       placeholder: t('composer.placeholders.default'),
     }),
   ],
-  content: body.value,
+  content: draft.value.body_html || '\n',
   onUpdate: ({ editor }) => {
-    body.value = editor.getHTML()
+    draft.value.body_html = editor.getHTML()
     markAsChanged()
   },
 })
@@ -124,9 +126,12 @@ onMounted(async () => {
   } else if (props.forward) {
     await initializeForward(props.forward)
   } else if (props.initialAccountId) {
-    selectedAccountId.value = props.initialAccountId
+    selectedAccountId.value = String(props.initialAccountId)
   } else if (accounts.value.length > 0) {
-    selectedAccountId.value = accounts.value[0].id
+    const firstAccount = accounts.value[0]
+    if (firstAccount) {
+      selectedAccountId.value = String(firstAccount.id)
+    }
   }
 
   startAutoSave()
@@ -137,59 +142,89 @@ onUnmounted(() => {
   editor?.destroy()
 })
 
-function initializeFromDraft(draft: Email) {
-  currentDraftId.value = draft.id
-  selectedAccountId.value = draft.account_id
-  toEmails.value = draft.to.map(e => e.address)
-  ccEmails.value = draft.cc.map(e => e.address)
-  bccEmails.value = draft.bcc.map(e => e.address)
-  subject.value = draft.subject || ''
-  body.value = draft.body_html || '\n'
-  editor.commands.setContent(body.value)
-  showCc.value = draft.cc.length > 0
-  showBcc.value = draft.bcc.length > 0
+function initializeFromDraft(draftEmail: EmailDetail) {
+  currentDraftId.value = draftEmail.id
+  selectedAccountId.value = draftEmail.account_id
+  draft.value = {
+    to: draftEmail.to,
+    cc: draftEmail.cc,
+    bcc: draftEmail.bcc,
+    subject: draftEmail.subject || '',
+    body_html: draftEmail.body_html || '\n',
+    conversation_id: draftEmail.conversation_id,
+  }
+  editor.commands.setContent(draft.value.body_html || '\n')
+  showCc.value = (draft.value.cc?.length ?? 0) > 0
+  showBcc.value = (draft.value.bcc?.length ?? 0) > 0
   hasUnsavedChanges.value = false
 }
 
 function toSimpleHtml(text?: string): string {
   if (!text) return ''
-  return marked(text)
+  // marked() can be async, but for simple text we can use it directly
+  // We'll just return the text as-is for now since it's in a reply context
+  console.log('Converting to simple HTML:', text)
+  return marked.parse(text)
 }
 
-function initializeReply(email: Email) {
+function initializeReply(email: EmailDetail) {
   selectedAccountId.value = email.account_id
-  toEmails.value = [email.from.address]
+  const toAddresses = [email.from]
 
   if (props.isReplyAll) {
     const originalRecipients = [
-      ...email.to.map(e => e.address),
-      ...(email.cc || []).map(e => e.address)
+      ...email.to,
+      ...(email.cc || [])
     ]
-    const ccSet = new Set(originalRecipients.filter(addr => addr !== email.from.address))
-    ccEmails.value = Array.from(ccSet)
-    showCc.value = ccEmails.value.length > 0
+    // Filter out the sender's own email from CC to prevent self-cc
+    const senderEmail = selectedAccount.value?.email
+    const ccSet = new Set(originalRecipients.filter(addr =>
+      addr.address !== email.from.address &&
+      (!senderEmail || addr.address !== senderEmail)
+    ))
+    const ccList = Array.from(ccSet)
+
+    draft.value = {
+      to: toAddresses,
+      cc: ccList,
+      bcc: [],
+      subject: email.subject?.startsWith('Re:') ? email.subject : `Re: ${email.subject || ''}`,
+      body_html: `
+        ${toSimpleHtml(props.initialContent)}
+        <p><br></p>
+        <p>On ${new Date(email.sent_at || email.received_at).toLocaleString()}, ${email.from.name || email.from.address} wrote:</p>
+        <blockquote style="margin-left: 1em; padding-left: 1em; border-left: 2px solid #ccc;">
+          ${email.body_html || email.body_plain || ''}
+        </blockquote>
+      `,
+      conversation_id: email.conversation_id,
+    }
+    showCc.value = true
+  } else {
+    draft.value = {
+      to: toAddresses,
+      cc: [],
+      bcc: [],
+      subject: email.subject?.startsWith('Re:') ? email.subject : `Re: ${email.subject || ''}`,
+      body_html: `
+        ${toSimpleHtml(props.initialContent)}
+        <p><br></p>
+        <p>On ${new Date(email.sent_at || email.received_at).toLocaleString()}, ${email.from.name || email.from.address} wrote:</p>
+        <blockquote style="margin-left: 1em; padding-left: 1em; border-left: 2px solid #ccc;">
+          ${email.body_html || email.body_plain || ''}
+        </blockquote>
+      `,
+      conversation_id: email.conversation_id,
+    }
   }
 
-  subject.value = email.subject?.startsWith('Re:') ? email.subject : `Re: ${email.subject || ''}`
-
-  const quotedBody = `
-    ${toSimpleHtml(props.initialContent)}
-    <p><br></p>
-    <p>On ${new Date(email.sent_at || email.received_at).toLocaleString()}, ${email.from.name || email.from.address} wrote:</p>
-    <blockquote style="margin-left: 1em; padding-left: 1em; border-left: 2px solid #ccc;">
-      ${email.body_html || email.body_plain || ''}
-    </blockquote>
-  `
-  body.value = quotedBody
-  editor.commands.setContent(quotedBody)
+  editor.commands.setContent(draft.value.body_html || '')
   markAsChanged()
 }
 
 async function initializeForward(email: EmailDetail) {
   selectedAccountId.value = email.account_id
-  subject.value = email.subject?.startsWith('Fwd:') ? email.subject : `Fwd: ${email.subject || ''}`
 
-  // Add forwarded content
   const forwardedBody = `
     ${toSimpleHtml(props.initialContent)}
     <p><br></p>
@@ -201,7 +236,16 @@ async function initializeForward(email: EmailDetail) {
     <p><br></p>
     ${email.body_html || email.body_plain || ''}
   `
-  body.value = forwardedBody
+
+  draft.value = {
+    to: [],
+    cc: [],
+    bcc: [],
+    subject: email.subject?.startsWith('Fwd:') ? email.subject : `Fwd: ${email.subject || ''}`,
+    body_html: forwardedBody,
+    conversation_id: email.conversation_id,
+  }
+
   editor.commands.setContent(forwardedBody)
 
   if (email.has_attachments) {
@@ -238,11 +282,12 @@ async function handleAutoSave() {
     const request: SaveDraftRequest = {
       account_id: selectedAccountId.value,
       draft_id: currentDraftId.value || undefined,
-      to: emailsToAddresses(toEmails.value),
-      cc: emailsToAddresses(ccEmails.value),
-      bcc: emailsToAddresses(bccEmails.value),
-      subject: subject.value,
+      to: emailsToAddresses(draft.value.to?.map(e => e.address) || []),
+      cc: emailsToAddresses(draft.value.cc?.map(e => e.address) || []),
+      bcc: emailsToAddresses(draft.value.bcc?.map(e => e.address) || []),
+      subject: draft.value.subject || '',
       body: editor.getHTML(),
+      conversation_id: draft.value.conversation_id,
     }
 
     const response = await saveDraft(request)
@@ -267,12 +312,16 @@ const validateForm = (): boolean => {
     return false
   }
 
-  if (toEmails.value.length === 0) {
+  if ((draft.value.to?.length ?? 0) === 0) {
     validationErrors.value.push(t('composer.noRecipients'))
     return false
   }
 
-  const allEmails = [...toEmails.value, ...ccEmails.value, ...bccEmails.value]
+  const toEmails = draft.value.to?.map(e => e.address) || []
+  const ccEmails = draft.value.cc?.map(e => e.address) || []
+  const bccEmails = draft.value.bcc?.map(e => e.address) || []
+
+  const allEmails = [...toEmails, ...ccEmails, ...bccEmails]
   const invalidEmails = allEmails.filter(email => !isValidEmail(email))
 
   if (invalidEmails.length > 0) {
@@ -306,13 +355,14 @@ async function handleSend() {
 
     const request: SendFromAccountRequest = {
       account_id: selectedAccountId.value!,
-      to: emailsToAddresses(toEmails.value),
-      cc: emailsToAddresses(ccEmails.value),
-      bcc: emailsToAddresses(bccEmails.value),
-      subject: subject.value,
+      to: emailsToAddresses(draft.value.to?.map(e => e.address) || []),
+      cc: emailsToAddresses(draft.value.cc?.map(e => e.address) || []),
+      bcc: emailsToAddresses(draft.value.bcc?.map(e => e.address) || []),
+      subject: draft.value.subject || '',
       body: editor.getHTML(),
       attachments: allAttachments,
-      draft_id: currentDraftId.value || undefined,
+      draft_id: currentDraftId.value ? currentDraftId.value : undefined,
+      conversation_id: draft.value.conversation_id,
     }
 
     await sendFromAccount(request)
@@ -336,11 +386,12 @@ async function handleSaveDraft() {
     const request: SaveDraftRequest = {
       account_id: selectedAccountId.value,
       draft_id: currentDraftId.value || undefined,
-      to: emailsToAddresses(toEmails.value),
-      cc: emailsToAddresses(ccEmails.value),
-      bcc: emailsToAddresses(bccEmails.value),
-      subject: subject.value,
+      to: emailsToAddresses(draft.value.to?.map(e => e.address) || []),
+      cc: emailsToAddresses(draft.value.cc?.map(e => e.address) || []),
+      bcc: emailsToAddresses(draft.value.bcc?.map(e => e.address) || []),
+      subject: draft.value.subject || '',
       body: editor.getHTML(),
+      conversation_id: draft.value.conversation_id,
     }
 
     const response = await saveDraft(request)
@@ -445,12 +496,15 @@ const handleDrop = (event: DragEvent) => {
 }
 
 async function handleGenerateSubject() {
-  if (!body.value || !selectedAccountId.value) {
+  if (!draft.value.body_html || !selectedAccountId.value) {
     return
   }
 
   try {
-    const recipientsList = [...toEmails.value, ...ccEmails.value, ...bccEmails.value]
+    const toAddresses = draft.value.to?.map(e => e.address) || []
+    const ccAddresses = draft.value.cc?.map(e => e.address) || []
+    const bccAddresses = draft.value.bcc?.map(e => e.address) || []
+    const recipientsList = [...toAddresses, ...ccAddresses, ...bccAddresses]
     const senderEmail = selectedAccount.value?.email || ''
     const isReply = !!props.replyTo
 
@@ -459,11 +513,11 @@ async function handleGenerateSubject() {
       senderEmail,
       recipientsList,
       isReply,
-      subject.value || undefined
+      draft.value.subject || undefined
     )
 
     if (generatedText) {
-      subject.value = generatedText.trim()
+      draft.value.subject = generatedText.trim()
       markAsChanged()
     }
   } catch (error) {
@@ -585,10 +639,10 @@ useKeyboardBindings({
         </label>
         <div class="flex-1 flex items-center gap-2">
           <EmailAutocompleteInput
-            v-model="toEmails"
             :account-id="selectedAccountId"
+            :model-value="draft.to?.map(e => e.address) || []"
             :placeholder="$t('composer.enterRecipient')"
-            @update:model-value="hasUnsavedChanges = true"
+            @update:model-value="(emails) => { draft.to = emailsToAddresses(emails); hasUnsavedChanges = true }"
           />
           <div class="flex items-center gap-1">
             <Button
@@ -623,10 +677,10 @@ useKeyboardBindings({
         </label>
         <div class="flex-1 flex items-center gap-2">
           <EmailAutocompleteInput
-            v-model="ccEmails"
             :account-id="selectedAccountId"
+            :model-value="draft.cc?.map(e => e.address) || []"
             :placeholder="$t('composer.enterRecipient')"
-            @update:model-value="hasUnsavedChanges = true"
+            @update:model-value="(emails) => { draft.cc = emailsToAddresses(emails); hasUnsavedChanges = true }"
           />
           <Button
             size="xs"
@@ -650,10 +704,10 @@ useKeyboardBindings({
         </label>
         <div class="flex-1 flex items-center gap-2">
           <EmailAutocompleteInput
-            v-model="bccEmails"
             :account-id="selectedAccountId"
+            :model-value="draft.bcc?.map(e => e.address) || []"
             :placeholder="$t('composer.enterRecipient')"
-            @update:model-value="hasUnsavedChanges = true"
+            @update:model-value="(emails) => { draft.bcc = emailsToAddresses(emails); hasUnsavedChanges = true }"
           />
           <Button
             size="xs"
@@ -674,7 +728,7 @@ useKeyboardBindings({
         </label>
         <div class="flex-1 flex relative">
           <Input
-            v-model="subject"
+            v-model="draft.subject"
             :placeholder="$t('composer.subject')"
             class="pr-10"
             type="text"
@@ -682,7 +736,7 @@ useKeyboardBindings({
           />
           <SimpleTooltip tooltip="Generate subject with AI">
             <button
-              :disabled="isGeneratingSubject || !body || !selectedAccountId"
+              :disabled="isGeneratingSubject || !draft.body_html || !selectedAccountId"
               class="absolute right-2 top-2 text-ai hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed"
               @click="handleGenerateSubject"
             >
