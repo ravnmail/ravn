@@ -3,7 +3,7 @@ import type { HTMLAttributes } from 'vue'
 import { useVModel } from '@vueuse/core'
 import FormField from './FormField.vue'
 import Input from '../input/Input.vue'
-import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 import { Button } from '~/components/ui/button'
 import { toast } from 'vue-sonner'
 

@@ -1,5 +1,5 @@
 import { useEventListener } from '@vueuse/core'
-import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 
 export interface SwipeAction {
   id: string

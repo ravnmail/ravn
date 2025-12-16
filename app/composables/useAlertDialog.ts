@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
 } from '~/components/ui/alert-dialog'
 import { buttonVariants } from '~/components/ui/button'
-import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 import type { PluginsInjections } from 'nuxt-i18n-micro'
 type ActionType = 'primary' | 'secondary' | 'destructive' | 'cancel'
 export interface DialogAction {

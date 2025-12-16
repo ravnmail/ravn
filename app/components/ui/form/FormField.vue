@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { HTMLAttributes } from 'vue'
 import { TooltipIcon } from '~/components/ui/tooltip'
-import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 import Label from '~/components/ui/form/Label.vue'
 
 const props = defineProps<{

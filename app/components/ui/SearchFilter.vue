@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { SplitBadge } from '~/components/ui/badge'
-import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 
 interface FilterableItem {
   value: string | number

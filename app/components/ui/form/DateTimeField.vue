@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { useVModel } from '@vueuse/core'
 import FormField from './FormField.vue'
 import Input from '../input/Input.vue'
-import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 
 const props = defineProps<{
   // FormField props

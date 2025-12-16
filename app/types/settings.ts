@@ -1,7 +1,7 @@
 // Settings Types
 // These correspond to the settings in src-tauri/resources/settings.json5
 
-import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 
 export interface AIModelSettings {
   fast: string;

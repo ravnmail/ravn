@@ -19,7 +19,7 @@ import {
   TagsInputItemDelete,
   TagsInputItemText
 } from '~/components/ui/tags-input'
-import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 
 export interface ComboboxOption<T = unknown> {
   value: T

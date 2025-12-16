@@ -1,5 +1,4 @@
-import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
-import type { Params } from 'nuxt-i18n-micro-types'
+import type { CleanTranslation, Params  } from 'nuxt-i18n-micro-types'
 import type { RouteLocationNormalizedLoaded } from '#vue-router'
 
 export interface ButtonViewReturnComponentProps {

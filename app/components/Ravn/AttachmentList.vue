@@ -97,7 +97,7 @@ onUnmounted(() => {
 const list = useTemplateRef('list')
 const contextMenu = useTemplateRef('contextMenu')
 onClickOutside(list, (e) => {
-  selectedIds.value = new Set()
+  // selectedIds.value = new Set()
 }, { ignore: [contextMenu] })
 
 </script>

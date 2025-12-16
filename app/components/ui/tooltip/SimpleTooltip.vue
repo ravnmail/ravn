@@ -2,7 +2,7 @@
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '~/components/ui/tooltip/index'
 import type { HTMLAttributes } from 'vue'
-import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 import Markdown from '~/components/Markdown.vue'
 
 const props = withDefaults(defineProps<{

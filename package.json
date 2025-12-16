@@ -1,7 +1,7 @@
 {
   "name": "ravn",
   "description": "Ravn Mail - the modern email client for digital natives",
-  "version": "25.12.15",
+  "version": "25.12.16",
   "author": "Michael Wallner @ Coder's Cantina",
   "license": "GPL-3.0-only",
   "type": "module",
@@ -89,6 +89,7 @@
     "eslint-plugin-vue": "^10.6.2",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
+    "nuxt-i18n-micro-types": "^1.0.15",
     "sass": "^1.97.0",
     "typescript": "^5.9.3",
     "vite-svg-loader": "^5.1.0",

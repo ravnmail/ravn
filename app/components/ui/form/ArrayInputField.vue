@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 import { computed, reactive } from 'vue'
 import { FormField } from '~/components/ui/form'
 import { Input } from '~/components/ui/input'
@@ -6,7 +6,7 @@ import { Button } from '~/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
 import { Textarea } from '~/components/ui/textarea'
-import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 import { Switch } from '~/components/ui/switch'
 
 type InputType =
@@ -207,9 +207,9 @@ const handleKeyPress = (event: KeyboardEvent): void => {
 
 <template>
   <FormField
-    :name="name"
-    :label="label"
     :description="description"
+    :label="label"
+    :name="name"
     :required="required"
   >
     <div class="space-y-4">
@@ -246,11 +246,11 @@ const handleKeyPress = (event: KeyboardEvent): void => {
           >
             <TableCell v-if="sortable">
               <Button
-                type="button"
-                variant="ghost"
-                size="icon"
                 :disabled="disabled"
                 class="cursor-grab"
+                size="icon"
+                type="button"
+                variant="ghost"
               >
                 <Icon name="lucide:grip-vertical"/>
               </Button>
@@ -262,48 +262,48 @@ const handleKeyPress = (event: KeyboardEvent): void => {
             >
               <Input
                 v-if="column.type === 'text' || column.type === 'email' || column.type === 'password' || column.type === 'url' || column.type === 'tel'"
-                :model-value="String(item[column.key] || '')"
-                :type="column.type"
-                :placeholder="String(column.placeholder || '')"
                 :disabled="disabled || column.readonly || (column.editable === false)"
                 :maxlength="column.maxLength"
+                :model-value="String(item[column.key] || '')"
+                :placeholder="String(column.placeholder || '')"
+                :type="column.type"
                 @update:model-value="updateItem(index, column.key, $event)"
               />
 
               <Input
                 v-else-if="column.type === 'number'"
-                :model-value="String(item[column.key] || '')"
-                type="number"
-                :placeholder="String(column.placeholder || '')"
                 :disabled="disabled || column.readonly || (column.editable === false)"
-                :min="column.min"
                 :max="column.max"
+                :min="column.min"
+                :model-value="String(item[column.key] || '')"
+                :placeholder="String(column.placeholder || '')"
                 :step="column.step"
+                type="number"
                 @update:model-value="updateItem(index, column.key, Number($event))"
               />
 
               <Input
                 v-else-if="['date', 'time', 'datetime-local'].includes(column.type)"
+                :disabled="disabled || column.readonly || (column.editable === false)"
                 :model-value="String(item[column.key] || '')"
                 :type="column.type"
-                :disabled="disabled || column.readonly || (column.editable === false)"
                 @update:model-value="updateItem(index, column.key, $event)"
               />
 
               <Textarea
                 v-else-if="column.type === 'textarea'"
+                :disabled="disabled || column.readonly || (column.editable === false)"
+                :maxlength="column.maxLength"
                 :model-value="String(item[column.key] || '')"
                 :placeholder="String(column.placeholder || '')"
-                :disabled="disabled || column.readonly || (column.editable === false)"
                 :rows="column.rows || 3"
-                :maxlength="column.maxLength"
                 @update:model-value="updateItem(index, column.key, $event)"
               />
 
               <Select
                 v-else-if="column.type === 'select'"
-                :model-value="String(item[column.key] || '')"
                 :disabled="disabled || column.readonly || (column.editable === false)"
+                :model-value="String(item[column.key] || '')"
                 @update:model-value="updateItem(index, column.key, $event)"
               >
                 <SelectTrigger>
@@ -313,8 +313,8 @@ const handleKeyPress = (event: KeyboardEvent): void => {
                   <SelectItem
                     v-for="option in column.options"
                     :key="option.value"
-                    :value="String(option.value)"
                     :disabled="option.disabled"
+                    :value="String(option.value)"
                   >
                     {{ option.label }}
                   </SelectItem>
@@ -341,11 +341,11 @@ const handleKeyPress = (event: KeyboardEvent): void => {
               class="flex"
             >
               <Button
+                :disabled="disabled || (minItems && items.length <= minItems)"
+                class="ml-auto"
+                size="icon"
                 type="button"
                 variant="ghost"
-                size="icon"
-                class="ml-auto"
-                :disabled="disabled || (minItems && items.length <= minItems)"
                 @click="removeItem(index)"
               >
                 <Icon name="lucide:trash-2"/>
@@ -374,40 +374,40 @@ const handleKeyPress = (event: KeyboardEvent): void => {
                 <Input
                   v-if="column.type === 'text' || column.type === 'email' || column.type === 'password' || column.type === 'url' || column.type === 'tel'"
                   v-model="newItem[column.key]"
-                  :type="column.type"
-                  :placeholder="String(column.placeholder || '')"
                   :disabled="disabled"
                   :maxlength="column.maxLength"
+                  :placeholder="String(column.placeholder || '')"
+                  :type="column.type"
                   @keydown="handleKeyPress"
                 />
 
                 <Input
                   v-else-if="column.type === 'number'"
                   v-model="newItem[column.key]"
-                  type="number"
-                  :placeholder="String(column.placeholder || '')"
                   :disabled="disabled"
-                  :min="column.min"
                   :max="column.max"
+                  :min="column.min"
+                  :placeholder="String(column.placeholder || '')"
                   :step="column.step"
+                  type="number"
                   @keydown="handleKeyPress"
                 />
 
                 <Input
                   v-else-if="['date', 'time', 'datetime-local'].includes(column.type)"
                   v-model="newItem[column.key]"
-                  :type="column.type"
                   :disabled="disabled"
+                  :type="column.type"
                   @keydown="handleKeyPress"
                 />
 
                 <Textarea
                   v-else-if="column.type === 'textarea'"
                   v-model="newItem[column.key]"
-                  :placeholder="String(column.placeholder || '')"
                   :disabled="disabled"
-                  :rows="column.rows || 3"
                   :maxlength="column.maxLength"
+                  :placeholder="String(column.placeholder || '')"
+                  :rows="column.rows || 3"
                 />
 
                 <Select
@@ -422,8 +422,8 @@ const handleKeyPress = (event: KeyboardEvent): void => {
                     <SelectItem
                       v-for="option in column.options"
                       :key="option.value"
-                      :value="String(option.value)"
                       :disabled="option.disabled"
+                      :value="String(option.value)"
                     >
                       {{ option.label }}
                     </SelectItem>
@@ -440,9 +440,9 @@ const handleKeyPress = (event: KeyboardEvent): void => {
 
             <TableCell v-if="showRemoveButton">
               <Button
-                type="button"
                 :disabled="!canAddItem"
                 size="sm"
+                type="button"
                 @click="addItem"
               >
                 <Icon name="lucide:plus"/>

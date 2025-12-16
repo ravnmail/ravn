@@ -4,7 +4,7 @@ import IconGrid from '~/components/ui/IconGrid.vue'
 import ColorSelect from '~/components/ui/ColorSelect.vue'
 import { Input } from '~/components/ui/input'
 import { FormField } from '~/components/ui/form'
-import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 
 const props = defineProps<{
   modelValue: {

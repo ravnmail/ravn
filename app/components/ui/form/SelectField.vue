@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '~/components/ui/select'
-import type { CleanTranslation } from 'nuxt-i18n-micro-types/src'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 
 export interface SelectOption<T = unknown> {
   value: T
