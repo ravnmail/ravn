@@ -39,7 +39,7 @@ fn create_menu(app: &tauri::App) -> Result<Menu<tauri::Wry>, tauri::Error> {
 
     #[cfg(target_os = "macos")]
     {
-        let app_menu = Submenu::new(app, "RAVN", true)?;
+        let app_menu = Submenu::new(app, "Ravn", true)?;
         app_menu.append(&PredefinedMenuItem::about(app, None, None)?)?;
         app_menu.append(&PredefinedMenuItem::separator(app)?)?;
 
@@ -51,6 +51,15 @@ fn create_menu(app: &tauri::App) -> Result<Menu<tauri::Wry>, tauri::Error> {
             Some("CmdOrCtrl+,"),
         )?;
         app_menu.append(&settings_item)?;
+
+        let update_item = MenuItem::with_id(
+            app,
+            "check_for_updates",
+            "Check for Updates...",
+            true,
+            Some(""),
+        )?;
+        app_menu.append(&update_item)?;
 
         app_menu.append(&PredefinedMenuItem::separator(app)?)?;
         app_menu.append(&PredefinedMenuItem::hide(app, None)?)?;
