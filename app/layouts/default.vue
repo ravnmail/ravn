@@ -19,7 +19,7 @@ const sidebarRef = useTemplateRef<HTMLElement | null>('sidebarRef')
 const { x } = useMouse()
 const isNearLeft = computed(() => (x.value ?? Infinity) < leftOffset.value) // widen threshold to 48px
 
-const hideDelay = 250
+const hideDelay = 500
 const hideTimer = useTimeoutFn(() => {
   showSidebar.value = false
   leftOffset.value = 16
@@ -28,7 +28,7 @@ const hideTimer = useTimeoutFn(() => {
 watch([isHoveringBtn, isNearLeft], ([hBtn, near]) => {
   if (hBtn || near) {
     hideTimer.stop()
-    leftOffset.value = 256
+    leftOffset.value = 260
     showSidebar.value = true
   } else if (!stickySidebar.value) {
     hideTimer.start()
@@ -106,7 +106,9 @@ const collapseSidebar = (collapse: boolean) => {
         :sticky="stickySidebar"
       />
     </ResizablePanel>
-    <ResizableHandle/>
+    <ResizableHandle
+      @dblclick="collapseSidebar(stickySidebar)"
+    />
     <ResizablePanel
       id="main-panel"
     >
