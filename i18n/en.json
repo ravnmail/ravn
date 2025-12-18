@@ -530,10 +530,11 @@
         "showImages": "Show Images",
         "showAndTrack": "Show Images & Allow Tracking",
         "allowTracking": "Allow Tracking",
-        "showMore": "Show more",
+        "showMore": "Show message history",
+        "showLess": "Collapse message history",
         "analyzeWithAI": "Analyze with AI",
-        "showHTML": "Show HTML",
-        "showSimple": "Show Simple"
+        "showHTML": "Switch to HTML View",
+        "showSimple": "Switch to Simple View"
       }
     }
   },
