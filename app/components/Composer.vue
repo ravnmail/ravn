@@ -2,7 +2,7 @@
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import { MailKit } from '~/lib/editor/extensions/MailKit'
 import BasicBubbleMenu from '~/lib/editor/menus/BasicBubbleMenu.vue'
-// import LinkBubbleMenu from '~/lib/editor/menus/LinkBubbleMenu.vue'
+import LinkBubbleMenu from '~/lib/editor/menus/LinkBubbleMenu.vue'
 import ContentMenu from '~/lib/editor/menus/ContentMenu.vue'
 import AIMenu from '~/lib/editor/menus/AIMenu.vue'
 import { Button } from '~/components/ui/button'
@@ -28,6 +28,8 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+console.log(props.initialContent, props.draft)
 
 const emit = defineEmits<{
   sent: []
@@ -161,9 +163,7 @@ function initializeFromDraft(draftEmail: EmailDetail) {
 
 function toSimpleHtml(text?: string): string {
   if (!text) return ''
-  // marked() can be async, but for simple text we can use it directly
-  // We'll just return the text as-is for now since it's in a reply context
-  console.log('Converting to simple HTML:', text)
+
   return marked.parse(text)
 }
 
@@ -282,9 +282,9 @@ async function handleAutoSave() {
     const request: SaveDraftRequest = {
       account_id: selectedAccountId.value,
       draft_id: currentDraftId.value || undefined,
-      to: emailsToAddresses(draft.value.to?.map(e => e.address) || []),
-      cc: emailsToAddresses(draft.value.cc?.map(e => e.address) || []),
-      bcc: emailsToAddresses(draft.value.bcc?.map(e => e.address) || []),
+      to: draft.value.to ?? [],
+      cc: draft.value.cc ?? [],
+      bcc: draft.value.bcc ?? [],
       subject: draft.value.subject || '',
       body: editor.getHTML(),
       conversation_id: draft.value.conversation_id,
@@ -299,9 +299,9 @@ async function handleAutoSave() {
   }
 }
 
-const isValidEmail = (email: string): boolean => {
+const isValidEmail = (email: EmailAddress): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email.trim())
+  return emailRegex.test(email.address.trim())
 }
 
 const validateForm = (): boolean => {
@@ -317,9 +317,9 @@ const validateForm = (): boolean => {
     return false
   }
 
-  const toEmails = draft.value.to?.map(e => e.address) || []
-  const ccEmails = draft.value.cc?.map(e => e.address) || []
-  const bccEmails = draft.value.bcc?.map(e => e.address) || []
+  const toEmails = draft.value.to ?? []
+  const ccEmails = draft.value.cc ?? []
+  const bccEmails = draft.value.bcc ?? []
 
   const allEmails = [...toEmails, ...ccEmails, ...bccEmails]
   const invalidEmails = allEmails.filter(email => !isValidEmail(email))
@@ -355,9 +355,9 @@ async function handleSend() {
 
     const request: SendFromAccountRequest = {
       account_id: selectedAccountId.value!,
-      to: emailsToAddresses(draft.value.to?.map(e => e.address) || []),
-      cc: emailsToAddresses(draft.value.cc?.map(e => e.address) || []),
-      bcc: emailsToAddresses(draft.value.bcc?.map(e => e.address) || []),
+      to: draft.value.to || [],
+      cc: draft.value.cc || [],
+      bcc: draft.value.bcc || [],
       subject: draft.value.subject || '',
       body: editor.getHTML(),
       attachments: allAttachments,
@@ -542,7 +542,7 @@ useKeyboardBindings({
     @drop="handleDrop"
   >
     <div class="flex items-center justify-between pb-2">
-      <div class="flex items-center gap-2 ml-auto">
+      <div class="flex items-center gap-1 ml-auto">
         <SimpleTooltip :tooltip="`${$t('composer.saveDraft')} (⌘S)`">
           <Button
             :disabled="isSavingDraft || isSending || !selectedAccountId"
@@ -640,9 +640,9 @@ useKeyboardBindings({
         <div class="flex-1 flex items-center gap-2">
           <EmailAutocompleteInput
             :account-id="selectedAccountId"
-            :model-value="draft.to?.map(e => e.address) || []"
+            :model-value="draft.to|| []"
             :placeholder="$t('composer.enterRecipient')"
-            @update:model-value="(emails) => { draft.to = emailsToAddresses(emails); hasUnsavedChanges = true }"
+            @update:model-value="(emails) => { draft.to = emails; hasUnsavedChanges = true }"
           />
           <div class="flex items-center gap-1">
             <Button
@@ -678,9 +678,9 @@ useKeyboardBindings({
         <div class="flex-1 flex items-center gap-2">
           <EmailAutocompleteInput
             :account-id="selectedAccountId"
-            :model-value="draft.cc?.map(e => e.address) || []"
+            :model-value="draft.cc || []"
             :placeholder="$t('composer.enterRecipient')"
-            @update:model-value="(emails) => { draft.cc = emailsToAddresses(emails); hasUnsavedChanges = true }"
+            @update:model-value="(emails) => { draft.cc = emails; hasUnsavedChanges = true }"
           />
           <Button
             size="xs"
@@ -705,9 +705,9 @@ useKeyboardBindings({
         <div class="flex-1 flex items-center gap-2">
           <EmailAutocompleteInput
             :account-id="selectedAccountId"
-            :model-value="draft.bcc?.map(e => e.address) || []"
+            :model-value="draft.bcc || []"
             :placeholder="$t('composer.enterRecipient')"
-            @update:model-value="(emails) => { draft.bcc = emailsToAddresses(emails); hasUnsavedChanges = true }"
+            @update:model-value="(emails) => { draft.bcc = emails; hasUnsavedChanges = true }"
           />
           <Button
             size="xs"
@@ -857,32 +857,23 @@ useKeyboardBindings({
     <ContentMenu :editor="editor"/>
     <AIMenu :editor="editor"/>
     <BasicBubbleMenu :editor="editor"/>
-
-    <transition
-      enter-active-class="transition-opacity duration-200"
-      enter-from-class="opacity-0"
-      enter-to-class="opacity-100"
-      leave-active-class="transition-opacity duration-200"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
+    <LinkBubbleMenu :editor="editor"/>
+    <div
+      v-if="isDraggingOver"
+      class="absolute inset-0 bg-dialog-overlay/30 backdrop-blur-xs z-50 flex items-center justify-center pointer-events-none"
     >
-      <div
-        v-if="isDraggingOver"
-        class="absolute inset-0 bg-primary/10 backdrop-blur-sm z-50 flex items-center justify-center pointer-events-none"
-      >
-        <div class="bg-background border-2 border-dashed border-primary rounded-lg p-8 text-center">
-          <Icon
-            class="w-16 h-16 mx-auto mb-4 text-primary"
-            name="lucide:upload-cloud"
-          />
-          <p class="text-lg font-semibold text-primary">
-            {{ $t('composer.dropFilesHere') }}
-          </p>
-          <p class="text-sm text-muted mt-2">
-            {{ $t('composer.releaseToAttach') }}
-          </p>
-        </div>
+      <div class="bg-background rounded-lg p-8 text-center">
+        <Icon
+          class="w-16 h-16 mx-auto text-primary"
+          name="lucide:upload-cloud"
+        />
+        <p class="text-lg font-semibold text-primary">
+          {{ $t('composer.dropFilesHere') }}
+        </p>
+        <p class="text-sm text-muted">
+          {{ $t('composer.releaseToAttach') }}
+        </p>
       </div>
-    </transition>
+    </div>
   </div>
 </template>

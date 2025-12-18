@@ -8,11 +8,12 @@ import {
   TagsInputItemDelete,
   TagsInputInput
 } from '~/components/ui/tags-input'
+import type { EmailAddress } from '~/types/email'
 
 const { t } = useI18n()
 
 interface Props {
-  modelValue: string[]
+  modelValue: EmailAddress[]
   placeholder?: string
   delimiter?: RegExp
 }
@@ -23,7 +24,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string[]]
+  'update:modelValue': [value: EmailAddress[]]
 }>()
 
 const searchQuery = ref('')
@@ -46,11 +47,7 @@ const handleFocus = () => {
 }
 
 const selectContact = (contact: ContactSummary) => {
-  const email = contact.email
-
-  if (!props.modelValue.includes(email)) {
-    emit('update:modelValue', [...props.modelValue, email])
-  }
+  emit('update:modelValue', [...props.modelValue, { name: contact.display_name, address: contact.email }])
 
   const inputElement = containerRef.value?.querySelector('input')
   if (inputElement) {
@@ -94,7 +91,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
   }
 }
 
-const handleModelValueChange = (value: string[]) => {
+const handleModelValueChange = (value: EmailAddress[]) => {
   emit('update:modelValue', value)
 
   if (value.length > props.modelValue.length) {
@@ -159,19 +156,20 @@ onUnmounted(() => {
       :delimiter="delimiter"
       :model-value="modelValue"
       class="flex-1"
-      @update:model-value="(v) => handleModelValueChange(v as string[])"
+      @update:model-value="(v) => handleModelValueChange(v as EmailAddress[])"
     >
       <TagsInputItem
         v-for="email in modelValue"
-        :key="email"
+        :key="email.address"
         :value="email"
       >
         <RavnAvatar
-          :email="email"
+          :email="email.address"
+          :name="email.name"
           class="ml-1"
           size="xs"
         />
-        <TagsInputItemText/>
+        <span class="py-0.5 px-2 text-sm">{{ email.name ? `${email.name} <${email.address}>` : email.address }}</span>
         <TagsInputItemDelete/>
       </TagsInputItem>
       <TagsInputInput

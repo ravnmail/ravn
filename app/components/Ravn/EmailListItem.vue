@@ -34,8 +34,8 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
 
 <template>
   <div
-    :class="[ is_read ? '' : 'text-primary', isSelected ? 'border-l-accent bg-accent/30 text-accent-foreground' : 'border-l-transparent']"
-    class="flex flex-1 w-full items-center gap-3 py-2 px-6 border-l-4"
+    :class="[ is_read ? '' : 'text-primary', isSelected ? 'bg-selection text-selection-foreground' : '']"
+    class="flex flex-1 w-full items-center gap-3 py-2 px-4"
   >
     <div class="flex items-center font-semibold w-1/5 max-w-3xs truncate">
       <RavnAvatar

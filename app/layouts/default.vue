@@ -56,7 +56,7 @@ const collapseSidebar = (collapse: boolean) => {
 <template>
   <ResizablePanelGroup
     auto-save-id="default-layout-sidebar"
-    class="flex min-h-screen w-screen select-none"
+    class="flex min-h-screen w-screen"
     direction="horizontal"
   >
     <div class="fixed top-1 left-21 z-20">
@@ -93,7 +93,7 @@ const collapseSidebar = (collapse: boolean) => {
       id="sidebar-panel"
       ref="sidebarRef"
       :collapsed-size="0"
-      :default-size="150"
+      :default-size="250"
       :max-size="480"
       :min-size="240"
       collapsible

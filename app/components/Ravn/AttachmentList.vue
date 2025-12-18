@@ -103,10 +103,7 @@ onClickOutside(list, (e) => {
 </script>
 
 <template>
-  <div
-    v-if="attachments.length > 0"
-    class="border-t border-border pt-3"
-  >
+  <div v-if="attachments.length > 0">
     <ContextMenu>
       <ContextMenuTrigger
         ref="list"

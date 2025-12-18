@@ -30,7 +30,7 @@ withDefaults(defineProps<Props>(), {
   <DropdownMenu v-slot="{ open }">
     <DropdownMenuTrigger
       as="button"
-      class="relative inline-flex items-center space-x-2 group text-foreground data-[state=open]:bg-selection hover:bg-selection hover:text-selection-foreground data-[state=open]:text-selection-foreground hover:z-10 pl-1 py-0.5 -mx-1 -my-0.5 rounded pr-3"
+      class="select-text relative inline-flex items-center space-x-2 group text-foreground data-[state=open]:bg-selection hover:bg-selection hover:text-selection-foreground data-[state=open]:text-selection-foreground hover:z-10 pl-1 py-0.5 -mx-1 -my-0.5 rounded pr-3"
     >
       <RavnAvatar
         v-if="showAvatar"
@@ -39,7 +39,10 @@ withDefaults(defineProps<Props>(), {
         :name="name"
         size="xs"
       />
-      <span>{{ name || address }}</span>
+      <p>{{ name || address }}<span
+        v-if="name"
+        class="sr-only"
+      > &lt;{{ address }}&gt;</span></p>
       <Icon
         :class="['absolute right-1 opacity-0 group-hover:opacity-100', open ? 'opacity-100' : '']"
         name="lucide:chevron-down"

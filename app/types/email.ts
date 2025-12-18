@@ -70,7 +70,7 @@ export interface EmailDetail extends EmailListItem {
   body_plain?: string;
   body_html?: string;
   other_mails?: string;
-  ai_cache?: string;
+  ai_cache?: EmailAnalysisResponse;
 
   headers?: string;
   size: number;

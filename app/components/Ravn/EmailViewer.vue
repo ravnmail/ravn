@@ -122,7 +122,7 @@ const handleQuickReply = (content: string) => {
 </script>
 
 <template>
-  <div class="flex flex-col bg-gray-900">
+  <div class="flex flex-col">
     <div
       v-if="selectedEmail"
       class="flex-1"
@@ -142,17 +142,10 @@ const handleQuickReply = (content: string) => {
           />
         </div>
       </div>
-      <div class="px-3 py-6 space-y-3">
-        <EmailAIAnalysis
-          v-if="currentAnalysis || isAnalyzing"
-          :analysis="currentAnalysis"
-          :email="selectedEmail"
-          :error="analysisError"
-          :is-analyzing="isAnalyzing"
-          @quick-reply="handleQuickReply"
-        />
+      <div class="py-6 space-y-3">
         <MessageView
-          :show-a-i="false"
+          :auto-analyze="true"
+          :initial-reduced="false"
           :show-actions="false"
           v-bind="selectedEmail"
         />

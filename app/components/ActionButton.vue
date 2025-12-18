@@ -19,7 +19,7 @@ interface Props {
   color?: string
   action?: ButtonViewReturnComponentProps['action']
   isActive?: ButtonViewReturnComponentProps['isActive']
-  editor: Editor
+  editor?: Editor
   class?: HTMLAttributes['class']
 }
 

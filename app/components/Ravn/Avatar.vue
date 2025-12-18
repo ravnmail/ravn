@@ -38,7 +38,7 @@ const initials = computed(() => {
     return getInitialsFromName(contact.value.display_name)
   }
 
-  return props.email.slice(0, 2).toUpperCase()
+  return props.email?.slice(0, 2).toUpperCase()
 })
 
 const shouldShowAvatar = computed(() => {
@@ -71,7 +71,6 @@ const classes = computed(() => {
   >
     <img
       v-if="shouldShowAvatar"
-      :alt="name || email"
       :src="avatarUrl!"
       class="w-full h-full object-cover"
       @error="handleImageError"

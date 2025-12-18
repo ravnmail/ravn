@@ -3,9 +3,11 @@ import { Button } from '~/components/ui/button'
 import MessageView from '~/components/Ravn/MessageView.vue'
 import Composer from '~/components/Composer.vue'
 import ConversationDetailsPane from '~/components/Ravn/ConversationDetailsPane.vue'
-import type { Email, EmailDetail } from '~/types/email'
+import type { EmailDetail } from '~/types/email'
 import { useIntersectionObserver } from '@vueuse/core'
 import { ScrollArea } from '~/components/ui/scroll-area'
+import EmptyState from '~/components/ui/empty/EmptyState.vue'
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '~/components/ui/resizable'
 
 const props = defineProps<{
   conversationId: string
@@ -14,15 +16,34 @@ const props = defineProps<{
 const { t } = useI18n()
 const { useGetConversation } = useConversation()
 const { archive, trash } = useEmails()
-const { isVisible: isDetailsPaneVisible, toggle: toggleDetailsPane } = useConversationDetailsPane()
 const { updateRead } = useEmails()
-
 const { data: conversation } = useGetConversation(props.conversationId)
+const { useGetFolders } = useFolders()
+const { data: folders } = useGetFolders()
+
+const panelRef = useTemplateRef<HTMLElement | null>('panelRef')
 const conversationContainer = useTemplateRef<HTMLElement | null>('conversationContainer')
+const panelCollapsed = ref(false)
+
+const togglePanel = (collapse: boolean) => {
+  if (collapse) {
+    panelRef.value?.collapse()
+  } else {
+    panelRef.value?.expand()
+  }
+}
+
+const onTogglePanel = (collapsed: boolean) => {
+  panelCollapsed.value = !collapsed
+}
 
 const markedAsRead = ref<Set<string>>(new Set())
 const visibilityTimers = ref<Map<string, NodeJS.Timeout>>(new Map())
-const activeComposer = ref<{ type: 'reply' | 'reply-all' | 'forward', originalMessage: Email, initialContent?: string } | null>(null)
+const activeComposer = ref<{
+  type: 'reply' | 'reply-all' | 'forward',
+  originalMessage: EmailDetail,
+  initialContent?: string
+} | null>(null)
 
 const isArchiving = ref(false)
 const isDeleting = ref(false)
@@ -34,16 +55,6 @@ const latestMessage = computed(() => {
 const subject = computed(() => {
   return latestMessage.value?.subject || t('components.emailViewer.noSubject')
 })
-
-const emailDetailToEmail = (detail: EmailDetail): Email => {
-  return {
-    ...detail,
-    cc: detail.cc || [],
-    bcc: detail.bcc || [],
-    reply_to: detail.reply_to ? [detail.reply_to] : undefined,
-    is_deleted: false,
-  }
-}
 
 const scrollToComposer = () => {
   nextTick(() => {
@@ -59,7 +70,7 @@ const scrollToComposer = () => {
 const handleReply = (message: EmailDetail) => {
   activeComposer.value = {
     type: 'reply',
-    originalMessage: emailDetailToEmail(message)
+    originalMessage: message
   }
   scrollToComposer()
 }
@@ -67,7 +78,7 @@ const handleReply = (message: EmailDetail) => {
 const handleReplyAll = (message: EmailDetail) => {
   activeComposer.value = {
     type: 'reply-all',
-    originalMessage: emailDetailToEmail(message)
+    originalMessage: message
   }
   scrollToComposer()
 }
@@ -75,7 +86,7 @@ const handleReplyAll = (message: EmailDetail) => {
 const handleForward = (message: EmailDetail) => {
   activeComposer.value = {
     type: 'forward',
-    originalMessage: emailDetailToEmail(message)
+    originalMessage: message
   }
   scrollToComposer()
 }
@@ -83,7 +94,7 @@ const handleForward = (message: EmailDetail) => {
 const handleQuickReply = (message: EmailDetail, content: string) => {
   activeComposer.value = {
     type: 'reply',
-    originalMessage: emailDetailToEmail(message),
+    originalMessage: message,
     initialContent: content
   }
   scrollToComposer()
@@ -102,11 +113,9 @@ const handleError = (action: string, error: unknown) => {
 
   if (errorMsg.includes('IMAP config not set') || errorMsg.includes('credentials')) {
     alert(t('components.conversationViewer.errors.credentials'))
-  }
-  else if (errorMsg.includes('Archive folder not found')) {
+  } else if (errorMsg.includes('Archive folder not found')) {
     alert(t('components.conversationViewer.errors.archiveFolder'))
-  }
-  else {
+  } else {
     alert(`Failed to ${action.toLowerCase()}: ${errorMsg}`)
   }
 }
@@ -117,11 +126,9 @@ const handleArchive = async () => {
   isArchiving.value = true
   try {
     await archive(latestMessage.value.id)
-  }
-  catch (error) {
+  } catch (error) {
     handleError('Archive', error)
-  }
-  finally {
+  } finally {
     isArchiving.value = false
   }
 }
@@ -132,18 +139,15 @@ const handleDelete = async () => {
   isDeleting.value = true
   try {
     await trash(latestMessage.value.id)
-  }
-  catch (error) {
+  } catch (error) {
     handleError('Delete', error)
-  }
-  finally {
+  } finally {
     isDeleting.value = false
   }
 }
 
 // Setup keyboard bindings at top level (not inside onMounted)
 useKeyboardBindings({
-  toggleDetailsPane,
   archive: handleArchive,
   delete: handleDelete,
   reply: () => {
@@ -193,13 +197,17 @@ const handleMessageVisibility = (message: EmailDetail, isVisible: boolean) => {
   }
 }
 
-// Cleanup timers on unmount
+const sentfolderIds = computed(() => folders.value?.filter(folder => ['sent', 'draft'].includes(folder.folder_type)).map(f => f.id) || [])
+
+const isSentMessage = (message: EmailDetail) => {
+  return sentfolderIds.value.includes(message.folder_id)
+}
+
 onUnmounted(() => {
   visibilityTimers.value.forEach(timer => clearTimeout(timer))
   visibilityTimers.value.clear()
 })
 
-// Create refs for message elements to track visibility
 const messageRefs = ref<Record<string, HTMLElement | null>>({})
 
 const setupMessageObservers = () => {
@@ -231,115 +239,98 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex h-screen bg-background w-full">
-    <div
-      v-if="conversation"
+  <ResizablePanelGroup
+    auto-save-id="conversation-layout-sidebar"
+    class="flex h-screen bg-background w-full"
+    direction="horizontal"
+  >
+    <ResizablePanel
       class="flex-1 flex flex-col"
     >
-      <div class="px-3 pt-2">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-2xl font-semibold select-auto text-primary">
-              {{ subject }}
-            </h1>
-          </div>
-          <Button
-            :title="`${isDetailsPaneVisible ? 'Hide' : 'Show'} details`"
-            size="icon"
-            variant="ghost"
-            @click="toggleDetailsPane"
-          >
-            <Icon
-              class="h-5 w-5"
-              name="lucide:info"
-            />
-          </Button>
-        </div>
-      </div>
-      <ScrollArea
-        ref="conversationContainer"
-      >
-        <div
-          v-if="activeComposer"
-          class="border-b border-border"
-        >
-          <Composer
-            v-if="activeComposer.type === 'reply'"
-            :initial-account-id="activeComposer.originalMessage.account_id"
-            :initial-content="activeComposer.initialContent"
-            :reply-to="activeComposer.originalMessage"
-            @discarded="handleComposerDiscarded"
-            @sent="handleComposerSent"
-          />
-          <Composer
-            v-else-if="activeComposer.type === 'forward'"
-            :forward="activeComposer.originalMessage"
-            :initial-account-id="activeComposer.originalMessage.account_id"
-            :initial-content="activeComposer.initialContent"
-            @discarded="handleComposerDiscarded"
-            @sent="handleComposerSent"
-          />
-          <Composer
-            v-else-if="activeComposer.type === 'reply-all'"
-            :initial-account-id="activeComposer.originalMessage.account_id"
-            :initial-content="activeComposer.initialContent"
-            :is-reply-all="true"
-            :reply-to="activeComposer.originalMessage"
-            @discarded="handleComposerDiscarded"
-            @sent="handleComposerSent"
-          />
-        </div>
-        <div class="px-3 py-6 space-y-6">
-          <div
-            v-for="(message, index) in conversation?.messages"
-            :key="message.id"
-            :ref="(el) => { if (el) messageRefs[message.id.toString()] = el as HTMLElement }"
-            class="space-y-3"
-          >
-            <div
-              v-if="index > 0"
-              class="border-t border-border"
-            />
-            <MessageView
-              :auto-analyze="index === 0"
-              :reduced="true"
-              v-bind="message"
-              @forward="handleForward"
-              @reply="handleReply"
-              @reply-all="handleReplyAll"
-              @quick-reply="handleQuickReply"
-            />
-          </div>
-        </div>
-      </ScrollArea>
-    </div>
-    <div
-      v-else
-      class="flex-1 flex items-center justify-center"
-    >
-      <div class="text-center text-muted-foreground">
-        <Icon
-          class="mx-auto mb-4 h-12 w-12 opacity-50"
-          name="lucide:inbox"
-        />
-        <p>{{ t('components.conversationViewer.notFound') }}</p>
-      </div>
-    </div>
-
-    <transition
-      enter-active-class="transition-all duration-200 ease-out"
-      enter-from-class="opacity-0 translate-x-4"
-      enter-to-class="opacity-100 translate-x-0"
-      leave-active-class="transition-all duration-200 ease-in"
-      leave-from-class="opacity-100 translate-x-0"
-      leave-to-class="opacity-0 translate-x-4"
-    >
       <div
-        v-if="conversation && isDetailsPaneVisible"
-        class="min-w-32 flex-shrink-0 max-w-128"
+        v-if="conversation"
+        class="flex-1 flex flex-col h-full"
       >
-        <ConversationDetailsPane :conversation="conversation" />
+        <div class="px-3 pt-2">
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-2xl font-semibold select-auto text-primary">
+                {{ subject }}
+              </h1>
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              @click="togglePanel(panelCollapsed)"
+            >
+              <Icon
+                class="h-5 w-5"
+                name="lucide:info"
+              />
+            </Button>
+          </div>
+        </div>
+        <ScrollArea
+          ref="conversationContainer"
+        >
+          <div
+            v-if="activeComposer"
+            class="border-b border-border px-3"
+          >
+            <Composer
+              v-if="activeComposer.type"
+              :forward="activeComposer.type === 'forward' ? activeComposer.originalMessage : undefined"
+              :initial-content="activeComposer.initialContent"
+              :is-reply-all="activeComposer.type === 'reply-all'"
+              :reply-to="activeComposer.type === 'forward' ? undefined : activeComposer.originalMessage"
+              @discarded="handleComposerDiscarded"
+              @sent="handleComposerSent"
+            />
+          </div>
+          <div class="px-3 py-6 space-y-6">
+            <div
+              v-for="(message, index) in conversation?.messages"
+              :key="message.id"
+              :ref="(el) => { if (el) messageRefs[message.id.toString()] = el as HTMLElement }"
+              :class="[ isSentMessage(message) ? 'ml-12' : '' ]"
+              class="space-y-3"
+            >
+              <MessageView
+                :auto-analyze="true"
+                :initial-reduced="index > 0"
+                v-bind="message"
+                @forward="handleForward"
+                @reply="handleReply"
+                @reply-all="handleReplyAll"
+                @quick-reply="handleQuickReply"
+              />
+            </div>
+          </div>
+        </ScrollArea>
       </div>
-    </transition>
-  </div>
+      <EmptyState
+        v-else
+        :title="t('components.conversationViewer.notFound')"
+        icon="📭"
+      />
+    </ResizablePanel>
+
+    <ResizableHandle
+      @dblclick="togglePanel(panelCollapsed)"
+    />
+    <ResizablePanel
+      v-if="conversation"
+      id="conversation-panel"
+      ref="panelRef"
+      :default-size="240"
+      :max-size="480"
+      :min-size="240"
+      collapsible
+      size-unit="px"
+      @collapse="() => onTogglePanel(true)"
+      @expand="() => onTogglePanel(false)"
+    >
+      <ConversationDetailsPane :conversation="conversation"/>
+    </ResizablePanel>
+  </ResizablePanelGroup>
 </template>

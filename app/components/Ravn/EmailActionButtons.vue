@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { Button } from '~/components/ui/button'
 import type { EmailDetail, EmailListItem } from '~/types/email'
+import { SimpleTooltip } from '~/components/ui/tooltip'
 
 const props = withDefaults(defineProps<{
   email: EmailDetail | EmailListItem
@@ -81,58 +82,73 @@ const handleDelete = async () => {
 </script>
 
 <template>
-  <div class="flex items-center space-x-2">
-    <Button
-      :size="size"
-      :title="t('components.emailActions.reply.tooltip')"
-      variant="ghost"
-      @click="handleReply"
+  <div class="flex items-center gap-1">
+    <SimpleTooltip
+      :tooltip-markdown="t('components.emailActions.reply.tooltip')"
     >
-      <Icon name="lucide:reply" />
-    </Button>
-    <Button
-      :size="size"
-      :title="t('components.emailActions.replyAll.tooltip')"
-      variant="ghost"
-      @click="handleReplyAll"
+      <Button
+        :size="size"
+        variant="ghost"
+        @click="handleReply"
+      >
+        <Icon name="lucide:reply" />
+      </Button>
+    </SimpleTooltip>
+    <SimpleTooltip
+      :tooltip-markdown="t('components.emailActions.replyAll.tooltip')"
     >
-      <Icon name="lucide:reply-all" />
-    </Button>
-    <Button
-      :size="size"
-      :title="t('components.emailActions.forward.tooltip')"
-      variant="ghost"
-      @click="handleForward"
+      <Button
+        :size="size"
+        variant="ghost"
+        @click="handleReplyAll"
+      >
+        <Icon name="lucide:reply-all" />
+      </Button>
+    </SimpleTooltip>
+    <SimpleTooltip
+      :tooltip-markdown="t('components.emailActions.forward.tooltip')"
     >
-      <Icon name="lucide:forward" />
-    </Button>
+      <Button
+        :size="size"
+        variant="ghost"
+        @click="handleForward"
+      >
+        <Icon name="lucide:forward" />
+      </Button>
+    </SimpleTooltip>
     <div
       v-if="showDivider"
       class="w-px h-6 bg-border"
     />
-    <Button
-      :disabled="isArchiving"
-      :size="size"
-      :title="t('components.emailActions.archive.tooltip')"
-      variant="ghost"
-      @click="handleArchive"
+    <SimpleTooltip
+      :tooltip-markdown="t('components.emailActions.archive.tooltip')"
     >
-      <Icon
-        :class="{ 'animate-pulse': isArchiving }"
-        name="lucide:archive"
-      />
-    </Button>
-    <Button
-      :disabled="isDeleting"
-      :size="size"
-      :title="t('components.emailActions.delete.tooltip')"
-      variant="ghost"
-      @click="handleDelete"
+      <Button
+        :disabled="isArchiving"
+        :size="size"
+        variant="ghost"
+        @click="handleArchive"
+      >
+        <Icon
+          :class="{ 'animate-pulse': isArchiving }"
+          name="lucide:archive"
+        />
+      </Button>
+    </SimpleTooltip>
+    <SimpleTooltip
+      :tooltip-markdown="t('components.emailActions.delete.tooltip')"
     >
-      <Icon
-        :class="{ 'animate-pulse': isDeleting }"
-        name="lucide:trash-2"
-      />
-    </Button>
+      <Button
+        :disabled="isDeleting"
+        :size="size"
+        variant="ghost"
+        @click="handleDelete"
+      >
+        <Icon
+          :class="{ 'animate-pulse': isDeleting }"
+          name="lucide:trash-2"
+        />
+      </Button>
+    </SimpleTooltip>
   </div>
 </template>
