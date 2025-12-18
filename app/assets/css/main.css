@@ -351,6 +351,31 @@
   }
 }
 
+@keyframes textShine {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+.ai-animate-text {
+  background: linear-gradient(
+    to right,
+    var(--ai) 20%,
+    var(--accent) 30%,
+    var(--accent)  70%,
+    var(--ai) 80%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-fill-color: transparent;
+  background-size: 500% auto;
+  animation: textShine 3s ease-in-out infinite;
+}
+
 
 .ProseMirror {
   @apply py-4 px-8 space-y-3 max-w-screen-md mx-auto outline-none h-full;

@@ -9,13 +9,13 @@ defineProps<{
 </script>
 
 <template>
-  <div class="flex items-center gap-1">
+  <div class="flex items-center gap-1.5">
     <Icon
       v-if="icon"
       :name="`lucide:${icon}`"
+      :size="18"
       :style="{ color }"
-      class="mr-1"
     />
-    <span>{{ name }}</span>
+    <span class="grow font-medium">{{ name }}</span>
   </div>
 </template>

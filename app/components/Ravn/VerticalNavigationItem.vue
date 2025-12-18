@@ -15,6 +15,7 @@ import { PopoverContent, Popover, PopoverAnchor } from '~/components/ui/popover'
 import { SimpleTooltip } from '~/components/ui/tooltip'
 import type { SidebarNavigationItem, SidebarSectionItem } from '~/composables/useSidebarNavigation'
 import DropdownMenuItemRich from '~/components/ui/dropdown-menu/DropdownMenuItemRich.vue'
+import IconName from '~/components/ui/IconName.vue'
 
 const emits = defineEmits<{
   (e: 'expanded', isExpanded: boolean): void
@@ -225,13 +226,12 @@ const cancelEdit = () => {
           v-else
           class="w-5 h-6 shrink-0"
         />
-        <Icon
-          :name="`lucide:${icon}`"
-          :size="18"
-          :style="{ color: color }"
-          class="mr-1.5 shrink-0 text-foreground"
+        <IconName
+          :color="color"
+          :icon="icon"
+          :name="name"
+          class="text-sm"
         />
-        <span class="grow text-sm font-medium">{{ name }}</span>
         <span
           v-if="unread_count"
           :class="['ml-auto font-semibold text-xs text-muted mr-2', open ? 'opacity-0' : 'group-hover:opacity-0']"

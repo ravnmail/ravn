@@ -409,30 +409,30 @@ watch(() => props.folderId, () => {
               size="bar"
               variant="ghost"
             >
-              <Icon
-                name="lucide:filter"
-              />
+              <Icon name="lucide:filter"/>
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-40 p-3">
-            <select
-              v-model="filterRead"
-              class="text-xs px-2 py-1 rounded border border-border bg-background"
-            >
-              <option :value="null">{{ $t('components.mailList.filtering.all') }}</option>
-              <option :value="false">{{ $t('components.mailList.filtering.unread') }}</option>
-              <option :value="true">{{ $t('components.mailList.filtering.read') }}</option>
-            </select>
-
-            <!-- Attachments filter -->
-            <Button
-              @click="filterHasAttachments = filterHasAttachments === true ? null : true"
-            >
-              <Icon
-                class="w-3 h-3"
-                name="lucide:paperclip"
-              />
-            </Button>
+            <div class="flex flex-col gap-4">
+              <Select
+                v-model="filterRead"
+                class="text-xs px-2 py-1 rounded border border-border bg-background"
+              >
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem :value="null">{{ $t('components.mailList.filtering.all') }}</SelectItem>
+                  <SelectItem :value="false">{{ $t('components.mailList.filtering.unread') }}</SelectItem>
+                  <SelectItem :value="true">{{ $t('components.mailList.filtering.read') }}</SelectItem>
+                </SelectContent>
+              </Select>
+              <div class="flex">
+                <Button
+                  @click="filterHasAttachments = filterHasAttachments === true ? null : true"
+                >
+                  <Icon name="lucide:paperclip"/>
+                </Button>
+              </div>
+            </div>
           </PopoverContent>
         </Popover>
         <Popover>
@@ -441,9 +441,7 @@ watch(() => props.folderId, () => {
               size="bar"
               variant="ghost"
             >
-              <Icon
-                name="lucide:settings-2"
-              />
+              <Icon name="lucide:settings-2"/>
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-80 p-3">

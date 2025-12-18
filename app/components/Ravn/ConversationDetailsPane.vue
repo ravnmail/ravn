@@ -3,6 +3,8 @@ import { ScrollArea } from '~/components/ui/scroll-area'
 import AttachmentList from '~/components/Ravn/AttachmentList.vue'
 import type { ConversationDetail } from '~/types/conversation'
 import type { EmailAddress, Attachment } from '~/types/email'
+import EmptyState from '~/components/ui/empty/EmptyState.vue'
+import { Badge } from '~/components/ui/badge'
 
 const props = defineProps<{
   conversation: ConversationDetail
@@ -90,23 +92,20 @@ const accountId = computed(() => props.conversation.messages[0]?.account_id)
 </script>
 
 <template>
-  <div class="h-full flex flex-col border-l border-border bg-gray-900">
-    <!-- Header -->
+  <div class="h-screen border-l border-border bg-surface">
     <div class="px-4 py-3 border-b border-border">
       <h2 class="text-lg font-semibold text-primary">
         Details
       </h2>
     </div>
-
-    <!-- Content -->
     <ScrollArea class="flex-1">
       <div class="px-4 py-4 space-y-6">
-        <!-- Members Section -->
         <div>
-          <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-            Members ({{ members.length }})
+          <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+            <span>Members</span>
+            <Badge size="sm">{{ members.length }}</Badge>
           </h3>
-          <div class="flex flex-col gap-4">
+          <div class="flex flex-col gap-3">
             <div
               v-for="member in members"
               :key="member.address"
@@ -133,41 +132,24 @@ const accountId = computed(() => props.conversation.messages[0]?.account_id)
             </div>
           </div>
         </div>
-
-        <!-- Attachments Section -->
-        <div v-if="normalAttachments.length > 0 || inlineAttachments.length > 0">
-          <!-- Normal Attachments -->
-          <div v-if="normalAttachments.length > 0">
-            <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-              Attachments ({{ normalAttachments.length }})
-            </h3>
-            <AttachmentList :attachments="normalAttachments" />
-          </div>
-
-          <!-- Inline Attachments -->
-          <div
-            v-if="inlineAttachments.length > 0"
-            :class="{ 'mt-6': normalAttachments.length > 0 }"
-          >
-            <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-              Inline Attachments ({{ inlineAttachments.length }})
-            </h3>
-            <AttachmentList :attachments="inlineAttachments" />
-          </div>
-        </div>
-
-        <!-- Empty state for attachments -->
         <div
-          v-else
-          class="text-center py-8"
+          v-if="normalAttachments.length > 0 || inlineAttachments.length > 0"
+          class="flex flex-col gap-6"
         >
-          <Icon
-            class="mx-auto mb-2 h-8 w-8 text-muted-foreground opacity-50"
-            name="lucide:paperclip"
-          />
-          <p class="text-sm text-muted-foreground">
-            No attachments
-          </p>
+          <div v-if="normalAttachments.length > 0">
+            <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+              <span>Attachments</span>
+              <Badge size="sm">{{ normalAttachments.length }}</Badge>
+            </h3>
+            <AttachmentList :attachments="normalAttachments"/>
+          </div>
+          <div v-if="inlineAttachments.length > 0">
+            <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+              <span>Inline Attachments</span>
+              <Badge size="sm">{{ inlineAttachments.length }}</Badge>
+            </h3>
+            <AttachmentList :attachments="inlineAttachments"/>
+          </div>
         </div>
       </div>
     </ScrollArea>

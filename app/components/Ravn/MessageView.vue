@@ -9,22 +9,25 @@ import EmailActionButtons from '~/components/Ravn/EmailActionButtons.vue'
 import EmailAIAnalysis from '~/components/Ravn/EmailAIAnalysis.vue'
 import EmailMarkdown from '~/components/Ravn/EmailMarkdown.vue'
 import { Button } from '~/components/ui/button'
+import { SimpleTooltip } from '~/components/ui/tooltip'
 
-const { allowImages, allowAll } = useEmails()
+const { allowImages } = useEmails()
 const { attachments, loadAttachments, isLoading: isLoadingAttachments, error: attachmentError } = useAttachments()
 const { formatEmailDate } = useFormatting()
-const { settings, getSetting } = useSettings()
+const { getSetting } = useSettings()
 
 const props = withDefaults(defineProps<EmailDetail & {
   showActions?: boolean
   showAI?: boolean
   autoAnalyze?: boolean
-  reduced?: boolean
+  initialReduced?: boolean
+  isFirst?: boolean
 }>(), {
   showActions: true,
   showAI: true,
   autoAnalyze: false,
-  reduced: false
+  initialReduced: true,
+  isFirst: false,
 })
 
 const emit = defineEmits<{
@@ -36,10 +39,10 @@ const handleQuickReply = (content: string) => {
   emit('quick-reply', props as EmailDetail, content)
 }
 
-const expanded = ref(false)
+const headerExpanded = ref(false)
+const reduced = ref(props.initialReduced)
 const iframeRef = ref<HTMLIFrameElement | null>(null)
 const imagesBlocked = ref(props.images_blocked)
-const trackingBlocked = ref(props.tracking_blocked)
 const showFullContent = ref(false)
 const renderMode = ref<'simple' | 'normal'>('simple')
 const temporaryRenderMode = ref<'simple' | 'normal' | null>(null)
@@ -77,7 +80,7 @@ onMounted(async () => {
     }
   }, 2000)
 
-  const shouldAnalyze = props.category === 'personal'
+  const shouldAnalyze = props.category !== 'promotions'
   const cached = parseAnalysisFromCache(props as EmailDetail)
   if (cached) {
     currentAnalysis.value = cached
@@ -157,7 +160,6 @@ const getDisplayHtml = computed(() => {
 })
 
 const hasQuotedContent = computed(() => {
-  if (!props.reduced) return false
   return hasQuotedContentAvailable.value
 })
 
@@ -232,11 +234,21 @@ const handleIframeLoad = (event: Event) => {
   }
 }
 
+const toggleReduced = () => {
+  if (props.isFirst) {
+    return
+  }
+  reduced.value = !reduced.value
+}
+
 </script>
 
 <template>
   <div class="flex flex-col gap-3">
-    <div class="flex flex-1 items-top">
+    <div
+      class="flex flex-1 items-top"
+      @click="toggleReduced()"
+    >
       <div class="flex flex-1">
         <RavnAvatar
           v-if="from"
@@ -250,12 +262,12 @@ const handleIframeLoad = (event: Event) => {
           <div class="flex items-center">
             <div class="flex gap-1 items-center">
           <span
-            v-if="expanded"
+            v-if="headerExpanded"
             class="text-muted"
           >{{ $t('components.messageView.labels.from') }}: </span>
               <EmailAddress
                 :account-id="account_id"
-                :show-avatar="expanded"
+                :show-avatar="headerExpanded"
                 class="font-bold"
                 is-last
                 v-bind="from"
@@ -267,7 +279,7 @@ const handleIframeLoad = (event: Event) => {
               />
             </div>
           </div>
-          <div :class="['gap-x-2 items-center', expanded ? '' : 'flex flex-wrap']">
+          <div :class="['gap-x-2 items-center', headerExpanded ? '' : 'flex flex-wrap']">
             <div
               v-if="to?.length"
               class="text-sm flex"
@@ -301,13 +313,13 @@ const handleIframeLoad = (event: Event) => {
               </div>
             </div>
             <Icon
-              v-if="!expanded"
+              v-if="!headerExpanded"
               class="text-muted"
               name="lucide:chevron-right"
-              @click="expanded = !expanded"
+              @click="headerExpanded = !headerExpanded"
             />
             <div
-              v-if="expanded"
+              v-if="headerExpanded"
               class="flex space-x-1 text-sm"
             >
               <span
@@ -333,7 +345,6 @@ const handleIframeLoad = (event: Event) => {
         </div>
       </div>
     </div>
-    <!-- AI Analysis -->
     <template v-if="showAI">
       <EmailAIAnalysis
         v-if="currentAnalysis || isAnalyzing"
@@ -341,10 +352,11 @@ const handleIframeLoad = (event: Event) => {
         :email="props"
         :error="analysisError"
         :is-analyzing="isAnalyzing"
+        :reduced="reduced"
         @quick-reply="handleQuickReply"
       />
       <div
-        v-else-if="showAnalyzeButton"
+        v-else-if="showAnalyzeButton && !reduced"
       >
         <Button
           size="sm"
@@ -366,108 +378,112 @@ const handleIframeLoad = (event: Event) => {
         v-bind="l"
       />
     </div>
-    <div
-      v-if="has_attachments && isLoadingAttachments"
-      class="flex items-center gap-2 text-sm text-muted-foreground p-2 bg-muted/50 rounded"
-    >
-      <Icon
-        class="animate-spin"
-        name="lucide:loader-2"
-      />
-      <span>{{ $t('components.messageView.loadingAttachments') }}</span>
-    </div>
-    <div
-      v-else-if="has_attachments && attachmentError"
-      class="flex items-center gap-2 text-sm text-destructive p-2 bg-destructive/10 rounded"
-    >
-      <Icon name="lucide:alert-circle"/>
-      <span>{{ $t('components.messageView.attachmentError') }}</span>
-    </div>
-    <AttachmentList
-      v-else-if="has_attachments && attachments.length > 0"
-      :attachments="attachments.filter(a => !a.is_inline)"
-    />
-    <div
-      v-if="imagesBlocked && hasExternalImages"
-      class="flex items-center justify-between bg-surface p-1 border-border rounded text-xs"
-    >
-      <div class="flex items-center gap-2 pl-1">
+    <template v-if="!reduced">
+      <div
+        v-if="has_attachments && isLoadingAttachments"
+        class="flex items-center gap-2 text-sm text-muted-foreground p-2 bg-muted/50 rounded"
+      >
         <Icon
-          class="shrink-0"
-          name="lucide:image-off"
+          class="animate-spin"
+          name="lucide:loader-2"
         />
-        <span>{{ $t('components.messageView.imagesBlocked') }}</span>
-      </div>
-      <Button
-        size="xs"
-        variant="ghost"
-        @click="handleAllowImages"
-      >{{ $t('components.messageView.actions.showImages') }}
-      </Button>
-    </div>
-    <div class="flex flex-col gap-1">
-      <div
-        v-if="effectiveRenderMode === 'simple' && body_plain"
-        class="bg-surface rounded p-4"
-      >
-        <EmailMarkdown
-          :content="body_plain"
-          :images-blocked="imagesBlocked"
-        />
+        <span>{{ $t('components.messageView.loadingAttachments') }}</span>
       </div>
       <div
-        v-else
-        class="bg-gray-50 text-gray-950 rounded overflow-clip"
+        v-else-if="has_attachments && attachmentError"
+        class="flex items-center gap-2 text-sm text-destructive p-2 bg-destructive/10 rounded"
       >
-        <iframe
-          ref="iframeRef"
-          :srcdoc="getDisplayHtml"
-          class="w-full border-0"
-          loading="lazy"
-          sandbox="allow-same-origin allow-scripts"
-          @load="handleIframeLoad"
-        />
+        <Icon name="lucide:alert-circle"/>
+        <span>{{ $t('components.messageView.attachmentError') }}</span>
       </div>
+      <AttachmentList
+        v-else-if="has_attachments && attachments.length > 0"
+        :attachments="attachments.filter(a => !a.is_inline)"
+      />
       <div
-        v-if="reduced && showFullContent && getQuotedHtml"
-        class="bg-gray-100 text-gray-950 rounded overflow-clip p-2 border-l-4 border-accent ml-6"
+        v-if="imagesBlocked && hasExternalImages"
+        class="flex items-center justify-between bg-surface p-1 border-border rounded text-xs"
       >
-        <iframe
-          :srcdoc="getQuotedHtml"
-          class="w-full border-0"
-          loading="lazy"
-          sandbox="allow-same-origin allow-scripts"
-          @load="handleIframeLoad"
-        />
-      </div>
-      <div class="flex justify-center gap-2">
-        <Button
-          v-if="reduced && hasQuotedContent"
-          class="text-muted-foreground hover:text-primary"
-          size="sm"
-          variant="ghost"
-          @click="showFullContent = !showFullContent"
-        >
+        <div class="flex items-center gap-2 pl-1">
           <Icon
-            class="mr-1"
-            name="lucide:chevron-down"
+            class="shrink-0"
+            name="lucide:image-off"
           />
-          <span>{{ $t('components.messageView.actions.showMore') }}</span>
-        </Button>
+          <span>{{ $t('components.messageView.imagesBlocked') }}</span>
+        </div>
         <Button
-          v-if="body_plain"
-          class="text-muted-foreground hover:text-primary"
-          size="sm"
+          size="xs"
           variant="ghost"
-          @click="toggleRenderMode"
-        >
-          <Icon
-            :name="effectiveRenderMode === 'simple' ? 'lucide:code' : 'lucide:file-text'"
-            class="mr-1"
-          />
-          <span>{{ effectiveRenderMode === 'simple' ? $t('components.messageView.actions.showHTML') : $t('components.messageView.actions.showSimple') }}</span>
+          @click="handleAllowImages"
+        >{{ $t('components.messageView.actions.showImages') }}
         </Button>
       </div>
-    </div>
+      <div class="flex flex-col relative">
+        <div
+          v-if="effectiveRenderMode === 'simple' && body_plain"
+          class="bg-surface rounded-xl p-3"
+        >
+          <EmailMarkdown
+            :content="body_plain"
+            :images-blocked="imagesBlocked"
+          />
+        </div>
+        <div
+          v-else
+          class="bg-gray-50 text-gray-950 rounded-xl overflow-clip p-2"
+        >
+          <iframe
+            ref="iframeRef"
+            :srcdoc="getDisplayHtml"
+            class="w-full border-0"
+            loading="lazy"
+            sandbox="allow-same-origin allow-scripts"
+            @load="handleIframeLoad"
+          />
+        </div>
+        <div
+          v-if="showFullContent && getQuotedHtml"
+          class="bg-gray-50 rounded overflow-clip p-2 border-l-4 border-accent ml-12 mt-2"
+        >
+          <iframe
+            :srcdoc="getQuotedHtml"
+            class="w-full border-0"
+            loading="lazy"
+            sandbox="allow-same-origin allow-scripts"
+            @load="handleIframeLoad"
+          />
+        </div>
+        <div class="absolute right-2 top-2 flex flex-col justify-center gap-1">
+          <SimpleTooltip
+            :tooltip-markdown="effectiveRenderMode === 'simple' ? $t('components.messageView.actions.showHTML') : $t('components.messageView.actions.showSimple')"
+          >
+            <Button
+              v-if="body_plain"
+              size="icon"
+              variant="ghost"
+              @click="toggleRenderMode"
+            >
+              <Icon
+                :name="effectiveRenderMode === 'simple' ? 'lucide:code' : 'lucide:file-text'"
+              />
+            </Button>
+          </SimpleTooltip>
+          <SimpleTooltip
+            :tooltip-markdown="showFullContent ? $t('components.messageView.actions.showLess') :  $t('components.messageView.actions.showMore')"
+          >
+            <Button
+              v-if="hasQuotedContent"
+              size="icon"
+              variant="ghost"
+              @click="showFullContent = !showFullContent"
+            >
+              <Icon
+                :name="showFullContent ? 'lucide:fold-vertical' : 'lucide:unfold-vertical'"
+              />
+            </Button>
+          </SimpleTooltip>
+        </div>
+      </div>
+    </template>
   </div>
 </template>

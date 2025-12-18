@@ -42,7 +42,7 @@ const emits = defineEmits<DialogContentEmits>()
       <div class="relative flex flex-1">
         <slot/>
         <button
-          class="flex items-center absolute -left-2 -top-1 rounded-lg p-1.5 ring-offset-background transition-all hover:bg-button-ghost-hover/50 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted"
+          class="flex items-center absolute -left-2 top-1 rounded-lg p-1.5 ring-offset-background transition-all hover:bg-button-ghost-hover/50 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted"
           @click="emits('close', false)"
         >
           <Icon

@@ -2,19 +2,18 @@
 import type { EmailListItem } from '~/types/email'
 import { ScrollArea } from '~/components/ui/scroll-area'
 import { UnobstrusiveSheetContent } from '~/components/ui/sheet'
-import { Button } from '~/components/ui/button'
 import EmailViewer from '~/components/Ravn/EmailViewer.vue'
 import EmailListItemComponent from '~/components/Ravn/EmailListItem.vue'
 import TantivySearchFilter from '~/components/Ravn/TantivySearchFilter.vue'
 import AISearchInput from '~/components/Ravn/AISearchInput.vue'
 import { useTantivySearch, type SearchFields } from '~/composables/useTantivySearch'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
+import { ToggleGroup, ToggleGroupItem } from '~/components/ui/toggle-group'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 
-const useAIMode = ref<boolean>(false)
 const searchFields: SearchFields = {
   from: {
     type: 'text',
@@ -53,6 +52,17 @@ const searchFields: SearchFields = {
   },
 }
 const { loading, results, totalResults, search } = useTantivySearch(searchFields)
+
+const mode = computed({
+  get() {
+    return (route.query.mode as string) || 'search'
+  },
+  set(value: string) {
+    const query = { ...route.query, mode: value }
+    router.replace({ query })
+  },
+})
+
 const searchQuery = computed({
   get() {
     return route.query.q as string | undefined
@@ -68,16 +78,18 @@ const searchQuery = computed({
   },
 })
 
-watch(searchQuery, (newQuery) => {
-  if (newQuery && newQuery.trim() !== '') {
-    performSearch()
-  }
-}, { immediate: true })
 const performSearch = async () => {
   if (searchQuery.value) {
     await search({ query: searchQuery.value, limit: 200 })
   }
 }
+
+watch(searchQuery, (newQuery) => {
+  if (newQuery && newQuery.trim() !== '') {
+    performSearch()
+  }
+}, { immediate: true })
+
 const handleSearch = (query: string) => {
   searchQuery.value = query
 }
@@ -112,51 +124,38 @@ useHead({
 <template>
   <div class="flex flex-col w-full h-screen bg-background">
     <div class="border-b border-border bg-background p-4 md:p-6">
-      <div class="max-w-6xl mx-auto space-y-4">
-        <!-- Search Mode Toggle -->
+      <div class="max-w-7xl mx-auto space-y-4">
         <div class="flex items-center justify-between">
           <div class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             {{ t('search.title') }}
           </div>
-          <div class="flex items-center gap-2">
-            <button
-              :class="[
-                'px-3 py-1.5 text-xs font-medium rounded transition-colors',
-                !useAIMode
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-muted hover:bg-muted text-foreground border border-border'
-              ]"
+          <ToggleGroup
+            v-model="mode"
+            type="single"
+          >
+            <ToggleGroupItem
               type="button"
-              @click="useAIMode = false"
+              value="search"
             >
-              {{ t('search.title') }}
-            </button>
-            <button
-              :class="[
-                'px-3 py-1.5 text-xs font-medium rounded transition-colors flex items-center gap-1',
-                useAIMode
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-muted hover:bg-muted text-foreground border border-border'
-              ]"
+              <span>{{ t('search.title') }}</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem
               type="button"
-              @click="useAIMode = true"
+              value="ai"
             >
-              <Icon
-                class="w-3 h-3"
-                name="lucide:sparkles"
-              />
-              {{ t('search.ai.toggle') }}
-            </button>
-          </div>
+              <Icon name="ravn:raven"/>
+              <span>{{ t('search.ai.toggle') }}</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
         <AISearchInput
-          v-if="useAIMode"
+          v-if="mode === 'ai'"
           :model-value="searchQuery"
           @search="handleSearch"
           @update:model-value="searchQuery = $event"
         />
         <TantivySearchFilter
-          v-if="!useAIMode"
+          v-if="mode === 'search'"
           :fields="searchFields"
           :model-value="searchQuery"
           @search="handleSearch"
@@ -196,23 +195,21 @@ useHead({
         v-else-if="results.length > 0"
         class="h-full"
       >
-        <div class="max-w-6xl mx-auto">
+        <div class="max-w-7xl mx-auto space-y-0.5">
           <div class="py-2 sticky top-0 z-10 bg-surface">
             <p class="text-sm text-muted-foreground">
               <strong>{{ totalResults }}</strong>
               {{ totalResults === 1 ? t('search.oneResult') : t('search.multipleResults') }}
             </p>
           </div>
-          <div class="divide-y divide-border">
-            <EmailListItemComponent
-              v-for="email in results"
-              :key="email.id"
-              :is-selected="selectedEmailIdFromRoute === email.id"
-              class="border-b border-border transition-colors hover:bg-muted/50"
-              v-bind="email"
-              @click="selectEmail(email)"
-            />
-          </div>
+          <EmailListItemComponent
+            v-for="email in results"
+            :key="email.id"
+            :is-selected="selectedEmailIdFromRoute === email.id"
+            class="transition-colors hover:bg-muted/50"
+            v-bind="email"
+            @click="selectEmail(email)"
+          />
         </div>
       </ScrollArea>
       <EmptyState
@@ -226,7 +223,7 @@ useHead({
         v-if="selectedEmailIdFromRoute"
         @close="onSheetChange(false)"
       >
-        <ScrollArea class="h-full">
+        <ScrollArea class="w-full">
           <div class="flex h-full flex-col">
             <EmailViewer
               :key="selectedEmailIdFromRoute"

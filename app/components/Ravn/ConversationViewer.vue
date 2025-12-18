@@ -252,21 +252,16 @@ onMounted(() => {
         class="flex-1 flex flex-col h-full"
       >
         <div class="px-3 pt-2">
-          <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-2xl font-semibold select-auto text-primary">
-                {{ subject }}
-              </h1>
-            </div>
+          <div class="flex items-start justify-between">
+            <h1 class="text-2xl font-semibold select-auto text-primary relative z-10">
+              {{ subject }}
+            </h1>
             <Button
               size="icon"
               variant="ghost"
               @click="togglePanel(panelCollapsed)"
             >
-              <Icon
-                class="h-5 w-5"
-                name="lucide:info"
-              />
+              <Icon name="lucide:info"/>
             </Button>
           </div>
         </div>
@@ -298,6 +293,7 @@ onMounted(() => {
               <MessageView
                 :auto-analyze="true"
                 :initial-reduced="index > 0"
+                :is-first="index === 0"
                 v-bind="message"
                 @forward="handleForward"
                 @reply="handleReply"

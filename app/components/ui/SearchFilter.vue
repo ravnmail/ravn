@@ -592,7 +592,7 @@ onBeforeUnmount(() => {
 
       <div
         v-else-if="stage === 'value' && selectedField?.datepicker"
-        class="p-4"
+        class="p-3"
       >
         <label
           :for="'date-input'"

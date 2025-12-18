@@ -1,11 +1,12 @@
 <script lang="ts" setup>
 import type { ButtonViewReturnComponentProps } from '@/types/composer'
-import { getShortcutKey } from '~/lib/utils/platform'
 import { Toggle } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import type { TooltipContentProps } from 'reka-ui'
 import type { Editor } from '@tiptap/core'
 import type { HTMLAttributes } from 'vue'
+import { Kbd, KbdGroup } from '~/components/ui/kbd'
+import Shortcuts from '~/components/ui/kbd/Shortcuts.vue'
 
 interface Props {
   icon?: string
@@ -82,19 +83,9 @@ const iconName = computed(() => {
         v-if="tooltip"
         v-bind="tooltipOptions"
       >
-        <div class="max-w-24 flex flex-col">
+        <div class="max-w-24 flex flex-col gap-0.5">
           <div>{{ tooltip }}</div>
-          <div
-            v-if="shortcutKeys && shortcutKeys.length"
-            class="flex text-xs gap-1 opacity-60"
-          >
-            <span
-              v-for="(shortcutKey, index) in shortcutKeys"
-              :key="index"
-            >
-              {{ getShortcutKey(shortcutKey) }}
-            </span>
-          </div>
+          <Shortcuts :shortcut-keys="shortcutKeys" />
         </div>
       </TooltipContent>
     </Tooltip>

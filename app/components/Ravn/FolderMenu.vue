@@ -19,6 +19,7 @@ const flattened = computed(() => {
 <template>
   <Command>
     <CommandInput
+      class="py-2 text-sm"
       placeholder="Filter folders..."
     />
     <CommandList>
@@ -30,6 +31,7 @@ const flattened = computed(() => {
         >
           <IconName
             :style="{ paddingLeft: `${item.level}rem` }"
+            class="font-medium"
             v-bind="item"
           />
         </CommandItem>

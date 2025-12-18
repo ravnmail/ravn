@@ -3,6 +3,7 @@ import MessageView from '~/components/Ravn/MessageView.vue'
 import EmailAIAnalysis from '~/components/Ravn/EmailAIAnalysis.vue'
 import EmailActionButtons from '~/components/Ravn/EmailActionButtons.vue'
 import type { EmailDetail } from '~/types/email'
+import EmptyState from '~/components/ui/empty/EmptyState.vue'
 
 const props = defineProps<{
   emailId: string
@@ -10,7 +11,14 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const { fetch, archive, trash } = useEmails()
-const { isAnalyzing, analysisError, currentAnalysis, analyzeEmail, clearAnalysisState, parseAnalysisFromCache } = useCorvus()
+const {
+  isAnalyzing,
+  analysisError,
+  currentAnalysis,
+  analyzeEmail,
+  clearAnalysisState,
+  parseAnalysisFromCache
+} = useCorvus()
 
 const selectedEmail = await fetch(props.emailId)
 
@@ -19,12 +27,10 @@ onMounted(async () => {
   const cached = parseAnalysisFromCache(selectedEmail)
   if (cached) {
     currentAnalysis.value = cached
-  }
-  else {
+  } else {
     try {
       await analyzeEmail(selectedEmail)
-    }
-    catch (_: unknown) {
+    } catch (_: unknown) {
       // Ignore analysis errors
     }
   }
@@ -48,11 +54,9 @@ const handleError = (action: string, error: any) => {
 
   if (errorMsg.includes('IMAP config not set') || errorMsg.includes('credentials')) {
     alert(t('components.emailViewer.errors.credentials'))
-  }
-  else if (errorMsg.includes('Archive folder not found')) {
+  } else if (errorMsg.includes('Archive folder not found')) {
     alert(t('components.emailViewer.errors.archiveFolder'))
-  }
-  else {
+  } else {
     alert(`Failed to ${action.toLowerCase()}: ${errorMsg}`)
   }
 }
@@ -60,8 +64,7 @@ const handleError = (action: string, error: any) => {
 const handleArchive = async (email: EmailDetail) => {
   try {
     await archive(email.id)
-  }
-  catch (error) {
+  } catch (error) {
     handleError('Archive', error)
   }
 }
@@ -69,8 +72,7 @@ const handleArchive = async (email: EmailDetail) => {
 const handleDelete = async (email: EmailDetail) => {
   try {
     await trash(email.id)
-  }
-  catch (error) {
+  } catch (error) {
     handleError('Delete', error)
   }
 }
@@ -122,14 +124,11 @@ const handleQuickReply = (content: string) => {
 </script>
 
 <template>
-  <div class="flex flex-col">
-    <div
-      v-if="selectedEmail"
-      class="flex-1"
-    >
-      <div class="p-3 border-b border-border">
+  <div class="flex flex-col w-full h-full">
+    <div v-if="selectedEmail">
+      <div class="px-3">
         <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-semibold select-auto text-primary">
+          <h1 class="pl-4 text-2xl font-semibold select-auto text-primary">
             {{ selectedEmail.subject || t('components.emailViewer.noSubject') }}
           </h1>
           <EmailActionButtons
@@ -151,22 +150,12 @@ const handleQuickReply = (content: string) => {
         />
       </div>
     </div>
-    <div
+    <EmptyState
       v-else
-      class="flex-1 flex items-center justify-center"
-    >
-      <div class="text-center">
-        <Icon
-          class="w-24 h-24 text-gray-300 mx-auto mb-4"
-          name="lucide:mail"
-        />
-        <h3 class="text-xl font-medium text-gray-600 mb-2">
-          {{ t('components.emailViewer.emptyState.title') }}
-        </h3>
-        <p class="text-gray-500">
-          {{ t('components.emailViewer.emptyState.message') }}
-        </p>
-      </div>
-    </div>
+      :description="t('components.emailViewer.emptyState.message')"
+      :title="t('components.emailViewer.emptyState.title')"
+      class="flex-1"
+      icon="✉️"
+    />
   </div>
 </template>

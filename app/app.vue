@@ -7,6 +7,7 @@ import { AlertDialogProvider } from '@/composables/useAlertDialog'
 
 const router = useRouter()
 const queryClient = useQueryClient()
+const isAddAccountModalOpen = ref(false)
 
 useAppEvents()
 useTheme()
@@ -24,7 +25,7 @@ whenever(cmdK, () => {
 
 <template>
   <div
-    class="fixed top-0 left-0 w-full h-10 z-0"
+    class="fixed top-0 left-0 w-full h-9 z-0"
     data-tauri-drag-region
   />
   <NuxtLayout>
@@ -32,6 +33,9 @@ whenever(cmdK, () => {
     <AlertDialogProvider class="h-screen">
       <NuxtPage/>
     </AlertDialogProvider>
+    <RavnAddAccountModal
+      v-model:open="isAddAccountModalOpen"
+    />
     <Toaster
       position="bottom-left"
       rich-colors

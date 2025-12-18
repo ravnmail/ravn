@@ -314,7 +314,7 @@ function handleKey(e) {
         >
           <div
             v-if="status === 'generating'"
-            class="text_loading_animation border border-popover-border h-8 w-full rounded-md px-10 py-1 flex items-center text-sm text-foreground"
+            class="ai-animate-text border border-popover-border h-8 w-full rounded-md px-10 py-1 flex items-center text-sm text-foreground"
           >
             {{ t('composer.AI.generating') }}
           </div>
