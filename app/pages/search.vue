@@ -123,14 +123,12 @@ useHead({
 
 <template>
   <div class="flex flex-col w-full h-screen bg-background">
-    <div class="border-b border-border bg-background p-4 md:p-6">
-      <div class="max-w-7xl mx-auto space-y-4">
-        <div class="flex items-center justify-between">
-          <div class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            {{ t('search.title') }}
-          </div>
+    <div class="border-b border-border bg-background p-2">
+      <div class="max-w-7xl mx-auto space-y-2">
+        <div class="flex items-center justify-end">
           <ToggleGroup
             v-model="mode"
+            class="relative z-10"
             type="single"
           >
             <ToggleGroupItem
@@ -196,8 +194,8 @@ useHead({
         class="h-full"
       >
         <div class="max-w-7xl mx-auto space-y-0.5">
-          <div class="py-2 sticky top-0 z-10 bg-surface">
-            <p class="text-sm text-muted-foreground">
+          <div class="p-2 sticky top-0 z-10 bg-surface">
+            <p class="text-sm">
               <strong>{{ totalResults }}</strong>
               {{ totalResults === 1 ? t('search.oneResult') : t('search.multipleResults') }}
             </p>

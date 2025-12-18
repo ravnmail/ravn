@@ -3,16 +3,11 @@
 import IconName from '~/components/ui/IconName.vue'
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '~/components/ui/command'
 
-const { accounts } = useAccounts()
-const { folders, mapFolderTree, flattenAccountFolders } = useFolders()
+const { labels } = useLabels()
 
 defineProps<{
   showHidden?: boolean
 }>()
-
-const accountFolders = computed(() => {
-  return flattenAccountFolders(mapFolderTree(folders.value, accounts.value))
-})
 
 </script>
 
@@ -20,21 +15,16 @@ const accountFolders = computed(() => {
   <Command>
     <CommandInput
       class="py-2 text-sm"
-      placeholder="Filter folders..."
+      placeholder="Filter labels..."
     />
     <CommandList>
-      <CommandGroup
-        v-for="account in accountFolders"
-        :key="account.id"
-        :heading="account.title"
-      >
+      <CommandGroup>
         <CommandItem
-          v-for="item in account.children"
+          v-for="item in labels"
           :key="item.id"
           :value="item.id"
         >
           <IconName
-            :style="{ paddingLeft: `${item.level}rem` }"
             class="font-medium"
             v-bind="item"
           />

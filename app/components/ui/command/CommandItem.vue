@@ -61,7 +61,7 @@ onUnmounted(() => {
     v-if="isRender"
     :id="id"
     ref="itemRef"
-    :class="cn('text-sm relative flex gap-2 select-none items-center rounded-sm px-2 py-1.5 outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0', props.class)"
+    :class="cn('text-sm relative flex gap-2 select-none items-center rounded-sm px-2 py-1.5 outline-none data-[highlighted]:bg-selection data-[highlighted]:text-selection-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0', props.class)"
     v-bind="forwarded"
     @select="() => {
       filterState.search = ''

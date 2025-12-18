@@ -9,12 +9,13 @@ import {
   DropdownMenu,
   DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
   DropdownMenuGroup, DropdownMenuSub, DropdownMenuSubTrigger,
-  DropdownMenuTrigger, DropdownMenuSubContent
+  DropdownMenuTrigger, DropdownMenuSubContent, DropdownMenuShortcut
 } from '~/components/ui/dropdown-menu'
 import FolderMenu from '~/components/Ravn/FolderMenu.vue'
 import { DropdownMenuPortal } from 'reka-ui'
 import DropdownMenuItemRich from '~/components/ui/dropdown-menu/DropdownMenuItemRich.vue'
 import { invoke } from '@tauri-apps/api/core'
+import LabelMenu from '~/components/Ravn/LabelMenu.vue'
 
 const isLoading = ref(false)
 const { reindexAll } = useSearch()
@@ -155,7 +156,18 @@ const handleThemeChange = async (themeId: string) => {
                     <span>Move to...</span>
                     <DropdownMenuPortal>
                       <DropdownMenuSubContent>
-                        <FolderMenu account-id="08092f47-cfd1-429f-8a29-ec58fa563a2a"/>
+                        <FolderMenu/>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSubTrigger>
+                </DropdownMenuSub>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Icon name="lucide:tag"/>
+                    <span>Labels</span>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        <LabelMenu/>
                       </DropdownMenuSubContent>
                     </DropdownMenuPortal>
                   </DropdownMenuSubTrigger>

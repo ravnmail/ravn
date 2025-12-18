@@ -95,6 +95,18 @@ export function useFolders() {
     return result
   }
 
+  const flattenAccountFolders = (folders: SidebarFolderItem[]) => {
+    return folders.map(folder => {
+      if (folder.children && folder.children.length > 0) {
+        return {
+          ...folder,
+          children: flatten(folder.children, 0),
+        }
+      }
+      return folder
+    })
+  }
+
   const mapFolderTree = (folders: Folder[], accounts: Account[]): SidebarSectionItem[] => {
     const accountMap: Record<string, SidebarSectionItem> = {}
     accounts?.forEach(account => {
@@ -178,6 +190,7 @@ export function useFolders() {
     useRenameMutation,
     updateFolderProperties: useRenameMutation().mutateAsync,
     flatten,
+    flattenAccountFolders,
     useUpdateSettingsMutation,
   }
 }

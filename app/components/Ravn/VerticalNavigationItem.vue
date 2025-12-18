@@ -224,7 +224,8 @@ const cancelEdit = () => {
         </div>
         <div
           v-else
-          class="w-5 h-6 shrink-0"
+          :class="[folder_type ? 'w-5' : 'w-2']"
+          class="h-6 shrink-0"
         />
         <IconName
           :color="color"

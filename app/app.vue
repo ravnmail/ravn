@@ -4,10 +4,13 @@ import { useQueryClient } from '@tanstack/vue-query'
 
 import { Toaster } from 'vue-sonner'
 import { AlertDialogProvider } from '@/composables/useAlertDialog'
+import AddAccountModal from '~/components/Ravn/AddAccountModal.vue'
+import ViewCreationWizard from '~/components/Ravn/ViewCreationWizard.vue'
 
 const router = useRouter()
 const queryClient = useQueryClient()
 const isAddAccountModalOpen = ref(false)
+const isCreateViewWizardOpen = ref(false)
 
 useAppEvents()
 useTheme()
@@ -21,6 +24,10 @@ const cmdK = keys['Meta+K']
 whenever(cmdK, () => {
   router.push('/search')
 })
+
+provide('isAddAccountModalOpen', isAddAccountModalOpen)
+provide('isCreateViewWizardOpen', isCreateViewWizardOpen)
+
 </script>
 
 <template>
@@ -33,7 +40,10 @@ whenever(cmdK, () => {
     <AlertDialogProvider class="h-screen">
       <NuxtPage/>
     </AlertDialogProvider>
-    <RavnAddAccountModal
+    <ViewCreationWizard
+      v-model:open="isCreateViewWizardOpen"
+    />
+    <AddAccountModal
       v-model:open="isAddAccountModalOpen"
     />
     <Toaster

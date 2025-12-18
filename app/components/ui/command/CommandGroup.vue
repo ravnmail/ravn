@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 import type { ListboxGroupProps } from 'reka-ui'
 import { ListboxGroup, ListboxGroupLabel, useId } from 'reka-ui'
 import { cn } from '@/lib/utils'
@@ -33,10 +33,10 @@ onUnmounted(() => {
 
 <template>
   <ListboxGroup
-    v-bind="delegatedProps"
     :id="id"
-    :class="cn('overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted', props.class)"
+    :class="cn('overflow-hidden text-foreground py-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted', props.class)"
     :hidden="isRender ? undefined : true"
+    v-bind="delegatedProps"
   >
     <ListboxGroupLabel
       v-if="heading"
