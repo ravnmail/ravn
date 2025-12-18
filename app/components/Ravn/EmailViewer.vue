@@ -83,50 +83,12 @@ const handleQuickReply = (content: string) => {
   replyTo(selectedEmail, content)
 }
 
-
-// watch(selectedEmail, (newEmail) => {
-//   if (newEmail && !newEmail.is_read) {
-//     setTimeout(() => {
-//       if (selectedEmail?.id === newEmail.id && !newEmail.is_read) {
-//         markEmailAsRead(newEmail, newEmail.account_id, { showNotification: false })
-//           .catch(_ => {
-//             // Ignore errors here
-//           })
-//       }
-//     }, 1000)
-//   }
-// })
-//
-// watch(selectedEmail, async (newEmail, oldEmail) => {
-//   if (!newEmail || newEmail.id === oldEmail?.id) {
-//     return
-//   }
-//
-//   clearAnalysisState()
-//   const cached = parseAnalysisFromCache(newEmail)
-//   if (cached) {
-//     currentAnalysis.value = cached
-//   }
-//   else {
-//     try {
-//       await analyzeEmail(newEmail)
-//     }
-//     catch (_: unknown) {
-//       // Ignore analysis errors
-//     }
-//   }
-//
-//   if (newEmail.has_attachments) {
-//     await loadAttachments(newEmail.id)
-//   }
-// }, { immediate: true })
-
 </script>
 
 <template>
   <div class="flex flex-col w-full h-full">
     <div v-if="selectedEmail">
-      <div class="px-3">
+      <div class="px-3 pb-3">
         <div class="flex items-center justify-between">
           <h1 class="pl-4 text-2xl font-semibold select-auto text-primary">
             {{ selectedEmail.subject || t('components.emailViewer.noSubject') }}
@@ -141,14 +103,12 @@ const handleQuickReply = (content: string) => {
           />
         </div>
       </div>
-      <div class="py-6 space-y-3">
-        <MessageView
-          :auto-analyze="true"
-          :initial-reduced="false"
-          :show-actions="false"
-          v-bind="selectedEmail"
-        />
-      </div>
+      <MessageView
+        :auto-analyze="true"
+        :initial-reduced="false"
+        :show-actions="false"
+        v-bind="selectedEmail"
+      />
     </div>
     <EmptyState
       v-else

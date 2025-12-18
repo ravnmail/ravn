@@ -26,12 +26,9 @@ const handleItemClick = (item: { href?: string; click?: () => void }) => {
       @click="isExpanded = !isExpanded"
     >
       <span>{{ title }}</span>
-      <Icon
-        :name="`lucide:chevron-${isExpanded ? 'down' : 'up'}`"
-      />
+      <Icon :name="`lucide:chevron-${isExpanded ? 'down' : 'up'}`"/>
     </button>
-    <div
-      :class="[isExpanded ? 'block' : 'hidden', 'flex flex-col']">
+    <div :class="[isExpanded ? 'block' : 'hidden', 'flex flex-col']">
       <SimpleTooltip
         v-for="item in children"
         :key="item.id"

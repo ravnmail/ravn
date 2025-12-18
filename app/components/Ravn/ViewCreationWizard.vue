@@ -7,6 +7,8 @@ import IconName from '~/components/ui/IconName.vue'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
 import { RadioGroupItem } from 'reka-ui'
 import { RadioGroup } from '~/components/ui/radio-group'
+import { Dialog, DialogContent, DialogHeader } from '~/components/ui/dialog'
+import { Checkbox } from '~/components/ui/checkbox'
 
 const props = defineProps<{
   initialViewType?: 'kanban' | 'calendar' | 'list'
@@ -36,10 +38,10 @@ const {
   goBack,
 } = useViewWizard()
 
-// const { useNavigationFolders, flatten } = useFolders()
-// const accountFolders = useNavigationFolders('019ab4ec-729d-71b0-a370-c5116ca9358c')
-
-// const allFolders = computed(() => flatten(accountFolders?.value) || [])
+const { accounts } = useAccounts()
+const { useGetFolders, mapFolderTree, flatten } = useFolders()
+const { data: accountFolders } = useGetFolders()
+const folders = computed(() => flatten(mapFolderTree(accountFolders.value, accounts.value)) || [])
 
 const customizations = ref({
   name: '',
@@ -165,17 +167,17 @@ const dialogDescription = computed(() => {
 </script>
 
 <template>
-  <UiDialog v-model:open="isDialogOpen">
-    <UiDialogContent class="max-w-4xl max-h-[90vh] overflow-y-auto">
-      <UiDialogHeader>
+  <Dialog v-model:open="isDialogOpen">
+    <DialogContent class="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogHeader>
         <UiDialogTitle>{{ dialogTitle }}</UiDialogTitle>
         <UiDialogDescription>{{ dialogDescription }}</UiDialogDescription>
-      </UiDialogHeader>
+      </DialogHeader>
 
       <div class="py-3">
         <RadioGroup
           v-if="currentStep === 'type'"
-          class="grid grid-cols-1 gap-3"
+          class="grid grid-cols-1 gap-1"
         >
           <RadioGroupItem
             v-for="viewType in viewTypes"
@@ -218,7 +220,7 @@ const dialogDescription = computed(() => {
         </RadioGroup>
         <RadioGroup
           v-else-if="currentStep === 'template'"
-          class="grid grid-cols-1 gap-3"
+          class="grid grid-cols-1 gap-1"
         >
           <RadioGroupItem
             class="w-full p-3 border border-border rounded-lg text-left hover:border-b-selection-border hover:bg-selection-background transition-all"
@@ -231,9 +233,9 @@ const dialogDescription = computed(() => {
                   name="lucide:plus"
                 />
               </div>
-              <div>
+              <div class="flex-1 flex flex-col gap-1">
                 <h3 class="font-semibold">{{ t('components.viewWizard.startFromScratch.title') }}</h3>
-                <p class="text-sm text-muted-foreground mt-1">
+                <p class="text-sm text-muted">
                   {{ t('components.viewWizard.startFromScratch.description') }}
                 </p>
               </div>
@@ -252,12 +254,12 @@ const dialogDescription = computed(() => {
                   name="lucide:columns-3-cog"
                 />
               </div>
-              <div class="flex-1">
+              <div class="flex-1 flex flex-col gap-1">
                 <h3 class="font-semibold">{{ template.title }}</h3>
-                <p class="text-sm text-muted-foreground mt-1">
+                <p class="text-sm text-muted">
                   {{ template.description }}
                 </p>
-                <div class="flex gap-2 mt-3 flex-wrap">
+                <div class="flex gap-1 flex-wrap">
                   <EmailLabel
                     v-for="label in template.labels"
                     :key="label.id"
@@ -282,7 +284,7 @@ const dialogDescription = computed(() => {
             </div>
             <div class="space-y-2">
               <h4 class="font-medium">{{ t('components.viewWizard.preview.labelsTitle') }}</h4>
-              <div class="flex flex-wrap gap-2">
+              <div class="flex flex-wrap gap-1">
                 <EmailLabel
                   v-for="label in selectedTemplate.labels"
                   :key="label.id"
@@ -290,26 +292,25 @@ const dialogDescription = computed(() => {
                 />
               </div>
             </div>
-
             <div class="space-y-2">
               <h4 class="font-medium">{{ t('components.viewWizard.preview.swimlanesTitle') }}</h4>
-              <div class="space-y-2">
+              <div class="space-y-1">
                 <div
                   v-for="(swimlane, index) in selectedTemplate.swimlanes"
                   :key="index"
-                  class="p-4 rounded-lg border border-border"
+                  class="p-3 rounded-lg border border-border"
                 >
-                  <div class="flex flex-col gap-3">
+                  <div class="flex flex-col gap-1">
                     <IconName
                       :color="swimlane.color"
                       :icon="swimlane.icon"
                       :name="swimlane.name"
                       class="text-primary"
                     />
-                    <p class="text-sm text-muted-foreground mt-1">{{ swimlane.description }}</p>
+                    <p class="text-sm text-muted-foreground">{{ swimlane.description }}</p>
                     <div
                       v-if="swimlane.labels.length > 0"
-                      class="flex flex-wrap gap-2"
+                      class="flex flex-wrap gap-1"
                     >
                       <EmailLabel
                         v-for="labelId in swimlane.labels"
@@ -323,29 +324,24 @@ const dialogDescription = computed(() => {
             </div>
           </div>
         </div>
-
-        <!-- Step 4: Customize -->
         <div
           v-else-if="currentStep === 'customize'"
-          class="space-y-6"
+          class="space-y-3"
         >
-          <!-- View Name & Icon -->
           <IconNameField
             :model-value="customizations"
             @update:model-value="Object.assign(customizations, $event)"
           />
-
-          <!-- Folders Selection -->
           <div class="space-y-2">
             <label class="text-sm font-medium">{{ t('components.viewWizard.customize.includeFolders') }}</label>
-            <div class="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+            <div class="border border-border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
               <div
-                v-for="folder in allFolders"
+                v-for="folder in folders"
                 :key="folder.id"
                 :style="{ paddingLeft: `${folder.level}rem` }"
                 class="flex items-center gap-2"
               >
-                <UiCheckbox
+                <Checkbox
                   :checked="customizations.folders.includes(String(folder.id))"
                   @update:model-value="toggleFolder(String(folder.id))"
                 />
@@ -356,15 +352,13 @@ const dialogDescription = computed(() => {
                 />
               </div>
               <div
-                v-if="allFolders.length === 0"
+                v-if="folders.length === 0"
                 class="text-center py-4 text-muted-foreground text-sm"
               >
                 {{ t('components.viewWizard.customize.noFolders') }}
               </div>
             </div>
           </div>
-
-          <!-- Preview of Configuration -->
           <div
             v-if="processedTemplate"
             class="space-y-2"
@@ -451,6 +445,6 @@ const dialogDescription = computed(() => {
           </div>
         </div>
       </UiDialogFooter>
-    </UiDialogContent>
-  </UiDialog>
+    </DialogContent>
+  </Dialog>
 </template>

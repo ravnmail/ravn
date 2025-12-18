@@ -72,7 +72,7 @@ watch(
       @submit="handleNaturalLanguageSearch"
     >
       <div
-        class="relative flex items-center gap-2 px-4 py-3 bg-background border border-input rounded-lg focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 transition-all"
+        class="relative flex items-center gap-2 px-3 py-1.5 bg-input border border-input rounded-lg focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 transition-all"
       >
         <Icon
           class="text-ai flex-shrink-0"

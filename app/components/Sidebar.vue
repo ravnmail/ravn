@@ -12,7 +12,7 @@ import { useStorage } from '@vueuse/core'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub,
+  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub,
   DropdownMenuSubContent, DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
