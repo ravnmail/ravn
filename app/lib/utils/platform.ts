@@ -9,6 +9,14 @@ export function getShortcutKey(key: string): string {
     return isMac() ? '⌥' : 'Alt'
   } else if (key.toLowerCase() === 'shift') {
     return isMac() ? '⇧' : 'Shift'
+  } else if (key.toLowerCase() === 'enter') {
+    return '⏎'
+  } else if (key.toLowerCase() === 'backspace') {
+    return '⌫'
+  } else if (key.toLowerCase() === 'escape') {
+    return '⎋'
+  } else if (key.toLowerCase() === 'space') {
+    return '␣'
   } else {
     return key
   }

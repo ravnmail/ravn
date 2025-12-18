@@ -17,6 +17,7 @@ import { Input } from '~/components/ui/input'
 import { useCorvus } from '~/composables/useCorvus'
 import { getFileIconForMimeType } from '~/lib/utils/fileIcons'
 import { marked } from 'marked'
+import { Separator } from '~/components/ui/separator'
 
 interface Props {
   draft?: EmailDetail
@@ -529,7 +530,7 @@ useKeyboardBindings({
   send: handleSend,
   discardDraft: handleDiscard,
 }, {
-  ignoreInputFields: false, // Allow shortcuts even when in input fields
+  ignoreInputFields: false,
 })
 </script>
 
@@ -543,7 +544,10 @@ useKeyboardBindings({
   >
     <div class="flex items-center justify-between pb-2">
       <div class="flex items-center gap-1 ml-auto">
-        <SimpleTooltip :tooltip="`${$t('composer.saveDraft')} (⌘S)`">
+        <SimpleTooltip
+          :shortcut-keys="['mod', 'S']"
+          :tooltip="`${$t('composer.saveDraft')}`"
+        >
           <Button
             :disabled="isSavingDraft || isSending || !selectedAccountId"
             size="sm"
@@ -562,16 +566,28 @@ useKeyboardBindings({
           </Button>
         </SimpleTooltip>
 
-        <Button
-          :disabled="isSending || isSavingDraft"
-          size="sm"
-          variant="ghost"
-          @click="handleDiscard"
+        <SimpleTooltip
+          :shortcut-keys="['Escape']"
+          :tooltip="$t('composer.discardDraft')"
         >
-          <Icon name="lucide:trash-2"/>
-        </Button>
+          <Button
+            :disabled="isSending || isSavingDraft"
+            size="sm"
+            variant="ghost"
+            @click="handleDiscard"
+          >
+            <Icon name="lucide:trash-2"/>
+          </Button>
+        </SimpleTooltip>
 
-        <SimpleTooltip :tooltip="`${$t('composer.send')} (⌘↵)`">
+        <Separator
+          orientation="vertical"
+        />
+
+        <SimpleTooltip
+          :shortcut-keys="['mod', 'Enter']"
+          :tooltip="$t('composer.send')"
+        >
           <Button
             :disabled="!canSend"
             size="sm"

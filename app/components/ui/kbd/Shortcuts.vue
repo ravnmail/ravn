@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 
 import { getShortcutKey } from '~/lib/utils/platform'
-import { Kbd, KbdGroup } from './'
+import { KbdGroup } from './'
 
 defineProps<{
   shortcutKeys: string[]
@@ -11,11 +11,12 @@ defineProps<{
 
 <template>
   <KbdGroup>
-    <Kbd
+    <kbd
       v-for="(shortcutKey, index) in shortcutKeys"
       :key="index"
+      class="text-muted opacity-80 border-border border px-1 rounded-sm"
     >
       {{ getShortcutKey(shortcutKey) }}
-    </Kbd>
+    </kbd>
   </KbdGroup>
 </template>

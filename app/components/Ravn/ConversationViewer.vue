@@ -8,6 +8,7 @@ import { useIntersectionObserver } from '@vueuse/core'
 import { ScrollArea } from '~/components/ui/scroll-area'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '~/components/ui/resizable'
+import { toast } from 'vue-sonner'
 
 const props = defineProps<{
   conversationId: string
@@ -38,7 +39,6 @@ const onTogglePanel = (collapsed: boolean) => {
 }
 
 const markedAsRead = ref<Set<string>>(new Set())
-const visibilityTimers = ref<Map<string, NodeJS.Timeout>>(new Map())
 const activeComposer = ref<{
   type: 'reply' | 'reply-all' | 'forward',
   originalMessage: EmailDetail,
@@ -112,11 +112,11 @@ const handleError = (action: string, error: unknown) => {
   const errorMsg = error instanceof Error ? error.message : String(error)
 
   if (errorMsg.includes('IMAP config not set') || errorMsg.includes('credentials')) {
-    alert(t('components.conversationViewer.errors.credentials'))
+    toast.error(t('components.conversationViewer.errors.credentials') as string)
   } else if (errorMsg.includes('Archive folder not found')) {
-    alert(t('components.conversationViewer.errors.archiveFolder'))
+    toast.error(t('components.conversationViewer.errors.archiveFolder') as string)
   } else {
-    alert(`Failed to ${action.toLowerCase()}: ${errorMsg}`)
+    toast.error(`Failed to ${action.toLowerCase()}: ${errorMsg}`)
   }
 }
 
@@ -203,39 +203,6 @@ const isSentMessage = (message: EmailDetail) => {
   return sentfolderIds.value.includes(message.folder_id)
 }
 
-onUnmounted(() => {
-  visibilityTimers.value.forEach(timer => clearTimeout(timer))
-  visibilityTimers.value.clear()
-})
-
-const messageRefs = ref<Record<string, HTMLElement | null>>({})
-
-const setupMessageObservers = () => {
-  if (!conversation || !conversation.messages) return
-
-  conversation.messages.forEach((message) => {
-    const messageId = message.id.toString()
-    const element = messageRefs.value[messageId]
-
-    if (element && !message.is_read && !markedAsRead.value.has(messageId)) {
-      const { stop } = useIntersectionObserver(
-        element,
-        ([{ isIntersecting }]) => {
-          handleMessageVisibility(message, isIntersecting)
-        },
-        { threshold: 0.5 } // Message needs to be 50% visible
-      )
-
-      onUnmounted(stop)
-    }
-  })
-}
-
-onMounted(() => {
-  nextTick(() => {
-    setupMessageObservers()
-  })
-})
 </script>
 
 <template>
@@ -282,7 +249,6 @@ onMounted(() => {
             <div
               v-for="(message, index) in conversation?.messages"
               :key="message.id"
-              :ref="(el) => { if (el) messageRefs[message.id.toString()] = el as HTMLElement }"
               :class="[ isSentMessage(message) ? 'ml-12' : '' ]"
               class="space-y-3"
             >

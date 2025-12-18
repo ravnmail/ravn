@@ -41,6 +41,7 @@ const props = withDefaults(defineProps<{
         <Shortcuts
           v-if="shortcutKeys?.length"
           :shortcut-keys="shortcutKeys"
+          class="mt-1"
         />
       </TooltipContent>
     </Tooltip>
