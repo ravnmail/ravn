@@ -1,12 +1,13 @@
 <script lang="ts" setup>
 
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '~/components/ui/empty/index'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 
 defineProps<{
   icon?: string
   iconName?: string
-  title?: string
-  description?: string
+  title?: string | CleanTranslation
+  description?: string | CleanTranslation
 }>()
 
 </script>
