@@ -244,16 +244,14 @@ onMounted(() => {
     class="flex h-screen bg-background w-full"
     direction="horizontal"
   >
-    <ResizablePanel
-      class="flex-1 flex flex-col"
-    >
+    <ResizablePanel class="flex-1 flex flex-col">
       <div
         v-if="conversation"
         class="flex-1 flex flex-col h-full"
       >
         <div class="px-3 pt-2">
           <div class="flex items-start justify-between">
-            <h1 class="text-2xl font-semibold select-auto text-primary relative z-10">
+            <h1 class="pt-1 text-2xl font-semibold select-auto text-primary relative z-10">
               {{ subject }}
             </h1>
             <Button
@@ -265,9 +263,7 @@ onMounted(() => {
             </Button>
           </div>
         </div>
-        <ScrollArea
-          ref="conversationContainer"
-        >
+        <ScrollArea ref="conversationContainer">
           <div
             v-if="activeComposer"
             class="border-b border-border px-3"
@@ -310,10 +306,7 @@ onMounted(() => {
         icon="📭"
       />
     </ResizablePanel>
-
-    <ResizableHandle
-      @dblclick="togglePanel(panelCollapsed)"
-    />
+    <ResizableHandle @dblclick="togglePanel(panelCollapsed)"/>
     <ResizablePanel
       v-if="conversation"
       id="conversation-panel"
