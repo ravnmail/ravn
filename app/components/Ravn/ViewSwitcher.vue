@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+import { Button } from '~/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '~/components/ui/dropdown-menu'
+import DropdownMenuItemRich from '~/components/ui/dropdown-menu/DropdownMenuItemRich.vue'
+
 const { t } = useI18n()
 const { alert } = useAlertDialog()
 
@@ -8,7 +12,7 @@ const { isPending: isDeleting, mutate: deleteView } = useDeleteViewMutation()
 const isLabelManagerOpen = ref(false)
 const isViewEditorOpen = ref(false)
 const editingViewId = ref<string | null>(null)
-const currentView = computed(() => useRoute().params.view)
+const currentViewId = computed(() => useRoute().params.view)
 
 const handleEditView = (viewId: string) => {
   editingViewId.value = viewId
@@ -43,61 +47,43 @@ const handleViewSaved = () => {
 </script>
 
 <template>
-  <div class="flex items-center gap-2">
-    <UiDropdownMenu v-if="currentView">
-      <UiDropdownMenuTrigger as-child>
-        <UiButton
+  <div class="flex items-center gap-2 relative z-10">
+    <DropdownMenu v-if="currentViewId">
+      <DropdownMenuTrigger>
+        <Button
           size="sm"
           variant="ghost"
         >
-          <Icon
-            class="h-4 w-4"
-            name="lucide:more-vertical"
-          />
-        </UiButton>
-      </UiDropdownMenuTrigger>
-
-      <UiDropdownMenuContent>
-        <UiDropdownMenuItem @click="handleEditView(currentView)">
-          <Icon
-            class="mr-2 h-4 w-4"
-            name="lucide:edit"
-          />
-          {{ t('components.viewSwitcher.actions.edit') }}
-        </UiDropdownMenuItem>
-
-        <UiDropdownMenuSeparator/>
-
-        <UiDropdownMenuItem
+          <Icon name="lucide:more-vertical"/>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuItemRich
+          :label="t('components.viewSwitcher.actions.edit')"
+          icon="lucide:edit"
+          @select="handleEditView(currentViewId)"
+        />
+        <DropdownMenuItemRich
+          :label="t('components.viewSwitcher.actions.delete')"
           class="text-red-600"
-          @click="handleDeleteView(currentView)"
-        >
-          <Icon
-            class="mr-2 h-4 w-4"
-            name="lucide:trash-2"
-          />
-          {{ t('components.viewSwitcher.actions.delete') }}
-        </UiDropdownMenuItem>
-      </UiDropdownMenuContent>
-    </UiDropdownMenu>
-
-    <!-- Manage Labels Button -->
-    <UiButton
+          icon="lucide:trash-2"
+          @select="handleDeleteView(currentViewId)"
+        />
+      </DropdownMenuContent>
+    </DropdownMenu>
+    <Button
       size="sm"
       variant="outline"
       @click="isLabelManagerOpen = true"
     >
       <Icon
-        class="mr-2 h-4 w-4"
         name="lucide:tag"
       />
       {{ t('components.viewSwitcher.labels') }}
-    </UiButton>
+    </Button>
 
-    <!-- Label Manager Dialog -->
     <RavnLabelManager v-model:open="isLabelManagerOpen"/>
 
-    <!-- View Editor Dialog -->
     <RavnViewEditor
       v-model:open="isViewEditorOpen"
       :view-id="editingViewId"

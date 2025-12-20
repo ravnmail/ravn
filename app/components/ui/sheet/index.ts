@@ -45,7 +45,7 @@ export const unobstrusiveSheetVariants = cva(
 )
 
 export const unobstrusiveSheetContentVariants = cva(
-  "bg-background p-3 shadow-lg border-border pointer-events-auto",
+  "bg-background shadow-lg border-border pointer-events-auto",
   {
     variants: {
       side: {

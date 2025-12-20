@@ -6,6 +6,7 @@ import MailList from '~/components/Ravn/MailList.vue'
 const route = useRoute()
 const folderId = computed(() => route.params.folder_id as string)
 const accountId = computed(() => route.params.account_id as string)
+const conversationId = computed(() => route.params.conversation as string)
 
 </script>
 
@@ -24,6 +25,7 @@ const accountId = computed(() => route.params.account_id as string)
     >
       <MailList
         :account-id="accountId"
+        :conversation-id="conversationId"
         :folder-id="folderId"
         class="h-full shrink-0"
       />

@@ -90,7 +90,7 @@ const handleQuickReply = (content: string) => {
     <div v-if="selectedEmail">
       <div class="px-3 pb-3">
         <div class="flex items-center justify-between">
-          <h1 class="pl-4 text-2xl font-semibold select-auto text-primary">
+          <h1 class="pl-4 text-xl font-semibold select-auto text-primary relative z-10">
             {{ selectedEmail.subject || t('components.emailViewer.noSubject') }}
           </h1>
           <EmailActionButtons

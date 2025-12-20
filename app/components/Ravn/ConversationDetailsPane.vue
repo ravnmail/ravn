@@ -94,16 +94,20 @@ const accountId = computed(() => props.conversation.messages[0]?.account_id)
 <template>
   <div class="h-screen border-l border-border bg-surface">
     <div class="px-4 py-3 border-b border-border">
-      <h2 class="text-lg font-semibold text-primary">
-        Details
+      <h2 class="font-semibold text-primary">
+        Conversation Details
       </h2>
     </div>
     <ScrollArea class="flex-1">
       <div class="px-4 py-4 space-y-6">
         <div>
-          <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+          <h3 class="text-sm font-semibold uppercase tracking-wide mb-3 flex items-center gap-2">
             <span>Members</span>
-            <Badge size="sm">{{ members.length }}</Badge>
+            <Badge
+              size="sm"
+              variant="background"
+            >{{ members.length }}
+            </Badge>
           </h3>
           <div class="flex flex-col gap-3">
             <div
@@ -112,7 +116,6 @@ const accountId = computed(() => props.conversation.messages[0]?.account_id)
               class="flex items-center gap-2"
             >
               <RavnAvatar
-                :account-id="accountId"
                 :email="member.address"
                 :name="member.name"
                 class="shrink-0"
@@ -124,7 +127,7 @@ const accountId = computed(() => props.conversation.messages[0]?.account_id)
                 </div>
                 <div
                   v-if="member.name"
-                  class="text-xs text-muted-foreground truncate"
+                  class="text-xs opacity-60 truncate"
                 >
                   {{ member.address }}
                 </div>
@@ -137,16 +140,28 @@ const accountId = computed(() => props.conversation.messages[0]?.account_id)
           class="flex flex-col gap-6"
         >
           <div v-if="normalAttachments.length > 0">
-            <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+            <h3
+              class="text-sm font-semibold uppercase tracking-wide mb-3 flex items-center gap-2"
+            >
               <span>Attachments</span>
-              <Badge size="sm">{{ normalAttachments.length }}</Badge>
+              <Badge
+                size="sm"
+                variant="background"
+              >{{ normalAttachments.length }}
+              </Badge>
             </h3>
             <AttachmentList :attachments="normalAttachments"/>
           </div>
           <div v-if="inlineAttachments.length > 0">
-            <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+            <h3
+              class="text-sm font-semibold uppercase tracking-wide mb-3 flex items-center gap-2"
+            >
               <span>Inline Attachments</span>
-              <Badge size="sm">{{ inlineAttachments.length }}</Badge>
+              <Badge
+                size="sm"
+                variant="background"
+              >{{ inlineAttachments.length }}
+              </Badge>
             </h3>
             <AttachmentList :attachments="inlineAttachments"/>
           </div>

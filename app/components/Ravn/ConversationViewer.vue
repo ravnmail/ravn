@@ -4,20 +4,20 @@ import MessageView from '~/components/Ravn/MessageView.vue'
 import Composer from '~/components/Composer.vue'
 import ConversationDetailsPane from '~/components/Ravn/ConversationDetailsPane.vue'
 import type { EmailDetail } from '~/types/email'
-import { useIntersectionObserver } from '@vueuse/core'
 import { ScrollArea } from '~/components/ui/scroll-area'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '~/components/ui/resizable'
 import { toast } from 'vue-sonner'
+import { cn } from '~/lib/utils'
 
 const props = defineProps<{
   conversationId: string
+  titleClass?: string
 }>()
 
 const { t } = useI18n()
 const { useGetConversation } = useConversation()
 const { archive, trash } = useEmails()
-const { updateRead } = useEmails()
 const { data: conversation } = useGetConversation(props.conversationId)
 const { useGetFolders } = useFolders()
 const { data: folders } = useGetFolders()
@@ -38,7 +38,6 @@ const onTogglePanel = (collapsed: boolean) => {
   panelCollapsed.value = !collapsed
 }
 
-const markedAsRead = ref<Set<string>>(new Set())
 const activeComposer = ref<{
   type: 'reply' | 'reply-all' | 'forward',
   originalMessage: EmailDetail,
@@ -167,36 +166,6 @@ useKeyboardBindings({
   },
 })
 
-const handleMessageVisibility = (message: EmailDetail, isVisible: boolean) => {
-  const messageId = message.id.toString()
-
-  if (message.is_read || markedAsRead.value.has(messageId)) {
-    return
-  }
-
-  if (isVisible) {
-    const timer = setTimeout(async () => {
-      if (!markedAsRead.value.has(messageId)) {
-        try {
-          await updateRead(message.id, true)
-          markedAsRead.value.add(messageId)
-          console.log('[ConversationViewer] Marked message as read:', messageId)
-        } catch (error) {
-          console.error('[ConversationViewer] Failed to mark as read:', error)
-        }
-      }
-    }, 2000) // 2 second threshold
-
-    visibilityTimers.value.set(messageId, timer)
-  } else {
-    const timer = visibilityTimers.value.get(messageId)
-    if (timer) {
-      clearTimeout(timer)
-      visibilityTimers.value.delete(messageId)
-    }
-  }
-}
-
 const sentfolderIds = computed(() => folders.value?.filter(folder => ['sent', 'draft'].includes(folder.folder_type)).map(f => f.id) || [])
 
 const isSentMessage = (message: EmailDetail) => {
@@ -218,7 +187,9 @@ const isSentMessage = (message: EmailDetail) => {
       >
         <div class="px-3 pt-2">
           <div class="flex items-start justify-between">
-            <h1 class="pt-1 text-2xl font-semibold select-auto text-primary relative z-10">
+            <h1
+              :class="cn('text-xl font-semibold select-auto text-primary relative z-10', titleClass ?? '')"
+            >
               {{ subject }}
             </h1>
             <Button
@@ -245,24 +216,20 @@ const isSentMessage = (message: EmailDetail) => {
               @sent="handleComposerSent"
             />
           </div>
-          <div class="px-3 py-6 space-y-6">
-            <div
+          <div class="px-3 pt-3 space-y-6">
+            <MessageView
               v-for="(message, index) in conversation?.messages"
               :key="message.id"
+              :auto-analyze="true"
               :class="[ isSentMessage(message) ? 'ml-12' : '' ]"
-              class="space-y-3"
-            >
-              <MessageView
-                :auto-analyze="true"
-                :initial-reduced="index > 0"
-                :is-first="index === 0"
-                v-bind="message"
-                @forward="handleForward"
-                @reply="handleReply"
-                @reply-all="handleReplyAll"
-                @quick-reply="handleQuickReply"
-              />
-            </div>
+              :initial-reduced="index > 0"
+              :is-first="index === 0"
+              v-bind="message"
+              @forward="handleForward"
+              @reply="handleReply"
+              @reply-all="handleReplyAll"
+              @quick-reply="handleQuickReply"
+            />
           </div>
         </ScrollArea>
       </div>

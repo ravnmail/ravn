@@ -1,5 +1,8 @@
 <script lang="ts" setup>
 
+import EmptyState from '~/components/ui/empty/EmptyState.vue'
+import KanbanBoard from '~/components/Ravn/KanbanBoard.vue'
+
 const { t } = useI18n()
 const route = useRoute()
 const viewId = computed(() => route.params.view as string)
@@ -10,11 +13,22 @@ const currentView = computed(() => {
   return views.value.find(view => view.id === viewId.value) || null
 })
 
+const component = computed(() => {
+  if (!currentView.value) return null
+
+  switch (currentView.value.view_type) {
+    case 'kanban':
+      return KanbanBoard
+    default:
+      return null
+  }
+})
+
 </script>
 
 <template>
   <div class="flex flex-col h-full w-full">
-    <div class="p-4">
+    <div class="p-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
           <span class="text-muted">/</span>
@@ -27,36 +41,20 @@ const currentView = computed(() => {
             {{ currentView?.name }}
           </span>
         </div>
-
         <RavnViewSwitcher/>
       </div>
     </div>
-
-    <RavnKanbanBoard
-      v-if="currentView && currentView.view_type === 'kanban'"
+    <component
+      :is="component"
+      v-if="currentView"
       :view="currentView"
     />
-
-    <!-- Empty State -->
-    <div
+    <EmptyState
       v-else
+      :description="t('pages.view.emptyState.getStarted')"
+      :title="t('pages.view.emptyState.description')"
       class="flex items-center justify-center h-full"
-    >
-      <div class="text-center">
-        <Icon
-          class="h-24 w-24 mx-auto mb-6 text-gray-300 dark:text-gray-700"
-          name="lucide:layout-dashboard"
-        />
-        <h2 class="text-2xl font-bold mb-2">{{ t('pages.view.emptyState.title') }}</h2>
-        <p class="text-gray-600 dark:text-gray-400 mb-6 max-w-md">
-          {{ t('pages.view.emptyState.description') }}
-        </p>
-        <div class="space-y-4">
-          <p class="text-sm text-gray-500">
-            {{ t('pages.view.emptyState.getStarted') }}
-          </p>
-        </div>
-      </div>
-    </div>
+      icon-name="lucide:layout-dashboard"
+    />
   </div>
 </template>

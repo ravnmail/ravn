@@ -2,8 +2,6 @@
 import type { DialogContentEmits, DialogContentProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
 import {
-  type SheetVariants,
-  UnobstrusiveSheetContent,
   unobstrusiveSheetContentVariants,
   type UnobstrusiveSheetVariants
 } from '.'
@@ -11,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { unobstrusiveSheetVariants } from '.'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '~/components/ui/resizable'
 import { SimpleTooltip } from '~/components/ui/tooltip'
+import { Button } from '~/components/ui/button'
 
 
 interface SheetContentProps extends DialogContentProps {
@@ -45,17 +44,18 @@ const emits = defineEmits<DialogContentEmits>()
         <SimpleTooltip
           :shortcut-keys="['Esc']"
           :tooltip-markdown="'Close sheet'"
-          class="absolute -left-2 top-1"
+          class="absolute left-1 top-1 z-20"
         >
-          <button
-            class="flex items-center rounded-lg p-1.5 ring-offset-background transition-all hover:bg-button-ghost-hover/50 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted"
+          <Button
+            size="icon"
+            variant="ghost"
             @click="emits('close', false)"
           >
             <Icon
-              :size="18"
+              :size="20"
               name="lucide:chevrons-right"
             />
-          </button>
+          </Button>
         </SimpleTooltip>
       </div>
     </ResizablePanel>

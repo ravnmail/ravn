@@ -321,6 +321,7 @@ const checkForUpdate = async () => {
     @close="onComposerSheetChange"
   >
     <Composer
+      class="p-3"
       @discarded="handleComposerDiscarded"
       @sent="handleComposerSent"
     />

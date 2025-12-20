@@ -85,7 +85,10 @@ const iconName = computed(() => {
       >
         <div class="max-w-24 flex flex-col gap-0.5">
           <div>{{ tooltip }}</div>
-          <Shortcuts :shortcut-keys="shortcutKeys" />
+          <Shortcuts
+            v-if="shortcutKeys?.length"
+            :shortcut-keys="shortcutKeys"
+          />
         </div>
       </TooltipContent>
     </Tooltip>
