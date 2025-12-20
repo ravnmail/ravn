@@ -683,7 +683,8 @@ Content:
         let mut message = String::new();
 
         message.push_str(&format!(
-            "Sender: {}\nSubject: {}\nIs Reply: {}\nRecipients: {}\n\n",
+            "Current Datetime: {}\nSender: {}\nSubject: {}\nIs Reply: {}\nRecipients: {}\n\n",
+            chrono::Utc::now().to_rfc3339(),
             context.metadata.sender,
             context.metadata.subject,
             context.metadata.is_reply,
