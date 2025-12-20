@@ -378,8 +378,6 @@
 
 
 .ProseMirror {
-  @apply py-4 px-8 space-y-3 max-w-screen-md mx-auto outline-none h-full;
-
   p:empty::after {
     content: "\00A0";
   }
@@ -387,6 +385,11 @@
   > * {
     @apply ml-4;
   }
+}
+
+.ProseMirror,
+.EmailView {
+  @apply p-3 space-y-3 max-w-prose mx-auto outline-none h-full;
 
   h1 {
     @apply text-2xl font-bold;

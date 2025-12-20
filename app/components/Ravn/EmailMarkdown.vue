@@ -39,7 +39,7 @@ const handleClick = (event: MouseEvent) => {
 
 <template>
   <div
-    class="ProseMirror select-auto"
+    class="EmailView select-auto"
     @click="handleClick"
     v-html="html"
   />
