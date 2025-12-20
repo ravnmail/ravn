@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 import { cn } from '@/lib/utils'
 import { TagsInputItemDelete, type TagsInputItemDeleteProps, useForwardProps } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
@@ -16,8 +16,8 @@ const forwardedProps = useForwardProps(delegatedProps)
 
 <template>
   <TagsInputItemDelete
+    :class="cn('flex rounded bg-transparent mr-1 hover:text-destructive', props.class)"
     v-bind="forwardedProps"
-    :class="cn('flex rounded bg-transparent mr-1 hover:bg-input', props.class)"
   >
     <slot>
       <Icon name="lucide:x"/>

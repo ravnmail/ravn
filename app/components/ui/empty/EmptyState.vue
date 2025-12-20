@@ -13,10 +13,12 @@ defineProps<{
 </script>
 
 <template>
-
   <Empty>
     <EmptyHeader>
-      <EmptyMedia variant="sticker">
+      <EmptyMedia
+        v-if="iconName || icon"
+        variant="sticker"
+      >
         <Icon
           v-if="iconName"
           :name="iconName"
