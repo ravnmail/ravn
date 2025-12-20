@@ -8,6 +8,12 @@ const { folders, mapFolderTree, flattenAccountFolders } = useFolders()
 
 defineProps<{
   showHidden?: boolean
+  multiple?: boolean
+  selectedFolders?: string[]
+}>()
+
+defineEmits<{
+  (e: 'update:selected-folders', value: string[]): void
 }>()
 
 const accountFolders = computed(() => {
@@ -17,7 +23,11 @@ const accountFolders = computed(() => {
 </script>
 
 <template>
-  <Command>
+  <Command
+    :model-value="selectedFolders"
+    :multiple="multiple"
+    @update:model-value="$emit('update:selected-folders', $event)"
+  >
     <CommandInput
       class="py-2 text-sm"
       placeholder="Filter folders..."
@@ -34,9 +44,16 @@ const accountFolders = computed(() => {
           :value="item.id"
         >
           <IconName
+            :color="item.color"
+            :icon="item.icon"
+            :name="item.name"
             :style="{ paddingLeft: `${item.level}rem` }"
             class="font-medium"
-            v-bind="item"
+          />
+          <Icon
+            v-if="selectedFolders?.includes(item.id)"
+            class="ml-auto"
+            name="lucide:check"
           />
         </CommandItem>
       </CommandGroup>
