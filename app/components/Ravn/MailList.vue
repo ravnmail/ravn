@@ -11,6 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~
 import { FormField } from '~/components/ui/form'
 import { Switch } from '~/components/ui/switch'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
+import MailContextMenu from '~/components/Ravn/MailContextMenu.vue'
+import { toast } from 'vue-sonner'
+import IconName from '~/components/ui/IconName.vue'
+import { Badge } from '~/components/ui/badge'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -18,6 +22,7 @@ const router = useRouter()
 const props = defineProps<{
   folderId: string
   accountId: string
+  conversationId?: string
 }>()
 
 const { useGetConversationsForFolder } = useConversation()
@@ -27,8 +32,7 @@ const { data: conversations } = useGetConversationsForFolder(
   0
 )
 
-const { folders, flatten, useUpdateSettingsMutation, useInitSyncMutation } = useFolders()
-const accountFolders = computed(() => [])
+const { folders, getBreadcrumbs, useUpdateSettingsMutation, useInitSyncMutation } = useFolders()
 
 const { mutateAsync: updateSettings } = useUpdateSettingsMutation()
 const { mutateAsync: initSync } = useInitSyncMutation()
@@ -46,7 +50,7 @@ const groupingEnabled = ref<boolean>(true)
 const expandedGroups = ref<Set<string>>(new Set(['today', 'yesterday', 'thisWeek', 'thisMonth', 'older', 'enormous', 'huge', 'veryLarge', 'large', 'medium', 'small']))
 
 const currentFolder = computed(() => {
-  return (accountFolders.value || [])
+  return (folders.value || [])
     .find(f => f.id === props.folderId)
 })
 
@@ -89,7 +93,7 @@ const saveFolderSettings = () => {
 
 
 onMounted(async () => {
-  await initSync({ folderId: props.folderId })
+  await initSync({ folderId: props.folderId, full: false })
 })
 
 watch([sortBy, sortOrder, filterRead, filterHasAttachments], async () => {
@@ -135,11 +139,11 @@ const handleAction = async (actionId: string, conversationId: string) => {
     console.error('[MailList] ❌ Action failed:', actionId, error)
 
     if (errorMsg.includes('IMAP config not set') || errorMsg.includes('credentials')) {
-      alert(t('components.mailList.errors.credentials'))
+      toast.error(t('components.mailList.errors.credentials') as string)
     } else if (errorMsg.includes('Archive folder not found')) {
-      alert(t('components.mailList.errors.archiveFolder'))
+      toast.error(t('components.mailList.errors.archiveFolder') as string)
     } else {
-      alert(t('components.mailList.errors.generic'))
+      toast.error(t('components.mailList.errors.generic') as string)
     }
   }
 }
@@ -378,11 +382,9 @@ const handleSelect = (conversation: ConversationListItem, event?: MouseEvent) =>
 
 const selectedMessageIds = computed(() => {
   const selectedConvIds = multiSelect.selectedIds.value
-  if (selectedConvIds.length === 0) return []
-
-  const selectedConversations = conversations?.value.filter(c =>
-    selectedConvIds.includes(c.id)
-  )
+  const selectedConversations = conversations.value?.filter(c =>
+    selectedConvIds.includes(c.id) || props.conversationId === c.id
+  ) || []
 
   return selectedConversations.flatMap(conv =>
     conv.messages
@@ -399,9 +401,13 @@ watch(() => props.folderId, () => {
 <template>
   <div class="flex flex-col">
     <div class="flex p-3 items-center border-b border-b-border">
-      <h1 class="text-primary font-semibold">
-        {{ currentFolder?.name }}
-      </h1>
+      <IconName
+        v-if="currentFolder"
+        :color="currentFolder.color || 'inherit'"
+        :icon="currentFolder.icon || 'folder-opened'"
+        :name="currentFolder.name || ''"
+        class="text-primary font-semibold"
+      />
       <div class="ml-auto flex items-center">
         <Popover>
           <PopoverTrigger as-child>
@@ -418,7 +424,9 @@ watch(() => props.folderId, () => {
                 v-model="filterRead"
                 class="text-xs px-2 py-1 rounded border border-border bg-background"
               >
-                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue/>
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem :value="null">{{ $t('components.mailList.filtering.all') }}</SelectItem>
                   <SelectItem :value="false">{{ $t('components.mailList.filtering.unread') }}</SelectItem>
@@ -426,9 +434,7 @@ watch(() => props.folderId, () => {
                 </SelectContent>
               </Select>
               <div class="flex">
-                <Button
-                  @click="filterHasAttachments = filterHasAttachments === true ? null : true"
-                >
+                <Button @click="filterHasAttachments = filterHasAttachments === true ? null : true">
                   <Icon name="lucide:paperclip"/>
                 </Button>
               </div>
@@ -495,63 +501,51 @@ watch(() => props.folderId, () => {
         :title="currentFolder?.folder_type === 'inbox' ? $t('components.mailList.emptyState.inbox.title') : $t('components.mailList.emptyState.generic.title')"
         class="h-full"
       />
-      <template v-else>
+      <MailContextMenu
+        v-else
+        :selected-email-ids="selectedMessageIds"
+      >
         <template v-if="shouldGroup">
           <div
             v-for="groupKey in groupedConversations.groupOrder"
             :key="groupKey"
           >
             <template v-if="groupedConversations.groups[groupKey].length">
-              <!-- Group header with expand/collapse -->
               <div
-                class="flex items-center gap-2 text-sm font-bold py-2 text-muted hover:text-primary"
+                class="flex items-center gap-1 text-sm font-bold py-2 text-muted hover:text-primary"
                 @click="toggleGroup(groupKey)"
               >
                 <Icon
-                  :name="isGroupExpanded(groupKey) ? 'lucide:chevron-down' : 'lucide:chevron-right'"
-                  class="w-4 h-4"
+                  :class="['transition-transform opacity-50', isGroupExpanded(groupKey) ? 'transform rotate-90' : '']"
+                  name="lucide:chevron-right"
                 />
                 <span>{{ $t(getGroupLabel(groupKey)) }}</span>
-                <span class="text-xs opacity-50">({{ groupedConversations.groups[groupKey].length }})</span>
+                <Badge
+                  size="sm"
+                  variant="background"
+                >{{ groupedConversations.groups[groupKey].length }}
+                </Badge>
               </div>
               <div v-if="isGroupExpanded(groupKey)">
-                <transition-group
-                  enter-active-class="transition-all duration-200"
-                  enter-from-class="opacity-0 -translate-x-full"
-                  enter-to-class="opacity-100 translate-x-0"
-                  leave-active-class="transition-all duration-200"
-                  leave-from-class="opacity-100 translate-x-0"
-                  leave-to-class="opacity-0 translate-x-full"
-                >
-                  <ConversationItem
-                    v-for="conversation in groupedConversations.groups[groupKey]"
-                    :key="conversation.id"
-                    :conversation="conversation"
-                    :folder-id="folderId"
-                    :is-multi-selected="multiSelect.isSelected(conversation.id).value"
-                    :is-selected="useRoute().params.conversation === conversation.id"
-                    :left-actions="leftActions"
-                    :right-actions="rightActions"
-                    :selected-ids="multiSelect.selectedIds.value"
-                    :selected-message-ids="selectedMessageIds"
-                    @action="handleAction"
-                    @click="handleSelect(conversation, $event)"
-                  />
-                </transition-group>
+                <ConversationItem
+                  v-for="conversation in groupedConversations.groups[groupKey]"
+                  :key="conversation.id"
+                  :conversation="conversation"
+                  :folder-id="folderId"
+                  :is-multi-selected="multiSelect.isSelected(conversation.id).value"
+                  :is-selected="useRoute().params.conversation === conversation.id"
+                  :left-actions="leftActions"
+                  :right-actions="rightActions"
+                  :selected-ids="multiSelect.selectedIds.value"
+                  :selected-message-ids="selectedMessageIds"
+                  @action="handleAction"
+                  @click="handleSelect(conversation, $event)"
+                />
               </div>
             </template>
           </div>
         </template>
-
-        <transition-group
-          v-else
-          enter-active-class="transition-all duration-200"
-          enter-from-class="opacity-0 -translate-x-full"
-          enter-to-class="opacity-100 translate-x-0"
-          leave-active-class="transition-all duration-200"
-          leave-from-class="opacity-100 translate-x-0"
-          leave-to-class="opacity-0 translate-x-full"
-        >
+        <template v-else>
           <ConversationItem
             v-for="conversation in sortedConversations"
             :key="conversation.id"
@@ -561,10 +555,11 @@ watch(() => props.folderId, () => {
             :left-actions="leftActions"
             :right-actions="rightActions"
             @action="handleAction"
+            @contextmenu="handleSelect(conversation, $event)"
             @click.exact="handleSelect(conversation)"
           />
-        </transition-group>
-      </template>
+        </template>
+      </MailContextMenu>
     </ScrollArea>
   </div>
 </template>

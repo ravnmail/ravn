@@ -9,6 +9,7 @@ import AISearchInput from '~/components/Ravn/AISearchInput.vue'
 import { useTantivySearch, type SearchFields } from '~/composables/useTantivySearch'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import { ToggleGroup, ToggleGroupItem } from '~/components/ui/toggle-group'
+import MailContextMenu from '~/components/Ravn/MailContextMenu.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -96,7 +97,7 @@ const handleSearch = (query: string) => {
 const selectEmail = (email: EmailListItem) => {
   router.replace({ query: { ...route.query, email: email.id } })
 }
-const selectedEmailIdFromRoute = computed({
+const selectedEmailId = computed({
   get() {
     return route.query.email as string | undefined
   },
@@ -112,7 +113,7 @@ const selectedEmailIdFromRoute = computed({
 })
 const onSheetChange = (open: boolean) => {
   if (!open) {
-    selectedEmailIdFromRoute.value = undefined
+    selectedEmailId.value = undefined
   }
 }
 
@@ -200,14 +201,17 @@ useHead({
               {{ totalResults === 1 ? t('search.oneResult') : t('search.multipleResults') }}
             </p>
           </div>
-          <EmailListItemComponent
-            v-for="email in results"
-            :key="email.id"
-            :is-selected="selectedEmailIdFromRoute === email.id"
-            class="transition-colors hover:bg-muted/50"
-            v-bind="email"
-            @click="selectEmail(email)"
-          />
+          <MailContextMenu :selected-email-ids="selectedEmailId ? [selectedEmailId] : []">
+            <EmailListItemComponent
+              v-for="email in results"
+              :key="email.id"
+              :is-selected="selectedEmailId === email.id"
+              class="transition-colors hover:bg-muted/50"
+              v-bind="email"
+              @click="selectEmail(email)"
+              @contextmenu="selectEmail(email)"
+            />
+          </MailContextMenu>
         </div>
       </ScrollArea>
       <EmptyState
@@ -218,14 +222,14 @@ useHead({
         icon="🔎"
       />
       <UnobstrusiveSheetContent
-        v-if="selectedEmailIdFromRoute"
+        v-if="selectedEmailId"
         @close="onSheetChange(false)"
       >
-        <ScrollArea class="w-full">
+        <ScrollArea class="w-full p-3">
           <div class="flex h-full flex-col">
             <EmailViewer
-              :key="selectedEmailIdFromRoute"
-              :email-id="selectedEmailIdFromRoute"
+              :key="selectedEmailId"
+              :email-id="selectedEmailId"
             />
           </div>
         </ScrollArea>

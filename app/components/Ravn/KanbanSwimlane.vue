@@ -4,6 +4,8 @@ import type { DragData } from '~/composables/useDragAndDrop'
 import { useDropTarget } from '~/composables/useDragAndDrop'
 import { ScrollArea } from '~/components/ui/scroll-area'
 import KanbanEmailItem from '~/components/Ravn/KanbanEmailItem.vue'
+import EmptyState from '~/components/ui/empty/EmptyState.vue'
+import MailContextMenu from '~/components/Ravn/MailContextMenu.vue'
 
 const props = defineProps<{
   swimlane: {
@@ -81,29 +83,23 @@ const collapsed = ref(false)
       }"
       class="flex-1 min-h-0 rounded-lg p-2 transition-all duration-200"
     >
-      <ScrollArea class="h-full space-y-2">
+      <MailContextMenu>
         <KanbanEmailItem
           v-for="email in emails"
           :key="email.id"
           :email="email"
           :exclude-labels="swimlane.label_ids"
           :swimlane-id="swimlane.id"
-          @click.exact="emit('emailClick', email)"
+          @click="emit('emailClick', email)"
         />
+      </MailContextMenu>
 
-        <div
-          v-if="emails.length === 0"
-          class="flex items-center justify-center h-32 text-gray-400 text-sm"
-        >
-          <div class="text-center">
-            <Icon
-              class="h-8 w-8 mx-auto mb-2 opacity-30"
-              name="lucide:inbox"
-            />
-            <p>{{ t('components.kanban.emptyState.noEmails') }}</p>
-          </div>
-        </div>
-      </ScrollArea>
+      <EmptyState
+        v-if="emails.length === 0"
+        :title="t('components.kanban.emptyState.noEmails')"
+        class="opacity-50"
+        icon-name="lucide:inbox"
+      />
     </div>
   </div>
 </template>

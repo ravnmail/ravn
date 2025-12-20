@@ -4,6 +4,7 @@ import useFormatting from '~/composables/useFormatting'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
 import { useDraggable } from '~/composables/useDragAndDrop'
 import type { EmailCategory } from '~/types/email'
+import { Badge } from '~/components/ui/badge'
 
 interface Props {
   conversation: ConversationListItem
@@ -189,11 +190,11 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
           class="mr-4 pointer-events-none"
           size="lg"
         />
-        <div class="flex-grow">
-          <div class="flex items-center gap-2">
+        <div class="grow">
+          <div class="flex items-center gap-1">
             <div
               v-if="hasUnread"
-              class="w-2 h-2 bg-accent rounded-full shrink-0"
+              class="size-2 bg-accent rounded-full shrink-0"
             />
             <span class="line-clamp-1 text-sm">{{ firstMessage.from.name || firstMessage.from.address }}</span>
             <span class="ml-auto text-sm opacity-60 text-nowrap">{{ formatEmailDate(firstMessage, 2) }}</span>
@@ -210,17 +211,22 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
                 v-if="firstMessage.category"
                 :name="categoryIconMap[firstMessage.category].name"
                 :style="{ color: categoryIconMap[firstMessage.category].color }"
+                class="shrink-0"
               />
-              <span
+              <Badge
                 v-if="conversation.message_count > 1"
-                class="text-xs font-semibold px-2 py-0.5 rounded bg-background"
-              >{{ conversation.message_count }}</span>
+                size="sm"
+                variant="background"
+              >{{ conversation.message_count }}</Badge>
             </div>
           </div>
           <div class="text-sm opacity-50 line-clamp-2">
-            {{ firstMessage.snippet }}
+            {{ firstMessage.snippet?.replace(/\s\s+/, ' ') }}
           </div>
-          <div class="flex mt-2 gap-1 flex-wrap">
+          <div
+            v-if="filteredLabels?.length > 0"
+            class="flex mt-2 gap-1 flex-wrap"
+          >
             <EmailLabel
               v-for="l in filteredLabels"
               :key="l.id"
