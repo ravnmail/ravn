@@ -543,6 +543,7 @@
     "cc": "Cc",
     "bcc": "Bcc",
     "from": "From",
+    "composeNewEmailTooltip": "Compose new email",
     "selectSender": "Select sender",
     "selectAccount": "Select account",
     "subject": "Subject",
@@ -829,10 +830,12 @@
     }
   },
   "home": {
-    "title": "Home"
+    "title": "Home",
+    "tooltip": "Go to Home"
   },
   "search": {
     "title": "Search",
+    "tooltip": "Search emails",
     "pageTitle": "Search",
     "placeholder": "Search emails...",
     "searchEmails": "Search Emails",
