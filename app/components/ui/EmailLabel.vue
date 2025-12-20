@@ -15,12 +15,14 @@ const backgroundColor = computed(() => {
 <template>
   <div
     :style="{ backgroundColor, color }"
-    class="gap-2 inline-flex items-center rounded-md font-semibold text-xs px-2 py-1"
+    class="gap-1.5 inline-flex items-center rounded-md font-semibold text-xs px-2 py-1"
   >
     <Icon
       v-if="icon"
       :name="`lucide:${icon}`"
+      :size="14"
     />
     <span>{{ name }}</span>
+    <slot/>
   </div>
 </template>
