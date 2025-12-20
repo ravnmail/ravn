@@ -3,11 +3,22 @@ import type {
   View,
   CreateViewRequest,
   UpdateViewRequest,
-  KanbanSwimlane,
-  ViewConfig
+  KanbanSwimlane
 } from '~/types/view'
 import { Button } from '~/components/ui/button'
 import IconNameField from '~/components/ui/IconNameField.vue'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '~/components/ui/dialog'
+import FolderSelection from '~/components/Ravn/FolderSelection.vue'
+import IconName from '~/components/ui/IconName.vue'
+import EmptyState from '~/components/ui/empty/EmptyState.vue'
+import LabelSelection from '~/components/Ravn/LabelSelection.vue'
 
 const props = defineProps<{
   viewId?: string | null
@@ -19,14 +30,12 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { views, createView, updateView, getView, addSwimlane, updateSwimlane, deleteSwimlane } = useViews()
+const { createView, updateView, useGetView } = useViews()
+const { data: currentView, refetch } = useGetView(props.viewId)
 const { labels } = useLabels()
-const { getFolders } = useFolders()
-const { getAccounts } = useAccounts()
 
 const isDialogOpen = defineModel<boolean>('open', { default: false })
 const isLoading = ref(false)
-const currentView = ref<View | null>(null)
 const allFolders = ref<any[]>([])
 
 const formData = ref<CreateViewRequest | UpdateViewRequest>({
@@ -48,72 +57,21 @@ const newSwimlane = ref({
   folder_ids: [] as string[]
 })
 
-// Group folders by account for easier selection
-const foldersByAccount = computed(() => {
-  const grouped = new Map<string, { account: any, folders: any[] }>()
-
-  allFolders.value.forEach(folder => {
-    const accountId = folder.account_id
-    if (!grouped.has(accountId)) {
-      grouped.set(accountId, {
-        account: { id: accountId, name: folder.account_name || `Account ${accountId}` },
-        folders: []
-      })
-    }
-    grouped.get(accountId)!.folders.push(folder)
-  })
-
-  return Array.from(grouped.values())
-})
-
-const loadData = async () => {
-  try {
-    // Load folders from all accounts
-    const accounts = await getAccounts()
-    const folderPromises = accounts.map(account =>
-      getFolders(account.id).catch(err => {
-        console.error(`Failed to load folders for account ${account.id}:`, err)
-        return []
-      })
-    )
-    const accountFolders = await Promise.all(folderPromises)
-    allFolders.value = accountFolders.flat()
-
-    // Load view data if editing
-    if (props.viewId) {
-      const view = await getView(props.viewId)
-      if (view) {
-        currentView.value = view
-        formData.value = {
-          name: view.name,
-          view_type: view.view_type,
-          icon: view.icon,
-          color: view.color,
-          folders: view.folders,
-          config: view.config,
-          sort_order: view.sort_order
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Failed to load data:', error)
+watch(currentView, (view) => {
+  if (view) {
+    formData.value = JSON.parse(JSON.stringify(view)) as CreateViewRequest | UpdateViewRequest
   }
-}
+}, { immediate: true })
 
 // Watch for dialog open
-watch(() => isDialogOpen.value, async (open, wasOpen) => {
-  if (open && !wasOpen) {
-    // Dialog is opening - load data
-    await loadData()
-  } else if (!open && wasOpen) {
-    // Dialog is closing - reset form
+watch(() => isDialogOpen.value, async (open) => {
+    await refetch()
+  if (open) {
+    if (currentView.value) {
+      formData.value = JSON.parse(JSON.stringify(currentView.value)) as CreateViewRequest | UpdateViewRequest
+    }
+  } else {
     resetForm()
-  }
-})
-
-onMounted(async () => {
-  if (isDialogOpen.value) {
-    await loadData()
   }
 })
 
@@ -138,6 +96,7 @@ const addSwimlaneToForm = () => {
   const swimlane: KanbanSwimlane = {
     id: crypto.randomUUID(),
     title: newSwimlane.value.title.trim(),
+    icon: newSwimlane.value.icon,
     color: newSwimlane.value.color,
     label_ids: newSwimlane.value.label_ids,
     folder_ids: newSwimlane.value.folder_ids.length > 0 ? newSwimlane.value.folder_ids : undefined,
@@ -150,6 +109,7 @@ const addSwimlaneToForm = () => {
   newSwimlane.value = {
     title: '',
     color: '#3B82F6',
+    icon: undefined,
     label_ids: [],
     folder_ids: []
   }
@@ -198,45 +158,6 @@ const handleSubmit = async () => {
   }
 }
 
-const toggleFolder = (folderId: string) => {
-  const index = formData.value.folders.indexOf(folderId)
-  if (index > -1) {
-    formData.value.folders.splice(index, 1)
-  } else {
-    formData.value.folders.push(folderId)
-  }
-}
-
-const toggleLabel = (labelId: string) => {
-  const index = newSwimlane.value.label_ids.indexOf(labelId)
-  if (index > -1) {
-    newSwimlane.value.label_ids.splice(index, 1)
-  } else {
-    newSwimlane.value.label_ids.push(labelId)
-  }
-}
-
-const toggleFolderForAccount = (accountId: string, folderId: string) => {
-  // Remove any existing folder for this account
-  const accountFolders = foldersByAccount.value.find(a => a.account.id === accountId)?.folders || []
-  const existingFolderIds = accountFolders.map(f => String(f.id))
-  newSwimlane.value.folder_ids = newSwimlane.value.folder_ids.filter(
-    id => !existingFolderIds.includes(id)
-  )
-
-  // Add the new folder if not already selected
-  const folderIdStr = String(folderId)
-  if (!newSwimlane.value.folder_ids.includes(folderIdStr)) {
-    newSwimlane.value.folder_ids.push(folderIdStr)
-  }
-}
-
-const getSelectedFolderForAccount = (accountId: string) => {
-  const accountFolders = foldersByAccount.value.find(a => a.account.id === accountId)?.folders || []
-  const accountFolderIds = accountFolders.map(f => String(f.id))
-  return newSwimlane.value.folder_ids.find(id => accountFolderIds.includes(id))
-}
-
 const getLabelName = (labelId: string) => {
   return labels.value.find(l => l.id === labelId)?.name || 'Unknown'
 }
@@ -247,116 +168,46 @@ const getFolderName = (folderId: string) => {
 </script>
 
 <template>
-  <UiDialog v-model:open="isDialogOpen">
-    <UiDialogContent class="max-w-4xl max-h-[90vh] overflow-y-auto">
-      <UiDialogHeader>
-        <UiDialogTitle>
+  <Dialog v-model:open="isDialogOpen">
+    <DialogContent class="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle>
           {{ currentView ? t('components.viewEditor.title.edit') : t('components.viewEditor.title.create') }}
-        </UiDialogTitle>
-        <UiDialogDescription>
+        </DialogTitle>
+        <DialogDescription>
           {{ t('components.viewEditor.description') }}
-        </UiDialogDescription>
-      </UiDialogHeader>
+        </DialogDescription>
+      </DialogHeader>
 
-      <div class="space-y-6 py-4">
+      <div class="space-y-3">
         <IconNameField
           :model-value="formData"
+          name="name"
           @update:model-value="Object.assign(formData, $event)"
         />
 
-        <!-- Folders Selection -->
-        <div class="space-y-2">
-          <label class="text-sm font-medium">{{ t('components.viewEditor.includeFolders') }}</label>
-          <div class="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
-            <div
-              v-for="folder in allFolders"
-              :key="folder.id"
-              class="flex items-center gap-2"
-            >
-              <UiCheckbox
-                :checked="formData.folders.includes(String(folder.id))"
-                @update:model-value="toggleFolder(String(folder.id))"
-              />
-              <span class="text-sm">{{ folder.name }}</span>
-            </div>
-            <div
-              v-if="allFolders.length === 0"
-              class="text-center py-4 text-gray-500 text-sm"
-            >
-              {{ t('components.viewEditor.noFolders') }}
-            </div>
-          </div>
-        </div>
+        <FolderSelection
+          :model-value="formData.folders"
+          @update:model-value="(v) => formData.folders = v"
+        />
 
-        <!-- Swimlanes -->
-        <div class="space-y-2">
+        <div class="bg-surface rounded-xl p-4">
           <label class="text-sm font-medium">{{ t('components.viewEditor.swimlanes.title') }}</label>
-
-          <!-- Add New Swimlane -->
-          <div class="border rounded-lg p-4 space-y-3 bg-gray-50 dark:bg-gray-900">
+          <div class="space-y-2">
             <IconNameField
               :model-value="{ ...newSwimlane, name: newSwimlane.title }"
+              name="title"
               @update:model-value="(e) => newSwimlane = { ...e, title: e.name }"
             />
-
-            <!-- Label Selection for Swimlane -->
-            <div class="space-y-2">
-              <label class="text-xs text-gray-600 dark:text-gray-400">
-                {{ t('components.viewEditor.swimlanes.labels') }}
-              </label>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="label in labels"
-                  :key="label.id"
-                  :class="newSwimlane.label_ids.includes(label.id)
-                    ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
-                    : 'bg-gray-200 dark:bg-gray-800'"
-                  class="px-3 py-1 rounded-full text-xs transition-all"
-                  type="button"
-                  @click="toggleLabel(label.id)"
-                >
-                  <span
-                    :style="{ backgroundColor: label.color || '#3B82F6' }"
-                    class="inline-block w-2 h-2 rounded-full mr-1"
-                  />
-                  {{ label.name }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Folder Selection for Swimlane -->
-            <div class="space-y-2">
-              <label class="text-xs text-gray-600 dark:text-gray-400">
-                {{ t('components.viewEditor.swimlanes.folders') }}
-              </label>
-              <div class="space-y-3">
-                <div
-                  v-for="accountGroup in foldersByAccount"
-                  :key="accountGroup.account.id"
-                  class="border rounded-lg p-3 space-y-2"
-                >
-                  <div class="text-xs font-medium text-gray-700 dark:text-gray-300">
-                    {{ accountGroup.account.name }}
-                  </div>
-                  <div class="flex flex-wrap gap-2">
-                    <button
-                      v-for="folder in accountGroup.folders"
-                      :key="folder.id"
-                      :class="getSelectedFolderForAccount(accountGroup.account.id) === String(folder.id)
-                        ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
-                        : 'bg-gray-200 dark:bg-gray-800'"
-                      class="px-3 py-1 rounded-full text-xs transition-all"
-                      type="button"
-                      @click="toggleFolderForAccount(accountGroup.account.id, String(folder.id))"
-                    >
-                      {{ folder.name }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <UiButton
+            <LabelSelection
+              :model-value="newSwimlane.label_ids"
+              @update:model-value="(v) => newSwimlane.label_ids = v"
+            />
+            <FolderSelection
+              :model-value="newSwimlane.folder_ids"
+              @update:model-value="(v) => newSwimlane.folder_ids = v"
+            />
+            <Button
               :disabled="!newSwimlane.title.trim()"
               size="sm"
               @click="addSwimlaneToForm"
@@ -366,84 +217,82 @@ const getFolderName = (folderId: string) => {
                 name="lucide:plus"
               />
               {{ t('components.viewEditor.actions.addSwimlane') }}
-            </UiButton>
+            </Button>
           </div>
-
-          <!-- Existing Swimlanes -->
-          <div class="space-y-2">
-            <div
-              v-for="(swimlane, index) in formData.config.swimlanes"
-              :key="swimlane.id"
-              class="flex items-center gap-3 px-1 border border-border rounded-lg bg-gray-950"
-            >
-              <div class="flex flex-col">
-                <Button
-                  :disabled="index === 0"
-                  size="icon"
-                  @click="moveSwimlane(index, index - 1)"
-                >
-                  <Icon name="lucide:chevron-up"/>
-                </Button>
-                <Button
-                  :disabled="index === formData.config.swimlanes.length - 1"
-                  size="icon"
-                  @click="moveSwimlane(index, index + 1)"
-                >
-                  <Icon name="lucide:chevron-down"/>
-                </Button>
-              </div>
-
-              <div
-                :style="{ backgroundColor: swimlane.color }"
-                class="size-4 rounded-full flex-shrink-0"
-              />
-
-              <div class="flex-1">
-                <div class="font-medium">{{ swimlane.title }}</div>
-                <div
-                  v-if="swimlane.label_ids.length > 0"
-                  class="text-xs text-muted"
-                >
-                  {{ t('components.viewEditor.swimlanes.labels') }}: {{ swimlane.label_ids.map(getLabelName).join(', ') }}
-                </div>
-                <div
-                  v-if="swimlane.folder_ids && swimlane.folder_ids.length > 0"
-                  class="text-xs text-muted"
-                >
-                  {{ t('components.viewEditor.swimlanes.folders') }}: {{ swimlane.folder_ids.map(getFolderName).join(', ') }}
-                </div>
-              </div>
-
-              <UiButton
-                size="sm"
+        </div>
+        <div class="bg-surface rounded-xl space-y-1 p-2">
+          <div
+            v-for="(swimlane, index) in formData.config.swimlanes"
+            :key="swimlane.id"
+            class="flex items-center gap-3 p-1 border border-border rounded-lg bg-background"
+          >
+            <div class="flex flex-col">
+              <Button
+                :disabled="index === 0"
+                size="bar"
                 variant="ghost"
-                @click="removeSwimlane(index)"
+                @click="moveSwimlane(index, index - 1)"
               >
-                <Icon
-                  class="h-4 w-4 text-red-500"
-                  name="lucide:trash-2"
-                />
-              </UiButton>
+                <Icon name="lucide:chevron-up"/>
+              </Button>
+              <Button
+                :disabled="index === formData.config.swimlanes.length - 1"
+                size="bar"
+                variant="ghost"
+                @click="moveSwimlane(index, index + 1)"
+              >
+                <Icon name="lucide:chevron-down"/>
+              </Button>
             </div>
 
-            <div
-              v-if="formData.config.swimlanes.length === 0"
-              class="text-center p-8 text-gray-500 border rounded-lg"
-            >
-              {{ t('components.viewEditor.swimlanes.emptyState') }}
+            <div class="flex-1">
+              <IconName
+                :color="swimlane.color"
+                :icon="swimlane.icon || 'folder-open'"
+                :name="swimlane.title"
+              />
+              <div
+                v-if="swimlane.label_ids?.length > 0"
+                class="text-xs text-muted"
+              >
+                {{ t('components.viewEditor.swimlanes.labels') }}: {{ swimlane.label_ids.map(getLabelName).join(', ') }}
+              </div>
+              <div
+                v-if="swimlane.folder_ids?.length > 0"
+                class="text-xs text-muted"
+              >
+                {{ t('components.viewEditor.swimlanes.folders') }}: {{
+                  swimlane.folder_ids.map(getFolderName).join(', ')
+                }}
+              </div>
             </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              @click="removeSwimlane(index)"
+            >
+              <Icon
+                class="text-destructive"
+                name="lucide:trash-2"
+              />
+            </Button>
           </div>
+
+          <EmptyState
+            v-if="formData.config.swimlanes.length === 0"
+            :description="t('components.viewEditor.swimlanes.emptyState')"
+          />
         </div>
       </div>
 
-      <UiDialogFooter>
-        <UiButton
+      <DialogFooter>
+        <Button
           variant="outline"
           @click="isDialogOpen = false"
         >
           {{ t('common.actions.cancel') }}
-        </UiButton>
-        <UiButton
+        </Button>
+        <Button
           :disabled="!formData.name.trim() || formData.config.swimlanes.length === 0 || isLoading"
           @click="handleSubmit"
         >
@@ -452,9 +301,11 @@ const getFolderName = (folderId: string) => {
             class="mr-2 h-4 w-4 animate-spin"
             name="lucide:loader-2"
           />
-          {{ currentView ? t('components.viewEditor.actions.updateView') : t('components.viewEditor.actions.createView') }}
-        </UiButton>
-      </UiDialogFooter>
-    </UiDialogContent>
-  </UiDialog>
+          {{
+            currentView ? t('components.viewEditor.actions.updateView') : t('components.viewEditor.actions.createView')
+          }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>

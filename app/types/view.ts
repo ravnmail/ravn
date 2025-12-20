@@ -5,6 +5,7 @@ export type SwimlaneState = 'open' | 'closed'
 export interface KanbanSwimlane {
   id: string
   title: string
+  icon?: string
   color?: string
   label_ids: string[]
   folder_ids?: string[]

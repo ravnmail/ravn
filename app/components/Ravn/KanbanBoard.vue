@@ -14,6 +14,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const { updateView } = useViews()
 const {
   addLabelToEmail,
   removeLabelFromEmail,
@@ -170,6 +171,24 @@ const selectedConversationId = computed({
   }
 })
 
+const handleSwimlaneUpdate = async (updatedSwimlane: typeof swimlanes.value[0]) => {
+  console.log('Updating swimlane:', updatedSwimlane)
+
+  const config = { ...(props.view.config as KanbanViewConfig) }
+  const index = config.swimlanes.findIndex(s => s.id === updatedSwimlane.id)
+  if (index !== -1) {
+    config.swimlanes[index] = updatedSwimlane
+    try {
+      await updateView({
+        ...props.view,
+        config
+      })
+    } catch (error) {
+      console.error('Failed to update swimlane:', error)
+    }
+  }
+}
+
 const select = (email: EmailListItem) => {
   selectedConversationId.value = email.conversation_id
 }
@@ -203,6 +222,7 @@ const onSheetClose = () => {
           :emails="swimlaneEmails[swimlane.id] || []"
           :swimlane="swimlane"
           @drop="handleEmailDrop"
+          @update="handleSwimlaneUpdate"
           @email-click="select"
         />
         <EmptyState

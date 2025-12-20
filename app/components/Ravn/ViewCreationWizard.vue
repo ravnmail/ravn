@@ -174,7 +174,7 @@ const dialogDescription = computed(() => {
         <UiDialogDescription>{{ dialogDescription }}</UiDialogDescription>
       </DialogHeader>
 
-      <div class="py-3">
+      <div>
         <RadioGroup
           v-if="currentStep === 'type'"
           class="grid grid-cols-1 gap-1"
@@ -332,33 +332,7 @@ const dialogDescription = computed(() => {
             :model-value="customizations"
             @update:model-value="Object.assign(customizations, $event)"
           />
-          <div class="space-y-2">
-            <label class="text-sm font-medium">{{ t('components.viewWizard.customize.includeFolders') }}</label>
-            <div class="border border-border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
-              <div
-                v-for="folder in folders"
-                :key="folder.id"
-                :style="{ paddingLeft: `${folder.level}rem` }"
-                class="flex items-center gap-2"
-              >
-                <Checkbox
-                  :checked="customizations.folders.includes(String(folder.id))"
-                  @update:model-value="toggleFolder(String(folder.id))"
-                />
-                <IconName
-                  :color="folder.color"
-                  :icon="folder.icon"
-                  :name="folder.name"
-                />
-              </div>
-              <div
-                v-if="folders.length === 0"
-                class="text-center py-4 text-muted-foreground text-sm"
-              >
-                {{ t('components.viewWizard.customize.noFolders') }}
-              </div>
-            </div>
-          </div>
+          <div class="space-y-2"/>
           <div
             v-if="processedTemplate"
             class="space-y-2"
@@ -398,6 +372,7 @@ const dialogDescription = computed(() => {
         <div class="flex justify-between w-full">
           <Button
             v-if="currentStep !== 'type'"
+            size="sm"
             variant="outline"
             @click="goBack"
           >
@@ -411,6 +386,7 @@ const dialogDescription = computed(() => {
 
           <div class="flex gap-2">
             <Button
+              size="sm"
               variant="outline"
               @click="isDialogOpen = false"
             >
@@ -420,6 +396,7 @@ const dialogDescription = computed(() => {
             <Button
               v-if="currentStep === 'preview'"
               :disabled="isProcessing"
+              size="sm"
               @click="handleConfirmTemplate"
             >
               <Icon
@@ -433,6 +410,7 @@ const dialogDescription = computed(() => {
             <Button
               v-else-if="currentStep === 'customize'"
               :disabled="!customizations.name.trim() || isProcessing"
+              size="sm"
               @click="handleCreateView"
             >
               <Icon

@@ -31,18 +31,16 @@ export const useViews = () => {
     },
   })
 
-  const useGetView = (viewId: string | Ref<string>) => {
+  const useGetView = (viewId: MaybeRef<string>) => {
+    const resolvedViewId = computed(() => unref(viewId))
+
     return useQuery({
-      queryKey: QUERY_KEYS.detail(computed(() =>
-        typeof viewId === 'string' ? viewId : viewId.value
-      ).value),
+      queryKey: computed(() => QUERY_KEYS.detail(resolvedViewId.value)),
       queryFn: async () => {
-        const id = typeof viewId === 'string' ? viewId : viewId.value
-        return await invoke<View | null>('get_view', { viewId: id })
+        return await invoke<View | null>('get_view', { viewId: resolvedViewId.value })
       },
       enabled: computed(() => {
-        const id = typeof viewId === 'string' ? viewId : viewId.value
-        return !!id
+        return !!resolvedViewId.value
       }),
     })
   }
@@ -99,7 +97,7 @@ export const useViews = () => {
           v.id === request.id
             ? { ...v, ...request, updated_at: new Date().toISOString() }
             : v
-        ).sort((a, b) => a.sort_order - b.sort_order)
+        )//.sort((a, b) => a.sort_order - b.sort_order)
       })
 
       return { previousViews }
@@ -108,7 +106,7 @@ export const useViews = () => {
       queryClient.setQueryData(QUERY_KEYS.lists(), (old: View[] | undefined) => {
         return (old || []).map(v =>
           v.id === variables.id ? updatedView : v
-        ).sort((a, b) => a.sort_order - b.sort_order)
+        )//.sort((a, b) => a.sort_order - b.sort_order)
       })
     },
     onError: (_error, _variables, context) => {
@@ -146,6 +144,7 @@ export const useViews = () => {
     useGetView,
     createView: createViewMutation.mutateAsync,
     createViewMutation,
+    updateView: useUpdateViewMutation().mutateAsync,
     useUpdateViewMutation,
     useDeleteViewMutation,
   }

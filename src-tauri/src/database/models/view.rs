@@ -90,6 +90,7 @@ impl Default for ViewConfig {
 pub struct KanbanSwimlane {
     pub id: Uuid,
     pub title: String,
+    pub icon: Option<String>,
     pub color: Option<String>,
     #[serde(default)]
     pub label_ids: Vec<Uuid>,

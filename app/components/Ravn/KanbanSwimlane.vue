@@ -7,6 +7,10 @@ import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import MailContextMenu from '~/components/Ravn/MailContextMenu.vue'
 import { Badge } from '~/components/ui/badge'
 import IconName from '~/components/ui/IconName.vue'
+import { Popover, PopoverAnchor, PopoverContent } from '~/components/ui/popover'
+import { SimpleTooltip } from '~/components/ui/tooltip'
+import IconNameField from '~/components/ui/IconNameField.vue'
+import { Button } from '~/components/ui/button'
 
 const props = defineProps<{
   swimlane: {
@@ -20,7 +24,10 @@ const props = defineProps<{
   emails: EmailListItem[]
 }>()
 
+const editValue = ref(null)
+
 const emit = defineEmits<{
+  (e: 'update', value: { icon?: string; color?: string; title: string }): void
   (e: 'drop', dragData: DragData, targetSwimlaneId: string): void
   (e: 'emailClick', email: EmailListItem): void
 }>()
@@ -52,6 +59,36 @@ const backgroundColor = computed(() => {
 
 const collapsed = ref(false)
 
+const startEdit = () => {
+  editValue.value = { icon: props.swimlane.icon, color: props.swimlane.color, name: props.swimlane.title }
+}
+const cancelEdit = () => {
+  editValue.value = null
+}
+
+const isEditing = computed({
+  get: () => editValue.value !== null,
+  set: (v: boolean) => {
+    if (!v) {
+      cancelEdit()
+    } else {
+      startEdit()
+    }
+  }
+})
+
+const handleRename = () => {
+  if (editValue.value) {
+    emit('update', {
+      ...editValue.value,
+      ...props.swimlane,
+    })
+    cancelEdit()
+  }
+}
+
+
+
 </script>
 
 <template>
@@ -63,12 +100,55 @@ const collapsed = ref(false)
       class="flex flex-col gap-2 mb-3"
       @click="collapsed = !collapsed"
     >
+      <Popover
+        :open="isEditing"
+        @update:open="(v: boolean) => { isEditing = v }"
+      >
+        <PopoverAnchor/>
+        <PopoverContent
+          :align-offset="8"
+          :side-offset="28"
+          align="start"
+          class="flex items-center gap-1"
+          side="bottom"
+        >
+          <IconNameField
+            v-model="editValue"
+            name="icon"
+            @cancel="cancelEdit"
+            @submit="handleRename"
+          />
+          <Button
+            size="xs"
+            variant="ghost"
+            @click="handleRename"
+          >
+            <Icon
+              class="text-success"
+              name="lucide:check"
+            />
+          </Button>
+          <SimpleTooltip tooltip-markdown="press `ESC` to cancel">
+            <Button
+              size="xs"
+              variant="ghost"
+              @click="cancelEdit"
+            >
+              <Icon
+                class="text-destructive"
+                name="lucide:x"
+              />
+            </Button>
+          </SimpleTooltip>
+        </PopoverContent>
+      </Popover>
       <div class="flex items-center gap-2">
         <IconName
           :color="swimlane.color"
           :icon="swimlane.icon || 'folder-open'"
           :name="swimlane.title"
           class="flex-1"
+          @dblclick="isEditing = true"
         />
         <Badge
           size="sm"
