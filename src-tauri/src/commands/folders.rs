@@ -301,12 +301,8 @@ pub async fn rename(
         .ok_or_else(|| format!("Folder {} not found", folder_id))?;
 
     folder.name = request.name.clone();
-    if let Some(color) = request.color {
-        folder.color = Some(color);
-    }
-    if let Some(icon) = request.icon {
-        folder.icon = Some(icon);
-    }
+    folder.color = request.color;
+    folder.icon = request.icon;
 
     folder_repo
         .update(&folder)
