@@ -8,15 +8,17 @@ import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 
 const props = defineProps<{
   modelValue: {
-    icon?: string
-    color?: string
-    name?: string
+    icon?: string | null
+    color?: string | null
+    name?: string | null
   }
   label?: string | CleanTranslation
-  name?: string | CleanTranslation
+  name?: string
 }>()
 
 const emit = defineEmits<{
+  'submit': [],
+  'cancel': [],
   'update:modelValue': [unknown],
   'update:name': [unknown],
   'update:color': [unknown],
@@ -29,7 +31,7 @@ watch(() => props.modelValue, (val) => {
   localValue.value = { ...val }
 }, { deep: true })
 
-const update = (key: keyof typeof localValue.value, value: unknown) => {
+const update = (key: keyof typeof localValue.value, value: string | null) => {
   localValue.value[key] = value
   emit('update:modelValue', { ...localValue.value })
   emit(`update:${key}`, value)
@@ -43,6 +45,7 @@ const update = (key: keyof typeof localValue.value, value: unknown) => {
   >
     <div class="flex gap-1">
       <IconGrid
+        :color="localValue.color || undefined"
         :model-value="localValue.icon"
         @update:model-value="update('icon', $event)"
       />
@@ -54,6 +57,8 @@ const update = (key: keyof typeof localValue.value, value: unknown) => {
         :model-value="localValue.name"
         autofocus
         @update:model-value="update('name', $event)"
+        @keydown.enter="$emit('submit')"
+        @keydown.esc="$emit('cancel')"
       />
     </div>
   </FormField>
