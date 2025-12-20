@@ -12,8 +12,13 @@ export interface KanbanSwimlane {
   sort_order: number
 }
 
+export type KanbanViewConfig = {
+  type: 'kanban'
+  swimlanes: KanbanSwimlane[]
+}
+
 export type ViewConfig =
-  | { type: 'kanban'; swimlanes: KanbanSwimlane[] }
+  | KanbanViewConfig
   | { type: 'calendar' }
   | { type: 'list' }
   | { type: 'smart' }
