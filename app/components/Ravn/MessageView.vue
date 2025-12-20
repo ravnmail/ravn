@@ -252,7 +252,6 @@ const toggleReduced = () => {
       <div class="flex flex-1">
         <RavnAvatar
           v-if="from"
-          :account-id="account_id"
           :email="from.address"
           :name="from.name"
           class="shrink-0 mr-4"
@@ -266,7 +265,6 @@ const toggleReduced = () => {
             class="text-muted"
           >{{ $t('components.messageView.labels.from') }}: </span>
               <EmailAddress
-                :account-id="account_id"
                 :show-avatar="headerExpanded"
                 class="font-bold"
                 is-last
@@ -289,7 +287,6 @@ const toggleReduced = () => {
                 <EmailAddress
                   v-for="(a, i) in to"
                   :key="i"
-                  :account-id="account_id"
                   :is-last="i === to.length - 1"
                   show-avatar
                   v-bind="a"
@@ -305,7 +302,6 @@ const toggleReduced = () => {
                 <EmailAddress
                   v-for="(a, i) in cc"
                   :key="i"
-                  :account-id="account_id"
                   :is-last="i === cc.length - 1"
                   show-avatar
                   v-bind="a"

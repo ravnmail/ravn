@@ -40,7 +40,6 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
     <div class="flex items-center font-semibold w-1/5 max-w-3xs truncate">
       <RavnAvatar
         v-if="from.address"
-        :account-id="account_id"
         :email="from.address"
         :name="from.name"
         class="mr-4 pointer-events-none"

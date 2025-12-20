@@ -655,7 +655,6 @@ useKeyboardBindings({
         </label>
         <div class="flex-1 flex items-center gap-2">
           <EmailAutocompleteInput
-            :account-id="selectedAccountId"
             :model-value="draft.to|| []"
             :placeholder="$t('composer.enterRecipient')"
             @update:model-value="(emails) => { draft.to = emails; hasUnsavedChanges = true }"
@@ -693,7 +692,6 @@ useKeyboardBindings({
         </label>
         <div class="flex-1 flex items-center gap-2">
           <EmailAutocompleteInput
-            :account-id="selectedAccountId"
             :model-value="draft.cc || []"
             :placeholder="$t('composer.enterRecipient')"
             @update:model-value="(emails) => { draft.cc = emails; hasUnsavedChanges = true }"
@@ -720,7 +718,6 @@ useKeyboardBindings({
         </label>
         <div class="flex-1 flex items-center gap-2">
           <EmailAutocompleteInput
-            :account-id="selectedAccountId"
             :model-value="draft.bcc || []"
             :placeholder="$t('composer.enterRecipient')"
             @update:model-value="(emails) => { draft.bcc = emails; hasUnsavedChanges = true }"

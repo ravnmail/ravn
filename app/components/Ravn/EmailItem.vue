@@ -130,7 +130,6 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
       >
         <RavnAvatar
           v-if="from.address"
-          :account-id="account_id"
           :email="from.address"
           :name="from.name"
           class="mr-4 pointer-events-none"

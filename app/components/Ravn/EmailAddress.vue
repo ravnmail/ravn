@@ -4,24 +4,21 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+  DropdownMenuLabel, DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
 import DropdownMenuItemRich from '~/components/ui/dropdown-menu/DropdownMenuItemRich.vue'
-import { slots } from '@vue/language-core/lib/codegen/names'
 
 const { copy } = useClipboard()
 
 interface Props extends EmailAddress {
   isLast?: boolean
   showAvatar?: boolean
-  accountId?: string
 }
 
 withDefaults(defineProps<Props>(), {
   isLast: false,
-  showAvatar: false,
-  accountId: undefined
+  showAvatar: false
 })
 
 </script>
@@ -34,7 +31,6 @@ withDefaults(defineProps<Props>(), {
     >
       <RavnAvatar
         v-if="showAvatar"
-        :account-id="accountId"
         :email="address"
         :name="name"
         size="xs"
