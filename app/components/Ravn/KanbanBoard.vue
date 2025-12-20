@@ -181,21 +181,19 @@ const onSheetClose = () => {
 
 <template>
   <div class="h-full w-full flex flex-col">
-    <div class="flex items-center justify-between px-3">
-      <div/>
-      <div class="flex items-center gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          @click="handleManualRefresh"
-        >
-          <Icon
-            :class="{ 'animate-spin': isLoadingEmails }"
-            class="h-4 w-4"
-            name="lucide:refresh-cw"
-          />
-        </Button>
-      </div>
+    <div class="flex items-center p-3 gap-1">
+      <slot/>
+      <Button
+        size="sm"
+        variant="ghost"
+        @click="handleManualRefresh"
+      >
+        <Icon
+          :class="{ 'animate-spin': isLoadingEmails }"
+          class="h-4 w-4"
+          name="lucide:refresh-cw"
+        />
+      </Button>
     </div>
     <HorizontalScrollArea class="h-full flex-1">
       <div class="flex flex-1 w-full h-full gap-4 p-4">

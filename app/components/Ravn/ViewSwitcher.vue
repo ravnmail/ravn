@@ -47,7 +47,7 @@ const handleViewSaved = () => {
 </script>
 
 <template>
-  <div class="flex items-center gap-2 relative z-10">
+  <div class="flex items-center gap-1 relative z-10">
     <DropdownMenu v-if="currentViewId">
       <DropdownMenuTrigger>
         <Button
@@ -73,7 +73,7 @@ const handleViewSaved = () => {
     </DropdownMenu>
     <Button
       size="sm"
-      variant="outline"
+      variant="ghost"
       @click="isLabelManagerOpen = true"
     >
       <Icon

@@ -2,6 +2,7 @@
 
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import KanbanBoard from '~/components/Ravn/KanbanBoard.vue'
+import IconName from '~/components/ui/IconName.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -28,27 +29,21 @@ const component = computed(() => {
 
 <template>
   <div class="flex flex-col h-full w-full">
-    <div class="p-3">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <span class="text-muted">/</span>
-          <span class="text-primary flex items-center gap-2">
-            <Icon
-              :name="`lucide:${currentView?.icon || 'grid'}`"
-              :style="{ color: currentView?.color }"
-              class="shrink-0 "
-            />
-            {{ currentView?.name }}
-          </span>
-        </div>
-        <RavnViewSwitcher/>
-      </div>
-    </div>
     <component
       :is="component"
       v-if="currentView"
       :view="currentView"
-    />
+    >
+      <div class="flex items-center gap-2">
+        <IconName
+          :color="currentView?.color"
+          :icon="currentView?.icon || 'grid'"
+          :name="currentView?.name"
+          class="text-primary"
+        />
+      </div>
+      <RavnViewSwitcher class="ml-auto"/>
+    </component>
     <EmptyState
       v-else
       :description="t('pages.view.emptyState.getStarted')"

@@ -2,10 +2,11 @@
 import type { EmailListItem } from '~/types/email'
 import type { DragData } from '~/composables/useDragAndDrop'
 import { useDropTarget } from '~/composables/useDragAndDrop'
-import { ScrollArea } from '~/components/ui/scroll-area'
 import KanbanEmailItem from '~/components/Ravn/KanbanEmailItem.vue'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import MailContextMenu from '~/components/Ravn/MailContextMenu.vue'
+import { Badge } from '~/components/ui/badge'
+import IconName from '~/components/ui/IconName.vue'
 
 const props = defineProps<{
   swimlane: {
@@ -63,14 +64,18 @@ const collapsed = ref(false)
       @click="collapsed = !collapsed"
     >
       <div class="flex items-center gap-2">
-        <Icon
-          :name="`lucide:${swimlane.icon || 'folder'}`"
-          :style="{ color: swimlane.color }"
+        <IconName
+          :color="swimlane.color"
+          :icon="swimlane.icon || 'folder-open'"
+          :name="swimlane.title"
+          class="flex-1"
         />
-        <h3 class="font-medium flex-1">{{ swimlane.title }}</h3>
-        <span class="text-xs bg-secondary text-secondary-foreground font-medium px-2 py-1 rounded-full">
-          {{ emails.length }}
-        </span>
+        <Badge
+          size="sm"
+          variant="background"
+        >
+          {{ emails.length > 99 ? '+99' : emails.length }}
+        </Badge>
       </div>
       <div
         :style="{ backgroundColor: swimlane.color }"
@@ -78,9 +83,7 @@ const collapsed = ref(false)
       />
     </div>
     <div
-      :style="{
-        backgroundColor
-      }"
+      :style="{ backgroundColor }"
       class="flex-1 min-h-0 rounded-lg p-2 transition-all duration-200"
     >
       <MailContextMenu>
@@ -97,8 +100,8 @@ const collapsed = ref(false)
       <EmptyState
         v-if="emails.length === 0"
         :title="t('components.kanban.emptyState.noEmails')"
-        class="opacity-50"
-        icon-name="lucide:inbox"
+        class="opacity-30"
+        icon-name="lucide:folder-open"
       />
     </div>
   </div>
