@@ -107,6 +107,28 @@ export function useFolders() {
     })
   }
 
+  const getBreadcrumbs = (folders: Folder[], folderId: string): Folder[] => {
+    const folderMap: Record<string, Folder> = {}
+    folders.forEach(folder => {
+      folderMap[folder.id] = folder
+    })
+
+    const breadcrumbs: Folder[] = []
+    let currentFolderId: string | null = folderId
+
+    while (currentFolderId) {
+      const folder = folderMap[currentFolderId]
+      if (!folder) {
+        break
+      } else {
+        breadcrumbs.unshift(folder)
+        currentFolderId = folder.parent_id || null
+      }
+    }
+
+    return breadcrumbs
+  }
+
   const mapFolderTree = (folders: Folder[], accounts: Account[]): SidebarSectionItem[] => {
     const accountMap: Record<string, SidebarSectionItem> = {}
     accounts?.forEach(account => {
@@ -180,7 +202,7 @@ export function useFolders() {
     useGetFolders,
 
     mapFolderTree,
-    toNavigationFolder,
+    getBreadcrumbs,
     useInitSyncMutation,
     initSync: useInitSyncMutation().mutateAsync,
     useUpdateExpandedMutation,
