@@ -17,5 +17,6 @@ defineProps<{
       :style="{ color }"
     />
     <span class="grow font-medium">{{ name }}</span>
+    <slot/>
   </div>
 </template>
