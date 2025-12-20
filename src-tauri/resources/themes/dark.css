@@ -103,7 +103,7 @@
 
   --popover: var(--color-gray-850);
   --popover-foreground: var(--color-gray-400);
-  --popover-border: var(--color-gray-700);
+  --popover-border: var(--color-gray-800);
 
   --destructive: var(--color-red-500);
   --destructive-foreground: var(--color-red-200);
@@ -134,9 +134,8 @@
   --sidebar-item-active-foreground: var(--primary);
   --sidebar-item-text: var(--muted);
 
-  --toolbar-background: var(--background);
-
   --tooltip-background: var(--popover);
+  --tooltip-border: var(--color-gray-800);
   --tooltip-foreground: var(--popover-foreground);
 
   --scrollbar-track: var(--foreground);
