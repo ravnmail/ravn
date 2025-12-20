@@ -43,7 +43,8 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (e: 'update:modelValue', payload: T): void
-  (e: 'select' | 'remove', payload: { option: SelectOption<T>, value: T }): void
+  (e: 'update:open', payload: boolean): void
+  (e: 'select' | 'remove' | 'focus-item', payload: { option: SelectOption<T>, value: T }): void
 }>()
 
 const modelValue = useVModel(props, 'modelValue', emits, {
@@ -96,6 +97,7 @@ const handleSelect = (value: T) => {
         :disabled="disabled || readonly"
         :model-value="modelValue"
         @update:model-value="handleSelect"
+        @update:open="emits('update:open', $event)"
       >
         <SelectTrigger
           :id="id"
@@ -113,6 +115,7 @@ const handleSelect = (value: T) => {
                 :key="String(getOptionValue(option))"
                 :disabled="option.disabled"
                 :value="getOptionValue(option)"
+                @focus="emits('focus-item', { option, value: getOptionValue(option) })"
               >
                 {{ getDisplayValue(option) }}
               </SelectItem>

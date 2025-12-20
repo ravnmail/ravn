@@ -5,17 +5,7 @@ import { InputField } from '~/components/ui/form'
 import { Button } from '~/components/ui/button'
 import { toast } from 'vue-sonner'
 import SelectField from '~/components/ui/form/SelectField.vue'
-import {
-  DropdownMenu,
-  DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
-  DropdownMenuGroup, DropdownMenuSub, DropdownMenuSubTrigger,
-  DropdownMenuTrigger, DropdownMenuSubContent, DropdownMenuShortcut
-} from '~/components/ui/dropdown-menu'
-import FolderMenu from '~/components/Ravn/FolderMenu.vue'
-import { DropdownMenuPortal } from 'reka-ui'
-import DropdownMenuItemRich from '~/components/ui/dropdown-menu/DropdownMenuItemRich.vue'
 import { invoke } from '@tauri-apps/api/core'
-import LabelMenu from '~/components/Ravn/LabelMenu.vue'
 
 const isLoading = ref(false)
 const { reindexAll } = useSearch()
@@ -33,19 +23,7 @@ const { testNotificationSound, updateBadgeCount } = useNotifications()
 
 const soundName = ref('incoming_01')
 
-const testToast = (message: string) => {
-  toast.error(message, {
-    description: 'This is a persistent toast notification.',
-    action: {
-      label: 'Dismiss',
-      onClick: (toastId) => toast.dismiss(toastId)
-    },
-    dismissible: true,
-    duration: Infinity
-  })
-}
-
-const { themes, currentTheme, switchTheme, isLoading: themeLoading } = useTheme()
+const { themes, currentTheme, previewTheme, switchTheme, isLoading: themeLoading } = useTheme()
 
 const selectedTheme = ref<string>(currentTheme.value)
 
@@ -59,6 +37,14 @@ const themeOptions = computed(() => {
     label: `${theme.name} (${theme.source})`
   }))
 })
+
+const handleThemePreview = async (themeId?: string = undefined) => {
+  try {
+    await previewTheme(themeId ?? selectedTheme.value)
+  } catch (_) {
+    // Ignore preview errors
+  }
+}
 
 const handleThemeChange = async (themeId: string) => {
   try {
@@ -90,7 +76,9 @@ const handleThemeChange = async (themeId: string) => {
           label="Select Theme"
           name="theme"
           placeholder="Choose a theme"
+          @update:open="isOpen => isOpen || handleThemePreview()"
           @update:model-value="handleThemeChange"
+          @focus-item="({value}) => handleThemePreview(value)"
         />
 
         <div class="text-sm text-muted">
@@ -113,74 +101,6 @@ const handleThemeChange = async (themeId: string) => {
           <div class="mt-2 text-sm">
             {{ indexResult }}
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger as-child>
-              <Button class="mt-4">
-                test dropdown
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuGroup>
-                <DropdownMenuItemRich
-                  icon="lucide:reply"
-                  label="Reply"
-                  shortcut="R"
-                />
-                <DropdownMenuItemRich
-                  icon="lucide:reply-all"
-                  label="Reply All"
-                  shortcut="R"
-                />
-
-                <DropdownMenuItemRich
-                  icon="lucide:forward"
-                  label="Forward"
-                  shortcut="F"
-                />
-
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator/>
-              <DropdownMenuGroup>
-                <DropdownMenuItemRich
-                  :shortcut="['Del']"
-                  icon="lucide:archive"
-                  label="Archive"
-                />
-                <DropdownMenuItemRich
-                  icon="lucide:trash"
-                  label="Delete"
-                />
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <Icon name="lucide:folder-input"/>
-                    <span>Move to...</span>
-                    <DropdownMenuPortal>
-                      <DropdownMenuSubContent>
-                        <FolderMenu/>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuPortal>
-                  </DropdownMenuSubTrigger>
-                </DropdownMenuSub>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <Icon name="lucide:tag"/>
-                    <span>Labels</span>
-                    <DropdownMenuPortal>
-                      <DropdownMenuSubContent>
-                        <LabelMenu/>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuPortal>
-                  </DropdownMenuSubTrigger>
-                </DropdownMenuSub>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator/>
-              <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  Mark as unread
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
 
         <div class="space-y-2">

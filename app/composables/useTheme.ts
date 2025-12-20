@@ -75,7 +75,6 @@ export function useTheme() {
       error.value = null
       const css = await invoke<string>('get_theme', { themeId })
       loadThemeCSS(css)
-      currentTheme.value = themeId
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
