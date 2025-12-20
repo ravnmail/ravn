@@ -19,7 +19,7 @@ const forwardedProps = useForwardProps(delegatedProps)
     :class="
       cn(
         'relative flex select-none items-center p-1.5 text-sm outline-none transition-colors focus:bg-selection focus:text-selection-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 hover:bg-selection rounded-sm gap-2',
-        inset && 'pl-8',
+        inset && 'pl-7',
         props.class
       )
     "

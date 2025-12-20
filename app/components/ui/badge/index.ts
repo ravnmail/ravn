@@ -4,7 +4,7 @@ export { default as Badge } from './Badge.vue'
 export { default as SplitBadge } from './SplitBadge.vue'
 
 export const badgeVariants = cva(
-  'inline-flex items-center rounded-md border font-semibold focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+  'inline-flex items-center rounded border font-semibold focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
   {
     variants: {
       variant: {
@@ -17,6 +17,7 @@ export const badgeVariants = cva(
         info: 'border-transparent bg-badge-info-background text-badge-info-foreground',
         success: 'border-transparent bg-badge-success-background text-badge-success-foreground',
         outline: 'border-badge-outline-border text-badge-outline-foreground',
+        background: 'border-transparent bg-background',
         surface: 'border-transparent bg-badge-surface-background text-badge-surface-foreground',
         secondary: 'border-transparent bg-badge-secondary-background text-badge-secondary-foreground',
         primary: 'border-transparent bg-badge-primary-background text-badge-primary-foreground',
