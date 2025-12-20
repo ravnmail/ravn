@@ -4,6 +4,10 @@ import iconList from './iconlist.json'
 import { Select, SelectContent, SelectGroup, SelectLabel } from '~/components/ui/select'
 import { SelectItem, SelectTrigger } from 'reka-ui'
 
+defineProps<{
+  color?: string
+}>()
+
 const selectedIcon = defineModel<string | null>()
 
 </script>
@@ -16,6 +20,7 @@ const selectedIcon = defineModel<string | null>()
       <Icon
         v-if="selectedIcon"
         :name="`lucide:${selectedIcon}`"
+        :style="{ color: color || 'inherit' }"
       />
       <span
         v-else
@@ -31,7 +36,10 @@ const selectedIcon = defineModel<string | null>()
           class="py-1.5 text-xs tracking-widest text-muted uppercase select-none font-semibold"
         >{{ group.title }}
         </SelectLabel>
-        <div class="grid grid-cols-8">
+        <div
+          :style="{ color: color || 'inherit' }"
+          class="grid grid-cols-8"
+        >
           <SelectItem
             v-for="option in group.items"
             :key="`${i}-${option}`"
