@@ -45,7 +45,7 @@ const shouldShowAvatar = computed(() => {
   return avatarUrl.value && !imageError.value
 })
 
-const avatarUrl = computed(() => contact.value ? convertFileSrc(contact.value.avatar_path) : props.src)
+const avatarUrl = computed(() => contact.value?.avatar_path ? convertFileSrc(contact.value.avatar_path) : props.src)
 
 const handleImageError = (e: Error) => {
   imageError.value = !!e
