@@ -2,16 +2,16 @@
 :root {
   --color-gray-50: oklch(95.82% 0.004 271.37);
   --color-gray-100: oklch(91.68% 0.008 278.63);
-  --color-gray-200: oklch(82.89% 0.018 279);
-  --color-gray-300: oklch(74.2% 0.029 278.9);
-  --color-gray-400: oklch(65.24% 0.039 278.37);
-  --color-gray-500: oklch(55.99% 0.05 277.73);
-  --color-gray-600: oklch(47.78% 0.042 277.85);
-  --color-gray-700: oklch(39.21% 0.034 278.04);
-  --color-gray-800: oklch(30.43% 0.022 277.6);
-  --color-gray-850: oklch(23.53% 0.017 277.72);
-  --color-gray-900: oklch(20.63% 0.012 277.83);
-  --color-gray-950: oklch(15.15% 0.009 285.34);
+  --color-gray-200: oklch(82.89% 0.012 279);
+  --color-gray-300: oklch(74.2% 0.024 278.9);
+  --color-gray-400: oklch(65.24% 0.032 278.37);
+  --color-gray-500: oklch(55.99% 0.04 277.73);
+  --color-gray-600: oklch(47.78% 0.032 277.85);
+  --color-gray-700: oklch(39.21% 0.024 278.04);
+  --color-gray-800: oklch(30.43% 0.018 277.6);
+  --color-gray-850: oklch(23.53% 0.012 277.72);
+  --color-gray-900: oklch(20.63% 0.008 277.83);
+  --color-gray-950: oklch(15.15% 0.004 285.34);
 
   --color-white: #ffffff;
 
