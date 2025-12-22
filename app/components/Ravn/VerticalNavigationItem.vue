@@ -1,9 +1,7 @@
 <script lang="ts" setup>
-import type { NavigationFolder } from '~/types/sync'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu'
 import IconNameField from '~/components/ui/IconNameField.vue'
@@ -21,7 +19,7 @@ const emits = defineEmits<{
   (e: 'expanded', isExpanded: boolean): void
 }>()
 
-const props = withDefaults(defineProps<SidebarNavigationItem | SidebarSectionItem & { isExpanded: boolean }>(), {})
+const props = withDefaults(defineProps<(SidebarNavigationItem | SidebarSectionItem) & { isExpanded: boolean }>(), {})
 
 const { t } = useI18n()
 const { updateHidden, updateFolderProperties, initSync } = useFolders()
@@ -165,19 +163,21 @@ const cancelEdit = () => {
   >
     <Popover
       :open="isEditing"
-      @update:open="(isOpen) => { isEditing = isOpen }"
+      @update:open="(v: boolean) => { isEditing = v }"
     >
       <PopoverAnchor/>
       <PopoverContent
         :align-offset="8"
         :side-offset="28"
         align="start"
-        class="flex items-center"
+        class="flex items-center gap-1"
         side="bottom"
       >
         <IconNameField
           v-model="editValue"
-          class="mr-1"
+          name="icon"
+          @cancel="cancelEdit"
+          @submit="saveEdit"
         />
         <Button
           size="xs"

@@ -26,7 +26,7 @@ const props = withDefaults(defineProps<{
     <Tooltip>
       <TooltipTrigger
         :class="props.class"
-        type="button"
+        as-child
       >
         <slot/>
       </TooltipTrigger>

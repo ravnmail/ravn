@@ -7,5 +7,6 @@ const conversationId = useRoute().params.conversation as string
 <template>
   <ConversationViewer
     :conversation-id="conversationId"
+    title-class="pt-1"
   />
 </template>

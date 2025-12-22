@@ -287,6 +287,7 @@ const getFolderName = (folderId: string) => {
 
       <DialogFooter>
         <Button
+          size="sm"
           variant="outline"
           @click="isDialogOpen = false"
         >
@@ -294,6 +295,7 @@ const getFolderName = (folderId: string) => {
         </Button>
         <Button
           :disabled="!formData.name.trim() || formData.config.swimlanes.length === 0 || isLoading"
+          size="sm"
           @click="handleSubmit"
         >
           <Icon

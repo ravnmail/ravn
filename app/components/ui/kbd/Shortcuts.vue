@@ -14,7 +14,7 @@ defineProps<{
     <kbd
       v-for="(shortcutKey, index) in shortcutKeys"
       :key="index"
-      class="text-muted opacity-80 border-border border px-1 rounded-sm"
+      class="bg-secondary font-medium px-1 rounded-sm text-sm text-foreground"
     >
       {{ getShortcutKey(shortcutKey) }}
     </kbd>

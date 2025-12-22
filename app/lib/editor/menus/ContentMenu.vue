@@ -178,14 +178,14 @@ watch(
     ref="dragElement"
     :class="className"
   >
-    <div class="flex items-center gap-0.5">
+    <div class="flex items-start">
       <SimpleTooltip
         :tooltip-markdown="t('composer.draghandle.add')"
         side="bottom"
       >
         <Button
           :disabled="disabled"
-          class="!w-5 !h-5 rounded-sm"
+          class="size-5 rounded-sm"
           size="icon"
           variant="ghost"
           @click="handleAdd"
@@ -197,14 +197,16 @@ watch(
         </Button>
       </SimpleTooltip>
       <DropdownMenu v-model:open="menuOpen">
-        <DropdownMenuTrigger :disable="disabled">
+        <DropdownMenuTrigger
+          :disable="disabled"
+          as-child
+        >
           <SimpleTooltip
             :tooltip-markdown="t('composer.draghandle.drag')"
             side="bottom"
           >
             <Button
-              :disabled="disabled"
-              class="!w-5 !h-5 cursor-grab rounded-sm"
+              class="size-5 cursor-grab rounded-sm"
               size="icon"
               variant="ghost"
             >
