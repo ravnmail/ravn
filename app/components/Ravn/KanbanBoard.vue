@@ -174,7 +174,7 @@ const selectedConversationId = computed({
 const handleSwimlaneUpdate = async (updatedSwimlane: typeof swimlanes.value[0]) => {
   console.log('Updating swimlane:', updatedSwimlane)
 
-  const config = { ...(props.view.config as KanbanViewConfig) }
+  const config = JSON.parse(JSON.stringify(props.view.config)) as KanbanViewConfig
   const index = config.swimlanes.findIndex(s => s.id === updatedSwimlane.id)
   if (index !== -1) {
     config.swimlanes[index] = updatedSwimlane

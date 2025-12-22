@@ -24,7 +24,7 @@ const props = defineProps<{
   emails: EmailListItem[]
 }>()
 
-const editValue = ref(null)
+const editValue = ref<{ icon?: string | null, name: string, color?: string | null } | null>(null)
 
 const emit = defineEmits<{
   (e: 'update', value: { icon?: string; color?: string; title: string }): void
@@ -80,8 +80,10 @@ const isEditing = computed({
 const handleRename = () => {
   if (editValue.value) {
     emit('update', {
-      ...editValue.value,
       ...props.swimlane,
+      icon: editValue.value.icon,
+      color: editValue.value.color,
+      title: editValue.value.name,
     })
     cancelEdit()
   }
