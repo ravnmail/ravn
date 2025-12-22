@@ -310,7 +310,7 @@ impl BackgroundSyncManager {
             return;
         }
 
-        let sync_queue = Arc::new(SyncQueue::new(pool.clone(), 10));
+        let sync_queue = Arc::new(SyncQueue::new(pool.clone(), 3));
         let mut worker_handles = vec![];
 
         for worker_id in 0..sync_queue.workers_limit() {
