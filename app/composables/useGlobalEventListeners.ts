@@ -15,7 +15,6 @@ let isInitialized = false
 
 export const useGlobalEventListeners = (queryClient: QueryClient) => {
   if (isInitialized) {
-    console.log('[useGlobalEventListeners] Already initialized, skipping')
     return
   }
 
@@ -45,7 +44,6 @@ export const useGlobalEventListeners = (queryClient: QueryClient) => {
         void Promise.resolve(callback(event))
       })
       subscriptions.set(name, { unlisten })
-      console.log(`[useGlobalEventListeners] Set up listener for ${name}`)
     } catch (error) {
       console.error(`Failed to set up listener for ${name}:`, error)
     }

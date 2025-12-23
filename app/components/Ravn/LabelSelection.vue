@@ -87,10 +87,8 @@ watch(searchTerm, (f) => {
             />
           </ListboxFilter>
           <PopoverTrigger as-child>
-            <Button
-              variant="ghost"
-            >
-              <Icon name="lucide:chevron-down"/>
+            <Button variant="ghost">
+              <Icon name="lucide:chevrons-up-down"/>
             </Button>
           </PopoverTrigger>
         </TagsInput>
@@ -99,13 +97,14 @@ watch(searchTerm, (f) => {
         @open-auto-focus.prevent
       >
         <ListboxContent
-          class="max-h-75 scroll-py-1 overflow-x-hidden overflow-y-auto empty:after:content-['No_options'] empty:p-1 empty:after:block"
+          class="max-h-75 gap-0.5 scroll-py-1 overflow-x-hidden overflow-y-auto empty:after:content-['No_options'] empty:p-1 empty:after:block"
           tabindex="0"
         >
           <ListboxItem
             v-for="label in filteredLabels"
             :key="label.id"
             :value="label.id"
+            class="py-0.5"
             @select="searchTerm = ''"
           >
             <EmailLabel

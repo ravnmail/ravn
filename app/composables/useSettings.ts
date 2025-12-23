@@ -5,6 +5,7 @@ import type { Settings, PartialDeep } from '~/types/settings'
 export function useSettings() {
   // Global state for settings
   const settings = useState<Settings | null>('settings', () => null)
+  const userKeys = useState<Set<string>>('user-setting-keys', () => new Set())
   const isLoading = useState<boolean>('settings-loading', () => false)
   const error = useState<string | null>('settings-error', () => null)
 
@@ -40,6 +41,20 @@ export function useSettings() {
     }
   }
 
+  const getUserKeys = async (): Promise<Set<string>> => {
+    try {
+      const result = await invoke<string[]>('get_user_keys')
+      const keysSet = new Set<string>(result)
+      userKeys.value = keysSet
+      return keysSet
+    }
+    catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      error.value = errorMessage
+      throw err
+    }
+  }
+
   // Set a specific setting by key (dot notation)
   const setSetting = async (key: string, value: any) => {
     error.value = null
@@ -47,6 +62,22 @@ export function useSettings() {
       await invoke('set_setting', { key, value })
       // Reload all settings to keep state in sync
       await fetchSettings()
+      await getUserKeys()
+    }
+    catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      error.value = errorMessage
+      throw err
+    }
+  }
+
+  const removeSetting = async (key: string) => {
+    error.value = null
+    try {
+      await invoke('remove_setting', { key })
+      // Reload all settings to keep state in sync
+      await fetchSettings()
+      await getUserKeys()
     }
     catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
@@ -60,7 +91,6 @@ export function useSettings() {
     error.value = null
     try {
       await invoke('set_settings', { settings: newSettings })
-      // Reload all settings to keep state in sync
       await fetchSettings()
     }
     catch (err) {
@@ -70,12 +100,12 @@ export function useSettings() {
     }
   }
 
-  // Reload settings from disk (useful if file was changed externally)
   const reloadSettings = async () => {
     error.value = null
     try {
       await invoke('reload_settings')
       await fetchSettings()
+      await getUserKeys()
     }
     catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
@@ -84,55 +114,24 @@ export function useSettings() {
     }
   }
 
-  // Auto-fetch settings on first use if not already loaded
   if (settings.value === null && !isLoading.value) {
     fetchSettings()
+    getUserKeys()
   }
 
   return {
-    // State
     settings: readonly(settings),
     isLoading: readonly(isLoading),
     error: readonly(error),
+    userKeys: readonly(userKeys),
 
-    // Methods
+    isUserSetting: (key: string) => userKeys.value.has(key),
+
     fetchSettings,
     getSetting,
     setSetting,
     setSettings,
+    removeSetting,
     reloadSettings,
-  }
-}
-
-// Composable for working with a specific setting category
-export function useCategorySettings<K extends keyof Settings>(category: K) {
-  const { settings, isLoading, error, setSetting, fetchSettings } = useSettings()
-
-  const categorySettings = computed(() => {
-    return settings.value?.[category] ?? null
-  })
-
-  const updateCategorySetting = async (key: string, value: any) => {
-    await setSetting(`${category}.${key}`, value)
-  }
-
-  const updateCategory = async (newCategorySettings: Partial<Settings[K]>) => {
-    const updates: Record<string, any> = {}
-    for (const [key, value] of Object.entries(newCategorySettings)) {
-      updates[`${category}.${key}`] = value
-    }
-
-    for (const [key, value] of Object.entries(updates)) {
-      await setSetting(key, value)
-    }
-  }
-
-  return {
-    settings: categorySettings,
-    isLoading,
-    error,
-    updateSetting: updateCategorySetting,
-    updateCategory,
-    refetch: fetchSettings,
   }
 }

@@ -167,7 +167,6 @@
 
 @layer base {
   html {
-    @apply text-base;
     overscroll-behavior: none;
   }
 

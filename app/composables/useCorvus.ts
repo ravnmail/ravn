@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import type { EmailDetail } from '~/types/email'
+import { useQuery } from '@tanstack/vue-query'
 
 interface ChatMessage {
   role: string
@@ -61,9 +62,10 @@ interface AvailableModel {
   name: string
 }
 
-interface AvailableModelsResult {
-  models: AvailableModel[]
-  error?: string
+
+const QUERY_KEYS = {
+  all: ['corvus'] as const,
+  models: () => [...QUERY_KEYS.all, 'models'] as const,
 }
 
 interface WritingStyleResult {
@@ -242,29 +244,13 @@ export function useCorvus() {
     }
   }
 
-  const getModels = async (): Promise<AvailableModel[]> => {
-    try {
-      isLoadingModels.value = true
-      modelsError.value = null
-
-      const result = await invoke<AvailableModelsResult>('get_available_models')
-
-      if (result.error) {
-        modelsError.value = result.error
-        return []
-      }
-
-      availableModels.value = result.models
-      return result.models
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to fetch models'
-      console.error('getModels error:', error)
-      modelsError.value = message
-      return []
-    } finally {
-      isLoadingModels.value = false
+  const useGetModels = () => useQuery({
+    queryKey: QUERY_KEYS.models(),
+    queryFn: async() => {
+      const { models } = await invoke<{models: AvailableModel[], error: string | null}>('get_available_models')
+      return models
     }
-  }
+  })
 
   const parseAnalysisFromCache = (email: EmailDetail): EmailAnalysis | null => {
     if (!email.ai_cache) return null
@@ -633,7 +619,7 @@ export function useCorvus() {
     isLoadingModels,
     modelsError,
     availableModels,
-    getModels,
+    useGetModels,
 
     isLoadingWritingStyle,
     isSavingWritingStyle,

@@ -50,6 +50,16 @@ pub async fn set_setting(
     Ok(())
 }
 
+#[tauri::command]
+pub async fn remove_setting(state: State<'_, AppState>, key: String) -> Result<(), String> {
+    state.settings.remove(&key).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_user_keys(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    state.settings.get_user_keys().map_err(|e| e.to_string())
+}
+
 /// Get all settings
 #[tauri::command]
 pub async fn get_all_settings(state: State<'_, AppState>) -> Result<JsonValue, String> {

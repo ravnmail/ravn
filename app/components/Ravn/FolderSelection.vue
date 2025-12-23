@@ -14,14 +14,15 @@ import { Button } from '~/components/ui/button'
 import { TagsInput, TagsInputInput, TagsInputItem, TagsInputItemDelete } from '~/components/ui/tags-input'
 import IconName from '~/components/ui/IconName.vue'
 
-const { t } = useI18n()
 const { accounts } = useAccounts()
 const { folders, flattenAccountFolders, mapFolderTree } = useFolders()
 
 const props = withDefaults(defineProps<{
   modelValue?: string[] | undefined
+  placeholder?: string
 }>(), {
   modelValue: () => [],
+  placeholder: undefined
 })
 
 const emit = defineEmits<{
@@ -65,7 +66,6 @@ watch(searchTerm, (f) => {
       multiple
       @update:model-value="emit('update:modelValue', $event)"
     >
-      <label class="text-sm font-medium">{{ t('components.viewWizard.customize.includeFolders') }}</label>
       <PopoverAnchor class="w-full">
         <TagsInput
           :model-value="modelValue"
@@ -90,14 +90,14 @@ watch(searchTerm, (f) => {
             as-child
           >
             <TagsInputInput
-              :placeholder="t('components.viewWizard.customize.filterFolders')"
+              :placeholder="placeholder"
               @keydown.enter.prevent
               @keydown.down="open = true"
             />
           </ListboxFilter>
           <PopoverTrigger as-child>
             <Button variant="ghost">
-              <Icon name="lucide:chevron-down"/>
+              <Icon name="lucide:chevrons-up-down"/>
             </Button>
           </PopoverTrigger>
         </TagsInput>

@@ -104,6 +104,56 @@ impl Settings {
         Ok(())
     }
 
+    pub fn get_user_keys(&self) -> Result<Vec<String>, ConfigError> {
+        let user_config_content = std::fs::read_to_string(&self.user_config_path)?;
+        let user_config: JsonValue =
+            if user_config_content.trim().is_empty() || user_config_content.trim() == "{}" {
+                serde_json::json!({})
+            } else {
+                json5::from_str(&user_config_content).map_err(|e| {
+                    ConfigError::AccessError(format!("Failed to parse user config: {}", e))
+                })?
+            };
+
+        if !user_config.is_object() {
+            return Err(ConfigError::AccessError(
+                "Root config must be an object".to_string(),
+            ));
+        }
+
+        let obj = user_config.as_object().unwrap();
+        Ok(obj.keys().cloned().collect())
+    }
+
+    pub fn remove(&self, key: &str) -> Result<(), ConfigError> {
+        let user_config_content = std::fs::read_to_string(&self.user_config_path)?;
+        let mut user_config: JsonValue =
+            if user_config_content.trim().is_empty() || user_config_content.trim() == "{}" {
+                serde_json::json!({})
+            } else {
+                json5::from_str(&user_config_content).map_err(|e| {
+                    ConfigError::AccessError(format!("Failed to parse user config: {}", e))
+                })?
+            };
+
+        if !user_config.is_object() {
+            return Err(ConfigError::AccessError(
+                "Root config must be an object".to_string(),
+            ));
+        }
+
+        let obj = user_config.as_object_mut().unwrap();
+        obj.remove(key);
+
+        let serialized = serde_json::to_string_pretty(&user_config)
+            .map_err(|e| ConfigError::AccessError(format!("Failed to serialize config: {}", e)))?;
+        std::fs::write(&self.user_config_path, serialized)?;
+
+        self.reload()?;
+
+        Ok(())
+    }
+
     /// Set a value using flat dot-notation keys (e.g., "appearance.theme")
     /// This maintains a flat structure in the user config file while supporting dot notation access
     fn set_flat_value(

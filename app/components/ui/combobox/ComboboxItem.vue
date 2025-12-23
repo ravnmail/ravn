@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 import type { ComboboxItemEmits, ComboboxItemProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
 import { ComboboxItem, useForwardPropsEmits } from 'reka-ui'
@@ -18,8 +18,8 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
 
 <template>
   <ComboboxItem
+    :class="cn('relative flex cursor-default gap-2 select-none justify-between items-center rounded-sm px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-selection data-[highlighted]:text-selection-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0', props.class)"
     v-bind="forwarded"
-    :class="cn('relative font-semibold flex cursor-default gap-2 select-none justify-between items-center rounded-sm px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0', props.class)"
   >
     <slot />
   </ComboboxItem>

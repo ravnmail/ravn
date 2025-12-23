@@ -179,7 +179,7 @@ const emptyTextComputed = computed(() => {
         <ComboboxAnchor as-child>
           <TagsInput
             v-if="multiple"
-            :class="{ 'border-destructive': hasError, 'pl-2': selectedValues.length > 0 }"
+            :class="{ 'border-destructive': hasError, 'pl-1': selectedValues.length > 0 }"
             :disabled="disabled || readonly"
             :model-value="selectedValues"
           >
@@ -189,12 +189,9 @@ const emptyTextComputed = computed(() => {
               :value="value"
             >
               <TagsInputItemText>{{ getOptionByValue(value)?.label || String(value) }}</TagsInputItemText>
-              <TagsInputItemDelete
-                @click="handleRemove(value)"
-              />
+              <TagsInputItemDelete @click="handleRemove(value)"/>
             </TagsInputItem>
             <ComboboxInput
-              v-if="searchable !== false"
               v-model="searchValue"
               :disabled="disabled || readonly"
               :placeholder="$t(String(placeholder || 'common.search'))"

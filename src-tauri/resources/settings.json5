@@ -1,5 +1,6 @@
 {
   // AI Settings
+  "ai.enabled": false,
   "ai.api.baseUrl": "https://openrouter.ai/api/v1",
   "ai.api.key": null, // Set this to your OpenAI API key
   "ai.models.fast": "openai/gpt-oss-safeguard-20b",
@@ -21,6 +22,7 @@
   // Appearance Settings
   "appearance.theme": "builtin/dark.css",
 
+  "appearance.uiScale": 100,
   // Email Settings
   "email.renderMode": "simple", // "simple" (markdown) or "normal" (iframe),
   "email.conversionMode": "text", // "markdown" or "text"
@@ -37,13 +39,15 @@
   "notifications.incomingSound": "incoming_01", // Sound for incoming emails (null = disabled)
   "notifications.outgoingSound": "outgoing_01", // Sound for outgoing emails (null = disabled)
   "notifications.reminderSound": "incoming_02", // Reserved for future reminder feature
+
+  "notifications.enabled": true,
   // Folder IDs for notification triggers
-  // null = no notifications at all
   // [] = inbox only (default)
   // ["uuid1", "uuid2"] = specific folders
   "notifications.notificationFolders": [],
+
+  "notifications.badgeType": "count",
   // Folder IDs for badge count
-  // null = no badge count (always 0)
   // [] = all folders with unread (default)
   // ["uuid1", "uuid2"] = specific folders only
   "notifications.badgeFolders": [],

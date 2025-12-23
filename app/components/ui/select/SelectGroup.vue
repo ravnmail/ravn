@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 import { cn } from '@/lib/utils'
 import { SelectGroup, type SelectGroupProps } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
@@ -14,7 +14,7 @@ const delegatedProps = computed(() => {
 
 <template>
   <SelectGroup
-    :class="cn('p-1 w-full', props.class)"
+    :class="cn('w-full', props.class)"
     v-bind="delegatedProps"
   >
     <slot/>

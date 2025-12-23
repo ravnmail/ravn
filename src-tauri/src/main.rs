@@ -356,6 +356,8 @@ fn main() {
             corvus::set_writing_style,
             config::get_setting,
             config::set_setting,
+            config::remove_setting,
+            config::get_user_keys,
             config::get_all_settings,
             config::set_settings,
             config::reload_settings,

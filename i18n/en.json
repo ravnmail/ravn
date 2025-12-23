@@ -111,13 +111,6 @@
       },
       "keyboardShortcuts": "Keyboard Shortcuts"
     },
-    "settings": {
-      "title": "Settings",
-      "nav": {
-        "aiAssistant": "AI Assistant",
-        "signatures": "Signatures"
-      }
-    },
     "signatures": {
       "title": "Signatures",
       "description": "Manage your email signatures",
@@ -347,6 +340,9 @@
       },
       "customize": {
         "includeFolders": "Include Folders",
+        "filterFolders": "Select folders to include in this view",
+        "includeLabels": "Include Labels",
+        "filterLabels": "Select labels to include in this view",
         "noFolders": "No folders available. Add an email account first.",
         "viewConfig": "View Configuration"
       },
@@ -880,6 +876,178 @@
       "placeholder": "Find emails about...",
       "searching": "Converting to search query...",
       "error": "Failed to generate search query"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "searchPlaceholder": "Search settings...",
+    "search": {
+      "noResults":{
+        "title": "No Results",
+        "description": "No settings match '{search}'"
+      }
+    },
+    "nav": {
+      "aiAssistant": "AI Assistant",
+      "signatures": "Signatures"
+    },
+    "groups": {
+      "appearance": {
+        "name": "Appearance"
+      },
+      "ai": {
+        "name": "Corvus AI Assistant"
+      },
+      "contacts": {
+        "name": "Contacts"
+      },
+      "email": {
+        "name": "Email"
+      },
+      "notifications": {
+        "name": "Notifications"
+      }
+    },
+    "appearance": {
+      "theme": {
+        "section": "Theme",
+        "sectionDescription": "Choose your preferred theme",
+        "name": "Theme Name",
+        "description": "Select a built-in theme or a custom theme placed in the themes folder"
+      },
+      "uiScale": {
+        "name": "UI Scale",
+        "description": "Adjust the scale of the user interface"
+      }
+    },
+    "ai": {
+      "enabled": {
+        "name": "Enable Corvus AI Assistant",
+        "description": "Enable or disable all AI-powered features"
+      },
+      "general": {
+        "section": "General"
+      },
+      "writingStyle": {
+        "section": "Writing Style",
+        "name": "Personal Writing Style",
+        "description": "Customize the AI's writing style to match your preferences"
+      },
+      "api": {
+        "section": "API Configuration",
+        "baseUrl": {
+          "name": "API Base URL",
+          "description": "The base URL for the AI API endpoint"
+        },
+        "key": {
+          "name": "API Key",
+          "description": "Your OpenAI or compatible API key"
+        }
+      },
+      "models": {
+        "section": "Models",
+        "sorting": {
+          "name": "Provider Selection Strategy",
+          "description": "The strategy used to select the provider for each request. You can choose between throughput, latency or cost-optimized."
+        },
+        "fast": {
+          "name": "Fast Model",
+          "description": "Used for quick tasks like suggestions and auto-completion"
+        },
+        "normal": {
+          "name": "Normal Model",
+          "description": "Used for general AI tasks like email analysis and generation"
+        }
+      },
+      "prompts": {
+        "section": "Custom Prompts",
+        "analyzeEmail": {
+          "name": "Email Analysis Prompt",
+          "description": "The prompt used when analyzing emails"
+        },
+        "askAi": {
+          "name": "Ask AI System Prompt",
+          "description": "The prompt used when asking general questions to the AI"
+        },
+        "generateSubject": {
+          "name": "Subject Generation System Prompt",
+          "description": "The prompt used when generating email subjects"
+        },
+        "generateSearchQuery": {
+          "name": "Search Query Generation System Prompt",
+          "description": "The prompt used to transform natural language into search queries"
+        },
+        "emailComposition": {
+          "name": "Email Composition System Prompt",
+          "description": "The prompt used when composing emails"
+        },
+        "generateCompletion": {
+          "name": "Generate Completion System Prompt",
+          "description": "The prompt used for text generation tasks"
+        }
+      }
+    },
+    "contacts": {
+      "avatar": {
+        "section": "Avatar Service",
+        "services": {
+          "name": "Avatar Service",
+          "description": "Choose which service(s) are used in order of preference to fetch contact avatars"
+        }
+      }
+    },
+    "email": {
+      "display": {
+        "section": "Display Settings"
+      },
+      "renderMode": {
+        "name": "Render Mode",
+        "description": "How email content is rendered in the viewer"
+      },
+      "conversionMode": {
+        "name": "Conversion Mode",
+        "description": "Format used when composing or forwarding emails"
+      }
+    },
+    "notifications": {
+      "general": {
+        "section": "General"
+      },
+      "enabled": {
+        "name": "Enable Notifications",
+        "description": "Enable or disable email notifications"
+      },
+      "notificationFolders": {
+        "name": "Notification Folders",
+        "description": "Select which folders to receive notifications for"
+      },
+      "badge": {
+        "section": "App Icon Badge"
+      },
+      "badgeType": {
+        "name": "Badge Type",
+        "description": "Choose what the app icon badge displays"
+      },
+      "badgeFolders": {
+        "name": "Badge Folders",
+        "description": "Select which folders to include in the badge count"
+      },
+      "sounds": {
+        "section": "Sounds"
+      },
+      "incomingSound": {
+        "name": "Incoming Email Sound",
+        "description": "Sound to play when receiving new emails"
+      },
+      "outgoingSound": {
+        "name": "Outgoing Email Sound",
+        "description": "Sound to play when sending emails"
+      }
+    },
+    "actions": {
+      "reset": "Reset to default",
+      "copyLink": "Copy link to this setting",
+      "linkCopied": "Link copied to clipboard"
     }
   },
   "credentials": {
