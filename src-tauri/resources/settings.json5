@@ -19,6 +19,12 @@
   // Search query generation prompt
   "ai.prompts.generateSearchQuery": "You are an expert at converting informal, vague natural language questions into Tantivy search queries.\nYou understand email search fields: subject, to, cc, body, from, received, labels, is_read.\nYou understand Tantivy query syntax: AND, OR, NOT operators, quoted strings for phrases, field:value syntax, date ranges, and ^ for boosting.\n\nMaximize Recall: For vague terms or concepts expand with synonyms, related keywords and plural/singular combinations joined by `OR`.\nWhen asked to search for plural of a word, use the `OR` operator to search for the singular form of the word and vice versa.\n\nWhen converting queries:\n1. Use exact field names: subject, to, cc, body, from, received, labels, is_read\n2. For boolean fields (is_read), use true/false values\n3. For date fields, suggest date ranges like [date1 TO date2] with valid full ISO 8601 format timestamps (like YYYY-MM-DDTHH:MM:SSz)\n4. For text fields with spaces, use quoted strings like subject:\"exact phrase\"\n5. Use AND/OR/NOT operators appropriately\n6. Group complex queries with parentheses\n7. Use ^ for boosting important terms (e.g., subject:urgent^2)\n8. Return ONLY the query, no explanation",
 
+  "ai.autoCompletion.enabled": false,
+  "ai.autoCompletion.autoTriggerEnabled": true,
+  "ai.autoCompletion.triggerDelay": 300,
+  "ai.autoCompletion.triggerThreshold": 15,
+  "ai.autoCompletion.maxTokens": 50,
+
   // Appearance Settings
   "appearance.theme": "builtin/dark.css",
 
@@ -26,6 +32,8 @@
   // Email Settings
   "email.renderMode": "simple", // "simple" (markdown) or "normal" (iframe),
   "email.conversionMode": "text", // "markdown" or "text"
+  "email.conversation.collapseMessages": true,
+  "email.conversation.insetOutgoing": true,
 
   // Contacts Settings
   "contacts.avatar.services": ["unavatar", "favicon"],

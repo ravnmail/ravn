@@ -633,7 +633,7 @@ useKeyboardBindings({
         </label>
         <Select v-model="selectedAccountId">
           <SelectTrigger class="w-full border-none shadow-none h-auto py-1 px-2 focus:ring-0">
-            <SelectValue :placeholder="$t('composer.selectAccount')"/>
+            <SelectValue/>
           </SelectTrigger>
           <SelectContent>
             <SelectItem
@@ -642,7 +642,7 @@ useKeyboardBindings({
               :value="account.id"
             >
               <div class="flex items-center gap-2">
-                <span>{{ account.name }} &lt;{{ account.email }}&gt;</span>
+                <span>{{ account.name }}</span><span class="opacity-60"> &lt;{{ account.email }}&gt;</span>
               </div>
             </SelectItem>
           </SelectContent>
@@ -681,8 +681,6 @@ useKeyboardBindings({
           </div>
         </div>
       </div>
-
-      <!-- Cc field -->
       <div
         v-if="showCc"
         class="flex items-start py-1"

@@ -42,6 +42,8 @@ import { Underline } from './UnderLine'
 
 import { defaultBubbleList, generateBubbleTypeMenu } from '../menus/BasicBubble'
 
+const { settings } = useSettings()
+
 export type MailKitOptions = {}
 
 export const MailKit = Extension.create({
@@ -164,7 +166,6 @@ export const MailKit = Extension.create({
         },
         shortcuts: []
       }),
-      // Autocomplete,
       AutoJoiner.configure({
         elementsToJoin: [
           'blockquote',
@@ -180,6 +181,10 @@ export const MailKit = Extension.create({
         },
       }),
     ]
+
+    if (settings.value.ai.autoCompletion.enabled) {
+      extensions.push(Autocomplete.configure(settings.value.ai.autoCompletion))
+    }
 
     return extensions
   },

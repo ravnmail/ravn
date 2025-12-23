@@ -959,6 +959,25 @@
           "description": "Used for general AI tasks like email analysis and generation"
         }
       },
+      "autoCompletion": {
+        "section": "Auto-completions",
+        "enabled": {
+          "name": "Enable Auto-completions",
+          "description": "Enable AI-powered text auto-completions in the email composer"
+        },
+        "triggerDelay": {
+          "name": "Trigger Delay",
+          "description": "The delay after typing stops before triggering an auto-completion"
+        },
+        "maxTokens": {
+          "name": "Max Tokens",
+          "description": "The maximum number of tokens to generate for each auto-completion"
+        },
+        "triggerThreshold": {
+          "name": "Trigger Threshold",
+          "description": "The minimum number of characters typed before triggering an auto-completion"
+        }
+      },
       "prompts": {
         "section": "Custom Prompts",
         "analyzeEmail": {
@@ -999,6 +1018,17 @@
     "email": {
       "display": {
         "section": "Display Settings"
+      },
+      "conversation": {
+        "section": "Conversation",
+        "collapseMessages": {
+          "name": "Collapse Messages",
+          "description": "Automatically collapse older messages in a conversation"
+        },
+        "insetOutgoing": {
+          "name": "Inset Outgoing Messages",
+          "description": "Inset your own messages in conversations for better readability"
+        }
       },
       "renderMode": {
         "name": "Render Mode",

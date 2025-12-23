@@ -52,19 +52,15 @@ export const Autocomplete = Extension.create<AutocompleteOptions>({
   },
 
   addCommands() {
-    console.log('ok')
     return {
       acceptSuggestion: () => ({ editor }) => {
         const { suggestion } = this.storage
-
         if (!suggestion) {
           return false
         }
 
         const { state, view } = editor
-
         view.dispatch(state.tr.insertText(suggestion))
-
         this.storage.suggestion = ''
 
         view.dispatch(state.tr.setMeta(autocompletePluginKey, {
@@ -149,9 +145,11 @@ export const Autocomplete = Extension.create<AutocompleteOptions>({
         },
 
         view() {
-          const debouncedSuggest = debounce((state) => {
-            requestSuggestion(extension, state)
+          const debouncedSuggest = debounce(async (state) => {
+            await requestSuggestion(extension, state)
           }, pluginOptions.triggerDelay)
+
+          console.log("Autocomplete plugin initialized with options:", pluginOptions)
 
           return {
             update(view, prevState) {
@@ -221,6 +219,8 @@ async function requestSuggestion(extension, state) {
       current_text: currentText,
       cursor_position: state.selection.from,
     }
+
+    console.log("requesting autocomplete with context:", emailContext)
 
     const result = await invoke('generate_email_completion', {
       context: emailContext

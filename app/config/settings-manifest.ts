@@ -104,6 +104,51 @@ export const settingsManifest: SettingsManifest = [
         ],
       },
       {
+        id: 'autoCompletion',
+        name: 'settings.ai.autoCompletion.section',
+        items: [
+          {
+            id: 'ai.autoCompletion.enabled',
+            name: 'settings.ai.autoCompletion.enabled.name',
+            description: 'settings.ai.autoCompletion.enabled.description',
+            is: 'Toggle',
+          },
+          {
+            id: 'ai.autoCompletion.triggerThreshold',
+            name: 'settings.ai.autoCompletion.triggerThreshold.name',
+            description: 'settings.ai.autoCompletion.triggerThreshold.description',
+            is: 'Number',
+            props: {
+              min: 0,
+              max: 100,
+              step: 1,
+            },
+          },
+          {
+            id: 'ai.autoCompletion.triggerDelay',
+            name: 'settings.ai.autoCompletion.triggerDelay.name',
+            description: 'settings.ai.autoCompletion.triggerDelay.description',
+            is: 'Number',
+            props: {
+              min: 100,
+              max: 10000,
+              step: 50,
+            },
+          },
+          {
+            id: 'ai.autoCompletion.maxTokens',
+            name: 'settings.ai.autoCompletion.maxTokens.name',
+            description: 'settings.ai.autoCompletion.maxTokens.description',
+            is: 'Number',
+            props: {
+              min: 1,
+              max: 1024,
+              step: 1,
+            },
+          },
+        ],
+      },
+      {
         id: 'writingStyle',
         name: 'settings.ai.writingStyle.section',
         items: [
@@ -231,6 +276,24 @@ export const settingsManifest: SettingsManifest = [
           },
         ],
       },
+      {
+        id: 'conversation',
+        name: 'settings.email.conversation.section',
+        items: [
+          {
+            id: 'email.conversation.collapseMessages',
+            name: 'settings.email.conversation.collapseMessages.name',
+            description: 'settings.email.conversation.collapseMessages.description',
+            is: 'Toggle',
+          },
+          {
+            id: 'email.conversation.insetOutgoing',
+            name: 'settings.email.conversation.insetOutgoing.name',
+            description: 'settings.email.conversation.insetOutgoing.description',
+            is: 'Toggle',
+          },
+        ],
+      }
     ],
   },
   {

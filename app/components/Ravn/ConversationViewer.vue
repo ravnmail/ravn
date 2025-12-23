@@ -46,6 +46,7 @@ const activeComposer = ref<{
 
 const isArchiving = ref(false)
 const isDeleting = ref(false)
+const { settings } = useSettings()
 
 const latestMessage = computed(() => {
   return conversation.value?.messages.slice().reverse()[0] || null
@@ -221,8 +222,8 @@ const isSentMessage = (message: EmailDetail) => {
               v-for="(message, index) in conversation?.messages"
               :key="message.id"
               :auto-analyze="true"
-              :class="[ isSentMessage(message) ? 'ml-12' : '' ]"
-              :initial-reduced="index > 0"
+              :class="[ settings.email.conversation.insetOutgoing && isSentMessage(message) ? 'ml-12' : '' ]"
+              :initial-reduced="settings.email.conversation.collapseMessages && index > 0"
               :is-first="index === 0"
               v-bind="message"
               @forward="handleForward"
