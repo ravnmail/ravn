@@ -1,9 +1,10 @@
 {
   // AI Settings
-  "ai.api.baseUrl": "https://api.openai.com/v1",
+  "ai.api.baseUrl": "https://openrouter.ai/api/v1",
   "ai.api.key": null, // Set this to your OpenAI API key
-  "ai.models.fast": "gpt-4o-mini",
-  "ai.models.normal": "gpt-4o",
+  "ai.models.fast": "openai/gpt-oss-safeguard-20b",
+  "ai.models.normal": "openai/gpt-oss-safeguard-120b",
+  "ai.models.sorting": "throughput",
   // Personal writing style to be included in all AI writing prompts
   "ai.writingStyle": "",
   // Email composition assistant prompt

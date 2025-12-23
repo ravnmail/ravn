@@ -1,13 +1,10 @@
 use crate::config::Settings;
 use crate::database::models::email::Email;
-use async_openai::config::{Config, OpenAIConfig};
-use async_openai::traits::RequestOptionsBuilder;
-use async_openai::types::chat::{
-    ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
-    ChatCompletionRequestUserMessage, CreateChatCompletionRequestArgs,
+use openrouter_rs::api::chat::{
+    ChatCompletionRequest as ChatRequest, Message as OpenRouterChatMessage,
 };
-use async_openai::types::completions::CreateCompletionRequestArgs;
-use async_openai::Client;
+use openrouter_rs::client::OpenRouterClient;
+use openrouter_rs::types::{ProviderPreferences, ProviderSortBy, Role};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -32,9 +29,18 @@ pub struct EmailAnalysis {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ModelPricing {
+    pub prompt: f32,
+    pub completion: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AvailableModel {
     pub id: String,
     pub name: String,
+    pub description: String,
+    pub context_length: f64,
+    pub pricing: ModelPricing,
 }
 
 #[derive(Debug, Clone)]
@@ -92,7 +98,7 @@ impl CorvusService {
     fn get_base_url(&self) -> Result<String, String> {
         self.settings
             .get::<String>("ai.api.baseUrl")
-            .or_else(|_| Ok("https://api.openai.com/v1".to_string()))
+            .or_else(|_| Ok("https://openrouter.ai/api/v1".to_string()))
     }
 
     fn get_model(&self, model_type: &str) -> Result<String, String> {
@@ -107,6 +113,18 @@ impl CorvusService {
         self.settings
             .get::<String>(&prompt_path)
             .map_err(|e| format!("Failed to get {} prompt from settings: {}", prompt_type, e))
+    }
+
+    fn get_sorting_preference(&self) -> Result<ProviderSortBy, String> {
+        self.settings
+            .get::<String>("ai.models.sorting")
+            .map(|sort_str| match sort_str.as_str() {
+                "price" => ProviderSortBy::Price,
+                "latency" => ProviderSortBy::Latency,
+                "throughput" => ProviderSortBy::Throughput,
+                _ => ProviderSortBy::Throughput,
+            })
+            .map_err(|e| format!("Failed to get model sorting preference: {}", e))
     }
 
     fn get_writing_style(&self) -> Option<String> {
@@ -128,18 +146,28 @@ impl CorvusService {
         }
     }
 
-    fn get_client(&self) -> Result<Client<OpenAIConfig>, String> {
+    fn get_client(&self) -> Result<OpenRouterClient, String> {
         let api_key = self.get_api_key()?;
         let base_url = self.get_base_url()?;
-        let config = OpenAIConfig::new()
-            .with_api_key(api_key)
-            .with_api_base(base_url)
-            .with_header("HTTP-REFERER", "https://ravnmail.com")
-            .unwrap()
-            .with_header("X-Title", "RAVN Mail")
-            .unwrap();
 
-        Ok(Client::with_config(config))
+        Ok(OpenRouterClient::builder()
+            .api_key(api_key)
+            .base_url(&base_url)
+            .build()
+            .unwrap())
+    }
+
+    fn getProviderPreferences(&self) -> Result<ProviderPreferences, String> {
+        let sorting_preference = self.get_sorting_preference()?;
+        Ok(ProviderPreferences {
+            allow_fallbacks: None,
+            require_parameters: None,
+            data_collection: None,
+            order: None,
+            ignore: None,
+            quantizations: None,
+            sort: Some(sorting_preference),
+        })
     }
 
     pub async fn ask_ai(&self, request: AskAiRequest) -> Result<String, String> {
@@ -153,116 +181,32 @@ impl CorvusService {
         let mut system_prompt = self.get_prompt("askAi")?;
         system_prompt.push_str(&self.build_writing_style_context());
 
-        let messages: Vec<ChatCompletionRequestMessage> = request
+        let messages: Vec<OpenRouterChatMessage> = request
             .history
             .into_iter()
             .map(|msg| {
-                if msg.role == "user" {
-                    ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
-                        content: msg.content.into(),
-                        name: None,
-                    })
-                } else {
-                    ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
-                        content: msg.content.into(),
-                        name: None,
-                    })
-                }
+                let role = match msg.role.as_str() {
+                    "system" => Role::System,
+                    "assistant" => Role::Assistant,
+                    _ => Role::User,
+                };
+                OpenRouterChatMessage::new(role, &*msg.content)
             })
             .collect();
 
-        let mut request_builder = CreateChatCompletionRequestArgs::default();
-        request_builder.model(model);
-        request_builder.messages(messages);
-
-        let request = request_builder
+        let chat_request = ChatRequest::builder()
+            .model(model.clone())
+            .messages(messages)
+            .provider(self.getProviderPreferences()?)
             .build()
-            .map_err(|e| format!("Failed to build request: {}", e))?;
+            .map_err(|e| format!("Failed to build chat request: {}", e))?;
 
         let response = client
-            .chat()
-            .create(request)
+            .send_chat_completion(&chat_request)
             .await
-            .map_err(|e| format!("OpenAI API request failed: {}", e))?;
+            .map_err(|e| format!("OpenRouter API request failed: {}", e))?;
 
-        response
-            .choices
-            .first()
-            .ok_or_else(|| "No choices in response".to_string())
-            .and_then(|choice| {
-                choice
-                    .message
-                    .content
-                    .clone()
-                    .ok_or_else(|| "No content in response".to_string())
-            })
-    }
-
-    pub async fn ask_ai_streaming(
-        &self,
-        request: AskAiRequest,
-    ) -> Result<tokio::sync::mpsc::Receiver<String>, String> {
-        log::debug!(
-            "Processing ask_ai streaming request with {} messages",
-            request.history.len()
-        );
-
-        let client = self.get_client()?;
-        let model = self.get_model("normal")?;
-        let mut system_prompt = self.get_prompt("askAi")?;
-        system_prompt.push_str(&self.build_writing_style_context());
-
-        let messages: Vec<ChatCompletionRequestMessage> = request
-            .history
-            .into_iter()
-            .map(|msg| {
-                ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
-                    content: msg.content.into(),
-                    name: None,
-                })
-            })
-            .collect();
-
-        let mut request_builder = CreateChatCompletionRequestArgs::default();
-        request_builder.model(model);
-        request_builder.messages(messages);
-        request_builder.stream(true);
-
-        let request = request_builder
-            .build()
-            .map_err(|e| format!("Failed to build request: {}", e))?;
-
-        let (tx, rx) = tokio::sync::mpsc::channel(100);
-
-        tokio::spawn(async move {
-            match client.chat().create_stream(request).await {
-                Ok(mut stream) => {
-                    use futures::StreamExt;
-                    while let Some(result) = stream.next().await {
-                        match result {
-                            Ok(response) => {
-                                if let Some(choice) = response.choices.first() {
-                                    if let Some(content) = &choice.delta.content {
-                                        let _ = tx.send(content.clone()).await;
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                log::error!("Streaming error: {}", e);
-                                let _ = tx.send(format!("ERROR: {}", e)).await;
-                                break;
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    log::error!("Failed to create stream: {}", e);
-                    let _ = tx.send(format!("ERROR: {}", e)).await;
-                }
-            }
-        });
-
-        Ok(rx)
+        Ok(response.choices[0].content().unwrap().to_string())
     }
 
     pub async fn generate_email_completion(
@@ -278,82 +222,24 @@ impl CorvusService {
         let mut system_prompt = self.get_prompt("generateCompletion")?;
         system_prompt.push_str(&self.build_writing_style_context());
 
-        let prompt = format!("{}\n\n{}", system_prompt, user_message);
+        let messages = vec![
+            OpenRouterChatMessage::new(Role::System, &*system_prompt),
+            OpenRouterChatMessage::new(Role::User, &*user_message),
+        ];
 
-        let mut request_builder = CreateCompletionRequestArgs::default();
-        request_builder.model(model);
-        request_builder.prompt(prompt);
-
-        let request = request_builder
+        let chat_request = ChatRequest::builder()
+            .model(model.clone())
+            .messages(messages)
+            .provider(self.getProviderPreferences()?)
             .build()
-            .map_err(|e| format!("Failed to build request: {}", e))?;
+            .map_err(|e| format!("Failed to build chat request: {}", e))?;
 
         let response = client
-            .completions()
-            .create(request)
+            .send_chat_completion(&chat_request)
             .await
-            .map_err(|e| format!("OpenAI API request failed: {}", e))?;
+            .map_err(|e| format!("OpenRouter API request failed: {}", e))?;
 
-        response
-            .choices
-            .first()
-            .ok_or_else(|| "No choices in response".to_string())
-            .map(|choice| choice.text.clone())
-    }
-
-    pub async fn generate_email_completion_streaming(
-        &self,
-        request: EmailCompletionRequest,
-    ) -> Result<tokio::sync::mpsc::Receiver<String>, String> {
-        log::debug!("Processing email completion streaming request");
-
-        let client = self.get_client()?;
-        let model = self.get_model("fast")?;
-
-        let user_message = self.build_autocomplete_prompt(&request);
-        let mut system_prompt = self.get_prompt("generateCompletion")?;
-        system_prompt.push_str(&self.build_writing_style_context());
-
-        let prompt = format!("{}\n\n{}", system_prompt, user_message);
-
-        let mut request_builder = CreateCompletionRequestArgs::default();
-        request_builder.model(model);
-        request_builder.prompt(prompt);
-        request_builder.stream(true);
-
-        let request = request_builder
-            .build()
-            .map_err(|e| format!("Failed to build request: {}", e))?;
-
-        let (tx, rx) = tokio::sync::mpsc::channel(100);
-
-        tokio::spawn(async move {
-            match client.completions().create_stream(request).await {
-                Ok(mut stream) => {
-                    use futures::StreamExt;
-                    while let Some(result) = stream.next().await {
-                        match result {
-                            Ok(response) => {
-                                if let Some(choice) = response.choices.first() {
-                                    let _ = tx.send(choice.text.clone()).await;
-                                }
-                            }
-                            Err(e) => {
-                                log::error!("Streaming error: {}", e);
-                                let _ = tx.send(format!("ERROR: {}", e)).await;
-                                break;
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    log::error!("Failed to create stream: {}", e);
-                    let _ = tx.send(format!("ERROR: {}", e)).await;
-                }
-            }
-        });
-
-        Ok(rx)
+        Ok(response.choices[0].content().unwrap().to_string())
     }
 
     pub async fn generate_subject(
@@ -373,104 +259,21 @@ impl CorvusService {
             request.current_subject.unwrap_or_else(|| "None".to_string())
         );
 
-        let messages = vec![ChatCompletionRequestMessage::User(
-            ChatCompletionRequestUserMessage {
-                content: prompt.into(),
-                name: None,
-            },
-        )];
+        let messages = vec![OpenRouterChatMessage::new(Role::User, &*prompt)];
 
-        let mut request_builder = CreateChatCompletionRequestArgs::default();
-        request_builder.model(model);
-        request_builder.messages(messages);
-
-        let request = request_builder
+        let chat_request = ChatRequest::builder()
+            .model(model.clone())
+            .messages(messages)
+            .provider(self.getProviderPreferences()?)
             .build()
-            .map_err(|e| format!("Failed to build request: {}", e))?;
+            .map_err(|e| format!("Failed to build chat request: {}", e))?;
 
         let response = client
-            .chat()
-            .create(request)
+            .send_chat_completion(&chat_request)
             .await
-            .map_err(|e| format!("OpenAI API request failed: {}", e))?;
+            .map_err(|e| format!("OpenRouter API request failed: {}", e))?;
 
-        response
-            .choices
-            .first()
-            .ok_or_else(|| "No choices in response".to_string())
-            .and_then(|choice| {
-                choice
-                    .message
-                    .content
-                    .clone()
-                    .ok_or_else(|| "No content in response".to_string())
-            })
-    }
-
-    pub async fn generate_subject_streaming(
-        &self,
-        request: GenerateSubjectRequest,
-    ) -> Result<tokio::sync::mpsc::Receiver<String>, String> {
-        log::debug!("Processing generate subject streaming request");
-
-        let client = self.get_client()?;
-        let model = self.get_model("normal")?;
-        let mut system_prompt = self.get_prompt("generateSubject")?;
-        system_prompt.push_str(&self.build_writing_style_context());
-
-        let prompt = format!(
-            "Generate a concise, professional email subject line based on the following email content. The subject should be clear, specific, and engaging. Email content: {}\n\nCurrent subject (if any): {}\n\nGenerate only the subject line, nothing else.",
-            request.body_content,
-            request.current_subject.unwrap_or_else(|| "None".to_string())
-        );
-
-        let messages = vec![ChatCompletionRequestMessage::User(
-            ChatCompletionRequestUserMessage {
-                content: prompt.into(),
-                name: None,
-            },
-        )];
-
-        let mut request_builder = CreateChatCompletionRequestArgs::default();
-        request_builder.model(model);
-        request_builder.messages(messages);
-        request_builder.stream(true);
-
-        let request = request_builder
-            .build()
-            .map_err(|e| format!("Failed to build request: {}", e))?;
-
-        let (tx, rx) = tokio::sync::mpsc::channel(100);
-
-        tokio::spawn(async move {
-            match client.chat().create_stream(request).await {
-                Ok(mut stream) => {
-                    use futures::StreamExt;
-                    while let Some(result) = stream.next().await {
-                        match result {
-                            Ok(response) => {
-                                if let Some(choice) = response.choices.first() {
-                                    if let Some(content) = &choice.delta.content {
-                                        let _ = tx.send(content.clone()).await;
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                log::error!("Streaming error: {}", e);
-                                let _ = tx.send(format!("ERROR: {}", e)).await;
-                                break;
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    log::error!("Failed to create stream: {}", e);
-                    let _ = tx.send(format!("ERROR: {}", e)).await;
-                }
-            }
-        });
-
-        Ok(rx)
+        Ok(response.choices[0].content().unwrap().to_string())
     }
 
     pub async fn analyze_email(&self, email: &Email) -> Result<EmailAnalysis, String> {
@@ -557,38 +360,23 @@ Content:
         };
 
         let messages = vec![
-            ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
-                content: system_with_style.into(),
-                name: None,
-            }),
-            ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
-                content: user_prompt.into(),
-                name: None,
-            }),
+            OpenRouterChatMessage::new(Role::System, &*system_with_style),
+            OpenRouterChatMessage::new(Role::User, &*user_prompt),
         ];
 
-        let mut request_builder = CreateChatCompletionRequestArgs::default();
-        request_builder.model(model);
-        request_builder.messages(messages);
-
-        let request = request_builder
+        let chat_request = ChatRequest::builder()
+            .model(model.clone())
+            .messages(messages)
+            .provider(self.getProviderPreferences()?)
             .build()
-            .map_err(|e| format!("Failed to build request: {}", e))?;
+            .map_err(|e| format!("Failed to build chat request: {}", e))?;
 
         let response = client
-            .chat()
-            .create(request)
+            .send_chat_completion(&chat_request)
             .await
-            .map_err(|e| format!("OpenAI API request failed: {}", e))?;
+            .map_err(|e| format!("OpenRouter API request failed: {}", e))?;
 
-        let response_text = response
-            .choices
-            .first()
-            .ok_or_else(|| "No choices in response".to_string())?
-            .message
-            .content
-            .clone()
-            .ok_or_else(|| "No content in response".to_string())?;
+        let response_text = response.choices[0].content().unwrap().to_string();
 
         serde_json::from_str::<EmailAnalysis>(&response_text).map_err(|e| {
             format!(
@@ -615,68 +403,51 @@ Content:
         );
 
         let messages = vec![
-            ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
-                content: system_prompt.into(),
-                name: None,
-            }),
-            ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
-                content: prompt.into(),
-                name: None,
-            }),
+            OpenRouterChatMessage::new(Role::System, &*system_prompt),
+            OpenRouterChatMessage::new(Role::User, &*prompt),
         ];
 
-        let mut request_builder = CreateChatCompletionRequestArgs::default();
-        request_builder.model(model);
-        request_builder.messages(messages);
-
-        let chat_request = request_builder
+        let chat_request = ChatRequest::builder()
+            .model(model.clone())
+            .messages(messages)
             .build()
-            .map_err(|e| format!("Failed to build request: {}", e))?;
+            .map_err(|e| format!("Failed to build chat request: {}", e))?;
 
         let response = client
-            .chat()
-            .create(chat_request)
+            .send_chat_completion(&chat_request)
             .await
-            .map_err(|e| format!("OpenAI API request failed: {}", e))?;
+            .map_err(|e| format!("OpenRouter API request failed: {}", e))?;
 
-        response
-            .choices
-            .first()
-            .ok_or_else(|| "No choices in response".to_string())
-            .and_then(|choice| {
-                choice
-                    .message
-                    .content
-                    .clone()
-                    .ok_or_else(|| "No content in response".to_string())
-                    .map(|content| content.trim().to_string())
-            })
+        Ok(response.choices[0].content().unwrap().to_string())
     }
 
     pub async fn get_available_models(&self) -> Result<Vec<AvailableModel>, String> {
         log::debug!("Fetching available models");
-        Ok(vec![
-            AvailableModel {
-                id: "gpt-4o".to_string(),
-                name: "GPT-4 Omni".to_string(),
-            },
-            AvailableModel {
-                id: "gpt-4o-mini".to_string(),
-                name: "GPT-4 Omni Mini".to_string(),
-            },
-            AvailableModel {
-                id: "gpt-4-turbo".to_string(),
-                name: "GPT-4 Turbo".to_string(),
-            },
-            AvailableModel {
-                id: "gpt-4".to_string(),
-                name: "GPT-4".to_string(),
-            },
-            AvailableModel {
-                id: "gpt-3.5-turbo".to_string(),
-                name: "GPT-3.5 Turbo".to_string(),
-            },
-        ])
+
+        let client = self.get_client()?;
+
+        let mut result = client
+            .list_models()
+            .await
+            .map_err(|e| format!("Failed to fetch models: {}", e))?;
+
+        result.sort_by(|a, b| a.name.cmp(&b.name));
+
+        result
+            .into_iter()
+            .map(|model| {
+                Ok(AvailableModel {
+                    id: model.id,
+                    name: model.name,
+                    description: model.description,
+                    context_length: model.context_length,
+                    pricing: ModelPricing {
+                        prompt: model.pricing.prompt.parse().unwrap_or(0.0),
+                        completion: model.pricing.completion.parse().unwrap_or(0.0),
+                    },
+                })
+            })
+            .collect()
     }
 
     fn build_autocomplete_prompt(&self, context: &EmailCompletionRequest) -> String {
