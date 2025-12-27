@@ -178,12 +178,13 @@ const handleRename = () => {
           @click="emit('emailClick', email)"
         />
       </MailContextMenu>
-
       <EmptyState
         v-if="emails.length === 0"
+        :style="{ color: swimlane.color || undefined }"
         :title="t('components.kanban.emptyState.noEmails')"
         class="opacity-30"
         icon-name="lucide:folder-open"
+        variant="coloredSticker"
       />
     </div>
   </div>

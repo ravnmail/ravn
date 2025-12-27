@@ -16,6 +16,7 @@ export const emptyMediaVariants = cva(
         default: "bg-transparent",
         icon: "bg-muted/20 text-primary size-10 rounded-lg [&_.i:not([class*='size-'])]:size-6",
         sticker: "bg-transparent text-7xl text-primary size-24 rounded-lg [&_.i:not([class*='size-'])]:size-20",
+        coloredSticker: "bg-transparent text-7xl size-24 rounded-lg [&_.i:not([class*='size-'])]:size-20",
       },
     },
     defaultVariants: {

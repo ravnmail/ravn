@@ -1,14 +1,28 @@
 <script lang="ts" setup>
 
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '~/components/ui/empty/index'
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  type EmptyMediaVariants,
+  EmptyTitle
+} from '~/components/ui/empty/index'
 import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 
-defineProps<{
+withDefaults(defineProps<{
   icon?: string
   iconName?: string
+  variant?: EmptyMediaVariants["variant"]
   title?: string | CleanTranslation
   description?: string | CleanTranslation
-}>()
+}>(), {
+  icon: undefined,
+  iconName: undefined,
+  variant: 'sticker',
+  title: undefined,
+  description: undefined
+})
 
 </script>
 
@@ -17,7 +31,7 @@ defineProps<{
     <EmptyHeader>
       <EmptyMedia
         v-if="iconName || icon"
-        variant="sticker"
+        :variant="variant"
       >
         <Icon
           v-if="iconName"

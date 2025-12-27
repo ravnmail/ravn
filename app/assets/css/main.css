@@ -375,6 +375,12 @@
   animation: textShine 3s ease-in-out infinite;
 }
 
+.prose {
+  a {
+    @apply text-accent transition-colors underline underline-offset-2 cursor-pointer;
+  }
+}
+
 
 .ProseMirror {
   p:empty::after {
