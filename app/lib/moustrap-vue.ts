@@ -49,7 +49,7 @@ class MousetrapEngine {
   private reverseMap: Record<string, string> | null = null
   private recordingState: RecordingState
   private sequenceTimer: ReturnType<typeof setTimeout> | null = null
-  private state: MousetrapState
+  private readonly state: MousetrapState
 
   constructor(private target: Element | Document) {
     this.state = reactive({
@@ -186,15 +186,20 @@ class MousetrapEngine {
     }
   }
 
-  private unbindSingleKey(keyCombo: string, action?: EventType): void {
+  private mapKeyCombo(keyCombo: string, action: 'keypress' | 'keydown' | 'keyup' | undefined) {
     const keyParts = this.parseKeyCombo(keyCombo)
-    const character = keyParts[keyParts.length - 1]
+    const character = keyParts[keyParts.length - 1] || ''
     const modifiers = keyParts.slice(0, -1)
     const finalAction = action || this.determineAction(character, modifiers)
 
     const normalizedCombo = modifiers.length > 0
       ? this.normalizeModifiers([...modifiers, character])
       : keyCombo
+    return { modifiers, finalAction, normalizedCombo }
+  }
+
+  private unbindSingleKey(keyCombo: string, action?: EventType): void {
+    const { modifiers, finalAction, normalizedCombo } = this.mapKeyCombo(keyCombo, action)
 
     this.bindings.delete(`${normalizedCombo}:${finalAction}`)
     if (modifiers.length === 0) {
@@ -208,18 +213,9 @@ class MousetrapEngine {
   }
 
   private triggerSingleKey(keys: string, action?: EventType): void {
-    const keyParts = this.parseKeyCombo(keys)
-    const character = keyParts[keyParts.length - 1]
-    const modifiers = keyParts.slice(0, -1)
-    const finalAction = action || this.determineAction(character, modifiers)
+    const { modifiers, finalAction, normalizedCombo } = this.mapKeyCombo(keys, action)
 
-    const normalizedCombo = modifiers.length > 0
-      ? this.normalizeModifiers([...modifiers, character])
-      : keys
-
-    const mapKeyWithAction = `${normalizedCombo}:${finalAction}`
-    let entry = this.bindings.get(mapKeyWithAction)
-
+    let entry = this.bindings.get(`${normalizedCombo}:${finalAction}`)
     if (!entry && modifiers.length === 0) {
       entry = this.bindings.get(normalizedCombo)
     }
@@ -461,23 +457,24 @@ class MousetrapEngine {
   }
 
   private extractCharacter(e: KeyboardEvent): string {
+    const w = e.which
     if (e.type === 'keypress') {
-      let character = String.fromCharCode(e.which)
+      let character = String.fromCharCode(w)
       if (!e.shiftKey) {
         character = character.toLowerCase()
       }
       return character
     }
 
-    if (KEY_MAP[e.which]) {
-      return KEY_MAP[e.which]
+    if (KEY_MAP[w]) {
+      return KEY_MAP[w]!
     }
 
-    if (KEYCODE_MAP[e.which]) {
-      return KEYCODE_MAP[e.which]
+    if (KEYCODE_MAP[w]) {
+      return KEYCODE_MAP[w]!
     }
 
-    return String.fromCharCode(e.which).toLowerCase()
+    return String.fromCharCode(w).toLowerCase()
   }
 
   private extractModifiers(e: KeyboardEvent): string[] {
@@ -499,7 +496,7 @@ class MousetrapEngine {
         if (keyNum > 95 && keyNum < 112) continue
 
         if (Object.prototype.hasOwnProperty.call(KEY_MAP, keyNum)) {
-          this.reverseMap[KEY_MAP[keyNum]] = key
+          this.reverseMap[KEY_MAP[keyNum]!] = key
         }
       }
     }
