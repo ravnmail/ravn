@@ -544,7 +544,6 @@ async function handleGenerateSubject() {
         >
           <Button
             :disabled="isSavingDraft || isSending || !selectedAccountId"
-            size="sm"
             variant="ghost"
             @click="handleSaveDraft"
           >
@@ -566,7 +565,6 @@ async function handleGenerateSubject() {
         >
           <Button
             :disabled="isSending || isSavingDraft"
-            size="sm"
             variant="ghost"
             @click="handleDiscard"
           >
@@ -584,7 +582,6 @@ async function handleGenerateSubject() {
         >
           <Button
             :disabled="!canSend"
-            size="sm"
             variant="primary"
             @click="handleSend"
           >
@@ -626,7 +623,7 @@ async function handleGenerateSubject() {
           {{ $t('composer.from') }}
         </label>
         <Select v-model="selectedAccountId">
-          <SelectTrigger class="w-full border-none shadow-none h-auto py-1 px-2 focus:ring-0">
+          <SelectTrigger>
             <SelectValue/>
           </SelectTrigger>
           <SelectContent>
