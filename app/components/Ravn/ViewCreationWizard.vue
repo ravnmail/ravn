@@ -7,7 +7,7 @@ import IconName from '~/components/ui/IconName.vue'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
 import { RadioGroupItem } from 'reka-ui'
 import { RadioGroup } from '~/components/ui/radio-group'
-import { Dialog, DialogContent, DialogHeader } from '~/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogHeaderCombined } from '~/components/ui/dialog'
 import { Checkbox } from '~/components/ui/checkbox'
 
 const props = defineProps<{
@@ -169,10 +169,10 @@ const dialogDescription = computed(() => {
 <template>
   <Dialog v-model:open="isDialogOpen">
     <DialogContent class="max-w-4xl max-h-[90vh] overflow-y-auto">
-      <DialogHeader>
-        <UiDialogTitle>{{ dialogTitle }}</UiDialogTitle>
-        <UiDialogDescription>{{ dialogDescription }}</UiDialogDescription>
-      </DialogHeader>
+      <DialogHeaderCombined
+        :description="dialogDescription"
+        :title="dialogTitle"
+      />
 
       <div>
         <RadioGroup

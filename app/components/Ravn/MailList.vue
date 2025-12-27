@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 
 import dayjs from 'dayjs'
+import { useFocusWithin } from '@vueuse/core'
 import type { ConversationListItem } from '~/types/conversation'
 import ConversationItem from '~/components/Ravn/ConversationItem.vue'
 import { useMultiSelect } from '~/composables/useDragAndDrop'
@@ -18,6 +19,10 @@ import { Badge } from '~/components/ui/badge'
 
 const { t } = useI18n()
 const router = useRouter()
+const { addContext, removeContext } = useActions()
+
+const mailListRef = useTemplateRef<HTMLElement>('mailListRef')
+const { focused } = useFocusWithin(mailListRef)
 
 const props = defineProps<{
   folderId: string
@@ -32,7 +37,7 @@ const { data: conversations } = useGetConversationsForFolder(
   0
 )
 
-const { folders, getBreadcrumbs, useUpdateSettingsMutation, useInitSyncMutation } = useFolders()
+const { folders, useUpdateSettingsMutation, useInitSyncMutation } = useFolders()
 
 const { mutateAsync: updateSettings } = useUpdateSettingsMutation()
 const { mutateAsync: initSync } = useInitSyncMutation()
@@ -94,6 +99,11 @@ const saveFolderSettings = () => {
 
 onMounted(async () => {
   await initSync({ folderId: props.folderId, full: false })
+  addContext( 'mailList', focused)
+})
+
+onBeforeUnmount(() => {
+  removeContext('mailList')
 })
 
 watch([sortBy, sortOrder, filterRead, filterHasAttachments], async () => {
@@ -399,7 +409,10 @@ watch(() => props.folderId, () => {
 </script>
 
 <template>
-  <div class="flex flex-col">
+  <div
+    ref="mailListRef"
+    class="flex flex-col"
+  >
     <div class="flex p-3 items-center border-b border-b-border">
       <IconName
         v-if="currentFolder"

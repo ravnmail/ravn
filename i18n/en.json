@@ -2,6 +2,77 @@
   "app": {
     "title": "Ravn"
   },
+  "contexts": {
+    "global": "Global",
+    "mailList": "Mail List",
+    "conversationView": "Conversation View"
+  },
+  "actions": {
+    "composeEmail": {
+      "name": "Compose New Email",
+      "tooltip": "Compose new email"
+    },
+    "archiveEmail": {
+      "name": "Archive Email",
+      "tooltip": "Archive selected email"
+    },
+    "deleteEmail": {
+      "name": "Delete Email",
+      "tooltip": "Delete selected email"
+    },
+    "replyEmail": {
+      "name": "Reply to Email",
+      "tooltip": "Reply to selected email"
+    },
+    "replyAllEmail": {
+      "name": "Reply All",
+      "tooltip": "Reply to all recipients of selected email"
+    },
+    "forwardEmail": {
+      "name": "Forward Email",
+      "tooltip": "Forward selected email"
+    },
+    "focusNextEmail": {
+      "name": "Focus Next Email",
+      "tooltip": "Focus the next email in the list"
+    },
+    "focusPreviousEmail": {
+      "name": "Focus Previous Email",
+      "tooltip": "Focus the previous email in the list"
+    },
+    "assignLabel": {
+      "name": "Assign Label",
+      "tooltip": "Assign label to selected email"
+    },
+    "moveEmail": {
+      "name": "Move Email",
+      "tooltip": "Move selected email to another folder"
+    },
+    "home": {
+      "name": "Home",
+      "tooltip": "Go to Home"
+    },
+    "search": {
+      "name": "Search Emails",
+      "tooltip": "Search emails"
+    },
+    "toggleSidebarSticky": {
+      "name": "Toggle Sidebar",
+      "tooltip": "Toggle sidebar sticky"
+    },
+    "actions": {
+      "reply": "Reply",
+      "delete": "Delete",
+      "forward": "Forward",
+      "archive": "Archive",
+      "spam": "Mark as Spam",
+      "unread": "Mark as Unread",
+      "read": "Mark as Read",
+      "move": "Move",
+      "more": "More",
+      "pin": "Pin"
+    }
+  },
   "common": {
     "actions": {
       "save": "Save",
@@ -64,18 +135,6 @@
       "older": "Older"
     }
   },
-  "actions": {
-    "reply": "Reply",
-    "delete": "Delete",
-    "forward": "Forward",
-    "archive": "Archive",
-    "spam": "Mark as Spam",
-    "unread": "Mark as Unread",
-    "read": "Mark as Read",
-    "move": "Move",
-    "more": "More",
-    "pin": "Pin"
-  },
   "dialogs": {
     "confirmDelete": {
       "title": "Confirm Deletion",
@@ -83,34 +142,6 @@
     }
   },
   "pages": {
-    "testNavigation": {
-      "title": "Navigation Test Page",
-      "subtitle": "Test RAVN URL scheme navigation",
-      "customTest": {
-        "title": "Custom URL Test",
-        "description": "Test any RAVN URL or path"
-      },
-      "urlLabel": "URL",
-      "testButton": "Test",
-      "quickTests": {
-        "title": "Quick Tests",
-        "description": "Test common URL patterns"
-      },
-      "helpers": {
-        "title": "Navigation Helpers",
-        "description": "Test programmatic navigation helpers"
-      },
-      "howItWorks": {
-        "title": "How it works:",
-        "steps": {
-          "0": "Enter a RAVN URL in the format <code>ravn://path</code>",
-          "1": "Or just enter a path like <code>/emails/123</code>",
-          "2": "Click test to navigate",
-          "3": "Use browser back/forward to test history"
-        }
-      },
-      "keyboardShortcuts": "Keyboard Shortcuts"
-    },
     "signatures": {
       "title": "Signatures",
       "description": "Manage your email signatures",
@@ -266,6 +297,9 @@
         "description": "Organize your emails visually with customizable kanban boards",
         "getStarted": "Get started by creating a new view using the button above"
       }
+    },
+    "keymapEditor": {
+      "title": "Keymap Editor"
     }
   },
   "components": {

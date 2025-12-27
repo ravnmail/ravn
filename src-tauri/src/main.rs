@@ -8,6 +8,7 @@ use app_lib::{
     commands::corvus,
     commands::emails,
     commands::folders,
+    commands::keybindings as keybindings_commands,
     commands::label,
     commands::navigation as nav_commands,
     commands::notification,
@@ -16,6 +17,8 @@ use app_lib::{
     commands::themes,
     commands::view,
     config::ConfigWatcher,
+    config::KeyBindings,
+    config::KeyBindingsWatcher,
     config::Settings,
     database::Database,
     search::SearchManager,
@@ -51,6 +54,19 @@ fn create_menu(app: &tauri::App) -> Result<Menu<tauri::Wry>, tauri::Error> {
             Some("CmdOrCtrl+,"),
         )?;
         app_menu.append(&settings_item)?;
+
+        let keyboard_shortcuts_item = MenuItem::with_id(
+            app,
+            "ravn://keymap-editor",
+            "Keymap editor...",
+            true,
+            Some("CmdOrCtrl+?"),
+        )?;
+        app_menu.append(&keyboard_shortcuts_item)?;
+
+        let debug_item =
+            MenuItem::with_id(app, "ravn://debugging", "Beta tools...", true, None::<&str>)?;
+        app_menu.append(&debug_item)?;
 
         let update_item = MenuItem::with_id(
             app,
@@ -175,6 +191,46 @@ fn main() {
             let _watcher = ConfigWatcher::new(Arc::clone(&settings))
                 .expect("Failed to initialize configuration watcher");
 
+            // Initialize keybindings with optional default mapping from settings
+            let default_mapping = settings.get::<String>("keyboard.defaultMapping").ok();
+            let keybindings = match KeyBindings::new(&resources_dir, &app_data_dir, default_mapping)
+            {
+                Ok(kb) => {
+                    log::info!("Keybindings initialized successfully");
+                    Arc::new(kb)
+                }
+                Err(e) => {
+                    log::error!(
+                        "Failed to initialize keybindings: {}, using empty keybindings",
+                        e
+                    );
+                    // Create a fallback with empty keybindings
+                    Arc::new(
+                        KeyBindings::new(&resources_dir, &app_data_dir, None).unwrap_or_else(
+                            |_| {
+                                panic!("Fatal: Could not initialize keybindings even with fallback")
+                            },
+                        ),
+                    )
+                }
+            };
+
+            let _keybindings_watcher =
+                match KeyBindingsWatcher::new(Arc::clone(&keybindings), app_handle.clone()) {
+                    Ok(watcher) => {
+                        log::info!("Keybindings watcher initialized successfully");
+                        watcher
+                    }
+                    Err(e) => {
+                        log::error!("Failed to initialize keybindings watcher: {}", e);
+                        // Create a dummy watcher that does nothing
+                        KeyBindingsWatcher::new(Arc::clone(&keybindings), app_handle.clone())
+                            .unwrap_or_else(|_| {
+                                panic!("Fatal: Could not initialize keybindings watcher")
+                            })
+                    }
+                };
+
             let db = tauri::async_runtime::block_on(async {
                 Database::new(&app_data_dir)
                     .await
@@ -242,6 +298,7 @@ fn main() {
             let state = AppState {
                 db_pool: db.get_pool().clone(),
                 settings: Arc::clone(&settings),
+                keybindings: Arc::clone(&keybindings),
                 ai_service,
                 avatar_service: Arc::new(avatar_service),
                 oauth_state_manager,
@@ -257,6 +314,7 @@ fn main() {
                 download_dir: app_handle.path().download_dir().unwrap(),
                 app_data_dir: app_handle.path().app_data_dir().unwrap(),
                 _config_watcher: _watcher,
+                _keybindings_watcher,
             };
 
             app_handle.manage(state);
@@ -361,6 +419,11 @@ fn main() {
             config::get_all_settings,
             config::set_settings,
             config::reload_settings,
+            keybindings_commands::get_keybindings,
+            keybindings_commands::get_user_keybindings,
+            keybindings_commands::set_keybinding,
+            keybindings_commands::remove_keybinding,
+            keybindings_commands::reload_keybindings,
             nav_commands::navigate_to_url,
             nav_commands::build_ravn_url,
             nav_commands::open_external_url,

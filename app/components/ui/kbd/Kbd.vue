@@ -10,7 +10,7 @@ const props = defineProps<{
 <template>
   <kbd
     :class="cn(
-      'bg-muted text-muted-foreground pointer-events-none inline-flex w-fit min-w-5 items-center justify-center gap-1 rounded-sm px-1 text-xs font-medium',
+      'bg-secondary font-medium px-1 rounded-sm text-sm text-foreground',
       '[&_svg:not([class*=\'size-\'])]:size-3',
       props.class,
     )"

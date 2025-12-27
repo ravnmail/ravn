@@ -5,7 +5,6 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import type { TooltipContentProps } from 'reka-ui'
 import type { Editor } from '@tiptap/core'
 import type { HTMLAttributes } from 'vue'
-import { Kbd, KbdGroup } from '~/components/ui/kbd'
 import Shortcuts from '~/components/ui/kbd/Shortcuts.vue'
 
 interface Props {
@@ -81,15 +80,14 @@ const iconName = computed(() => {
       </TooltipTrigger>
       <TooltipContent
         v-if="tooltip"
+        class="flex items-start gap-2"
         v-bind="tooltipOptions"
       >
-        <div class="max-w-24 flex flex-col gap-0.5">
-          <div>{{ tooltip }}</div>
-          <Shortcuts
-            v-if="shortcutKeys?.length"
-            :shortcut-keys="shortcutKeys"
-          />
-        </div>
+        <p>{{ tooltip }}</p>
+        <Shortcuts
+          v-if="shortcutKeys?.length"
+          :keys="shortcutKeys.join('+')"
+        />
       </TooltipContent>
     </Tooltip>
   </TooltipProvider>

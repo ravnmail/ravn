@@ -53,7 +53,7 @@ const triggerButtonClasses = computed(() => {
       :custom-class="btn_class"
       :disabled="disabled"
       :icon="icon"
-      :shortcut-keys="shortcutKeys"
+      :shortcut="shortcutKeys"
       :title="title"
       :tooltip="tooltip"
     />

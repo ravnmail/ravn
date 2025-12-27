@@ -1,0 +1,49 @@
+[
+  {
+    "context": "global",
+    "bindings": {
+      "meta+/": "global:toggleSidebarSticky",
+      "meta+P": "global:openCommandPalette",
+      "meta+1": "global:focusSidebarNavigation",
+      "shift shift": "global:toggleCommandPalette",
+      "c": "global:composeEmail",
+      "s": "global:search"
+    }
+  },
+  {
+    "context": "MailList",
+    "bindings": {
+      "meta+0": "MailList:focusEmailList",
+      "j": "MailList:focusNextEmail",
+      "k": "MailList:focusPreviousEmail",
+      "o": "MailList:openEmail",
+      "r": "MailList:replyToEmail",
+      "d": "MailList:showConversationDetails",
+      "shift+r": "MailList:replyAllToEmail",
+      "f": "MailList:forwardEmail",
+      "delete": "MailList:archiveEmail",
+      "shift+delete": "MailList:deleteEmail",
+      "e": "MailList:archiveEmail",
+      "u": "MailList:markEmailAsUnread",
+      "l": "MailList:assignLabel",
+      "m": "MailList:moveEmail"
+    }
+  },
+  {
+    "context": "ConversationView",
+    "bindings": {
+      "j": "ConversationView:focusNextEmail",
+      "k": "ConversationView:focusPreviousEmail",
+      "o": "ConversationView:openEmail",
+      "r": "ConversationView:replyToEmail",
+      "d": "ConversationView:showConversationDetails",
+      "shift+r": "ConversationView:replyAllToEmail",
+      "f": "ConversationView:forwardEmail",
+      "delete": "ConversationView:archiveEmail",
+      "shift+delete": "ConversationView:deleteEmail",
+      "e": "ConversationView:archiveEmail",
+      "u": "ConversationView:markEmailAsUnread"
+    }
+  }
+]
+

@@ -18,6 +18,7 @@ export type SidebarFolderItem = {
   remote_id?: string
   account_id?: string
   parent_id?: string
+  shortcut?: string
 
   sort_order?: number
   children?: SidebarFolderItem[]
@@ -32,6 +33,7 @@ export type SidebarViewItem = {
   href?: string
   type: 'view'
   tooltip?: string
+  shortcut?: string
 
   click?: () => void
 }

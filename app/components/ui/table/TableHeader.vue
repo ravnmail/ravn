@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 import type { HTMLAttributes } from 'vue'
 import { cn } from '@/lib/utils'
 
@@ -8,7 +8,7 @@ const props = defineProps<{
 </script>
 
 <template>
-  <thead :class="cn('[&_tr]:border-b [&_tr]:border-b-border bg-input', props.class)">
+  <thead :class="cn('[&_tr]:border-b [&_tr]:border-b-border bg-background', props.class)">
     <slot />
   </thead>
 </template>

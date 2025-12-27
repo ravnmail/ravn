@@ -32,6 +32,7 @@ const handleItemClick = (item: { href?: string; click?: () => void }) => {
       <SimpleTooltip
         v-for="item in children"
         :key="item.id"
+        :shortcut="item.shortcut"
         :tooltip-markdown="item.tooltip || item.name"
         side="right"
       >

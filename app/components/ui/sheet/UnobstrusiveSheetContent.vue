@@ -42,9 +42,9 @@ const emits = defineEmits<DialogContentEmits>()
       <div class="relative flex flex-1">
         <slot/>
         <SimpleTooltip
-          :shortcut-keys="['Esc']"
           :tooltip-markdown="'Close sheet'"
           class="absolute left-1 top-1 z-20"
+          shortcut="Esc"
         >
           <Button
             size="icon"

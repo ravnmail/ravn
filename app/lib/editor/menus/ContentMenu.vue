@@ -8,7 +8,6 @@ import type { NodeSelection, Plugin, PluginKey } from '@tiptap/pm/state'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuPortal,
   DropdownMenuSeparator,
   DropdownMenuSub,
@@ -18,7 +17,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { SimpleTooltip } from '@/components/ui/tooltip'
 import { IndentProps, setNodeIndentMarkup } from '@/lib/utils/indent'
-import { getShortcutKeys } from '@/lib/utils/platform'
 import DropdownMenuItemRich from '~/components/ui/dropdown-menu/DropdownMenuItemRich.vue'
 
 type PluginRefType = Plugin<{
@@ -254,18 +252,16 @@ watch(
                 <DropdownMenuItemRich
                   :disabled="currentNode?.attrs?.indent >= IndentProps.max"
                   :label="t('composer.indent.tooltip')"
-                  :shortcut="getShortcutKeys(['Tab'])"
                   icon="lucide:indent-increase"
+                  shortcut="Tab"
                   @click="increaseIndent"
                 />
-
                 <DropdownMenuItemRich
                   :disabled="currentNode?.attrs?.indent <= IndentProps.min"
                   :label="t('composer.outdent.tooltip')"
-                  :shortcut="getShortcutKeys(['Shift, Tab'])"
                   icon="lucide:indent-decrease"
+                  shortcut="Shift + Tab"
                   @click="decreaseIndent"
-
                 />
               </DropdownMenuSubContent>
             </DropdownMenuPortal>

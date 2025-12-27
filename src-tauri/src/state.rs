@@ -1,4 +1,4 @@
-use crate::config::{ConfigWatcher, Settings};
+use crate::config::{ConfigWatcher, KeyBindings, KeyBindingsWatcher, Settings};
 use crate::search::SearchManager;
 use crate::services::avatar_service::AvatarService;
 use crate::services::corvus::CorvusService;
@@ -14,6 +14,7 @@ use std::sync::Arc;
 pub struct AppState {
     pub db_pool: SqlitePool,
     pub settings: Arc<Settings>,
+    pub keybindings: Arc<KeyBindings>,
     pub ai_service: Arc<CorvusService>,
     pub avatar_service: Arc<AvatarService>,
     pub oauth_state_manager: Arc<OAuthStateManager>,
@@ -29,4 +30,5 @@ pub struct AppState {
     pub app_data_dir: PathBuf,
     pub download_dir: PathBuf,
     pub _config_watcher: ConfigWatcher,
+    pub _keybindings_watcher: KeyBindingsWatcher,
 }

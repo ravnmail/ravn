@@ -42,14 +42,6 @@ export function useAppEvents() {
     }
   }
 
-  // Setup keyboard shortcuts at top level (not inside onMounted)
-  useKeyboardBindings({
-    settings: () => {
-      console.log('[AppEvents] Keyboard shortcut triggered: settings')
-      navigateToUrl('ravn://settings')
-    },
-  })
-
   onMounted(async () => {
     console.log('[AppEvents] Setting up event listeners')
 

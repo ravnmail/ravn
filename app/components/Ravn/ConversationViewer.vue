@@ -9,6 +9,7 @@ import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '~/components/ui/resizable'
 import { toast } from 'vue-sonner'
 import { cn } from '~/lib/utils'
+import { useFocusWithin } from '@vueuse/core'
 
 const props = defineProps<{
   conversationId: string
@@ -21,10 +22,14 @@ const { archive, trash } = useEmails()
 const { data: conversation } = useGetConversation(props.conversationId)
 const { useGetFolders } = useFolders()
 const { data: folders } = useGetFolders()
+const { register, unregister, addContext, removeContext } = useActions()
 
+const conversationViewerRef = useTemplateRef<HTMLElement | null>('conversationViewerRef')
 const panelRef = useTemplateRef<HTMLElement | null>('panelRef')
 const conversationContainer = useTemplateRef<HTMLElement | null>('conversationContainer')
 const panelCollapsed = ref(false)
+
+const { focused } = useFocusWithin(conversationViewerRef)
 
 const togglePanel = (collapse: boolean) => {
   if (collapse) {
@@ -146,37 +151,37 @@ const handleDelete = async () => {
   }
 }
 
-// Setup keyboard bindings at top level (not inside onMounted)
-useKeyboardBindings({
-  archive: handleArchive,
-  delete: handleDelete,
-  reply: () => {
-    if (latestMessage.value) {
-      handleReply(latestMessage.value)
-    }
-  },
-  replyAll: () => {
-    if (latestMessage.value) {
-      handleReplyAll(latestMessage.value)
-    }
-  },
-  forward: () => {
-    if (latestMessage.value) {
-      handleForward(latestMessage.value)
-    }
-  },
-})
-
 const sentfolderIds = computed(() => folders.value?.filter(folder => ['sent', 'draft'].includes(folder.folder_type)).map(f => f.id) || [])
 
 const isSentMessage = (message: EmailDetail) => {
   return sentfolderIds.value.includes(message.folder_id)
 }
 
+onMounted(() => {
+  addContext('ConversationView', focused)
+  register({
+    id: 'archiveConversation',
+    namespace: 'ConversationView',
+    handler: handleArchive
+  })
+  register({
+    id: 'showConversationDetails',
+    namespace: 'ConversationView',
+    handler: () => togglePanel(panelCollapsed.value)
+  })
+})
+
+onBeforeUnmount(() => {
+  removeContext('ConversationView')
+  unregister('ConversationView', 'archiveConversation')
+  unregister('ConversationView', 'showConversationDetails')
+})
+
 </script>
 
 <template>
   <ResizablePanelGroup
+    ref="conversationViewerRef"
     auto-save-id="conversation-layout-sidebar"
     class="flex h-screen bg-background w-full"
     direction="horizontal"

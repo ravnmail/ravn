@@ -27,7 +27,6 @@ import { invoke } from '@tauri-apps/api/core'
 
 dayjs.extend(relativeTime)
 
-const { t } = useI18n()
 const route = useRoute()
 const showComposer = ref(false)
 
@@ -44,39 +43,31 @@ defineProps<{
   show?: boolean
 }>()
 
+const { register, unregister, executeAction, getAction } = useActions()
+
 const topItems = computed(() => {
   return [
-    {
-      id: 'composer',
-      name: t('composer.composeNewEmail'),
-      tooltip: t('composer.composeNewEmailTooltip'),
-      icon: 'square-pen',
+    getAction('global', 'composeEmail').value,
+    getAction('global', 'home').value,
+    getAction('global', 'search').value,
+  ].filter(v => v !== undefined)
+    .map(action => ({
+      id: action.id,
+      name: action.name,
+      tooltip: action.tooltip,
+      icon: action.icon,
+      shortcut: action?.shortcut,
       click: () => {
-        showComposer.value = true
+        executeAction(action.key)
       }
-    },
-    {
-      id: 'home',
-      name: t('home.title'),
-      tooltip: t('home.tooltip'),
-      icon: 'house',
-      href: '/',
-    },
-    {
-      id: 'search',
-      name: t('search.title'),
-      tooltip: t('search.tooltip'),
-      icon: 'search',
-      href: '/search',
-    }
-  ] as SidebarNavigationItem[]
+    })) as SidebarNavigationItem[]
 })
 
 const { sections } = useSidebarNavigation()
 const expanded = useStorage<string[]>('sidebar', [])
 
 const selectedFolderId = computed(() => {
-  return route.params.folder_id as string || null
+  return route.params.folder_id as string || route.params.view as string || null
 })
 
 const handleFolderExpandedChange = (folderId: string, e: boolean) => {
@@ -127,13 +118,61 @@ const needsTopBorder = computed(() => {
   return scrollAreaTop.value > scrollContentTop.value
 })
 
-const { Cmd_1 } = useMagicKeys()
+onMounted(() => {
+  register({
+    id: 'gotoView',
+    namespace: 'global',
+    handler: (id: unknown) => {
+      navigateTo(`/views/${id}`)
+    }
+  })
+  register({
+    id: 'gotoFolder',
+    namespace: 'global',
+    handler: (id: unknown) => {
+      navigateTo(`/mail/null/folders/${id}`)
+    }
+  })
+  register({
+    id: 'composeEmail',
+    namespace: 'global',
+    icon: 'square-pen',
+    handler: () => {
+      showComposer.value = true
+    }
+  })
+  register({
+    id: 'search',
+    namespace: 'global',
+    icon: 'search',
+    handler: () => {
+      navigateTo('/search')
+    }
+  })
+  register({
+    id: 'home',
+    namespace: 'global',
+    icon: 'home',
+    handler: () => {
+      navigateTo('/')
+    }
+  })
+  register({
+    id: 'focusSidebarNavigation',
+    namespace: 'global',
+    handler: () => {
+      const firstItem = (scrollContentRef.value?.querySelector('[aria-selected="true"]') ?? scrollContentRef.value?.querySelector('[data-reka-collection-item]')) as HTMLElement
+      firstItem?.focus()
+    }
+  })
+})
 
-watch(Cmd_1, (newVal) => {
-  if (newVal) {
-    const firstItem = (scrollContentRef.value?.querySelector('[aria-selected="true"]') ?? scrollContentRef.value?.querySelector('[data-reka-collection-item]')) as HTMLElement
-    firstItem?.focus()
-  }
+onBeforeUnmount(() => {
+  unregister('global', 'gotoView')
+  unregister('global', 'composeEmail')
+  unregister('global', 'search')
+  unregister('global', 'home')
+  unregister('global', 'focusSidebarNavigation')
 })
 
 const handleToggle = (e: TreeItemToggleEvent<SidebarNavigationItem>) => {
@@ -302,7 +341,7 @@ const checkForUpdate = async () => {
                 @select="checkForUpdate"
               >
                 <p>Ravn v{{ version }}<br>
-                Last Checked: {{ lastChecked }}
+                  Last Checked: {{ lastChecked }}
                 </p>
               </DropdownMenuItem>
             </DropdownMenuSubContent>

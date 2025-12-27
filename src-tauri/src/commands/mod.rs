@@ -6,6 +6,7 @@ pub mod conversation;
 pub mod corvus;
 pub mod emails;
 pub mod folders;
+pub mod keybindings;
 pub mod label;
 pub mod navigation;
 pub mod notification;

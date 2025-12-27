@@ -54,7 +54,7 @@
     ],
     "license": "GPL",
     "licenseFile": "../LICENSE",
-    "resources": ["resources/*", "resources/themes/*"],
+    "resources": ["resources/*", "resources/themes/*", "resources/keymaps/*"],
     "copyright": "Copyright © 2025\nCoder's Cantina, Michael Wallner",
     "category": "Productivity",
     "homepage": "https://www.ravnmail.com",

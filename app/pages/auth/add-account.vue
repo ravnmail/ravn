@@ -207,6 +207,10 @@ const fillAppleSettings = () => {
     imapConfig.value.username = accountEmail.value
   }
 }
+
+definePageMeta({
+  layout: 'empty'
+})
 </script>
 
 <template>
@@ -253,8 +257,8 @@ const fillAppleSettings = () => {
               <input
                 id="account-name"
                 v-model="accountName"
-                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 :placeholder="t('pages.addAccount.accountName.placeholder')"
+                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 type="text"
               >
             </div>
@@ -269,8 +273,8 @@ const fillAppleSettings = () => {
               <input
                 id="account-email"
                 v-model="accountEmail"
-                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 :placeholder="t('pages.addAccount.emailAddress.placeholder')"
+                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 type="email"
                 @blur="fillAppleSettings"
               >

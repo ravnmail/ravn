@@ -9,13 +9,13 @@ import Shortcuts from '~/components/ui/kbd/Shortcuts.vue'
 const props = withDefaults(defineProps<{
   tooltip?: string | CleanTranslation,
   tooltipMarkdown?: string | CleanTranslation,
-  shortcutKeys?: string[],
+  shortcut?: string,
   delayDuration?: number
   side?: 'top' | 'right' | 'bottom' | 'left'
   class?: HTMLAttributes['class']
 }>(), {
   delayDuration: 300,
-  shortcutKeys: [],
+  shortcut: undefined,
   side: 'top',
   class: ''
 })
@@ -32,6 +32,7 @@ const props = withDefaults(defineProps<{
       </TooltipTrigger>
       <TooltipContent
         :side="side"
+        class="flex items-start gap-2"
       >
         <p v-if="tooltip">{{ tooltip }}</p>
         <Markdown
@@ -39,9 +40,8 @@ const props = withDefaults(defineProps<{
           :content="tooltipMarkdown"
         />
         <Shortcuts
-          v-if="shortcutKeys?.length"
-          :shortcut-keys="shortcutKeys"
-          class="mt-1"
+          v-if="shortcut"
+          :keys="shortcut"
         />
       </TooltipContent>
     </Tooltip>

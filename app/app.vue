@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { useMagicKeys, whenever } from '@vueuse/core'
 import { useQueryClient } from '@tanstack/vue-query'
 
 import { Toaster } from 'vue-sonner'
@@ -7,23 +6,47 @@ import { AlertDialogProvider } from '@/composables/useAlertDialog'
 import AddAccountModal from '~/components/Ravn/AddAccountModal.vue'
 import ViewCreationWizard from '~/components/Ravn/ViewCreationWizard.vue'
 
-const router = useRouter()
 const queryClient = useQueryClient()
 const isAddAccountModalOpen = ref(false)
 const isCreateViewWizardOpen = ref(false)
 
+const { setupKeybindings, setupContext } = useActions()
+const { getKeybindings, onKeybindingsChanged } = useKeybindings()
+
+async function loadKeybindings() {
+  try {
+    const keybindings = await getKeybindings()
+    setupKeybindings(keybindings)
+  } catch (_) {
+    setupKeybindings([])
+  }
+}
+
+onMounted(async () => {
+  setupContext([{ name: 'global', focused: computed(() => true) }])
+  await loadKeybindings()
+
+  try {
+    const unlisten = await onKeybindingsChanged(async () => {
+      await loadKeybindings()
+    })
+
+    onBeforeUnmount(() => {
+      unlisten()
+      setupKeybindings([])
+    })
+  } catch (_) {
+    // ignore
+  }
+})
+
+onBeforeUnmount(() => {
+  setupKeybindings([])
+})
+
 useAppEvents()
 useTheme()
 useGlobalEventListeners(queryClient)
-
-// Global keyboard shortcuts
-const keys = useMagicKeys()
-const cmdK = keys['Meta+K']
-
-// Cmd+K / Ctrl+K to open search
-whenever(cmdK, () => {
-  router.push('/search')
-})
 
 provide('isAddAccountModalOpen', isAddAccountModalOpen)
 provide('isCreateViewWizardOpen', isCreateViewWizardOpen)

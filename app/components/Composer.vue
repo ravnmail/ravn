@@ -526,12 +526,6 @@ async function handleGenerateSubject() {
   }
 }
 
-useKeyboardBindings({
-  send: handleSend,
-  discardDraft: handleDiscard,
-}, {
-  ignoreInputFields: false,
-})
 </script>
 
 <template>
@@ -545,8 +539,8 @@ useKeyboardBindings({
     <div class="flex items-center justify-between pb-2">
       <div class="flex items-center gap-1 ml-auto">
         <SimpleTooltip
-          :shortcut-keys="['mod', 'S']"
           :tooltip="`${$t('composer.saveDraft')}`"
+          shortcut="mod + S"
         >
           <Button
             :disabled="isSavingDraft || isSending || !selectedAccountId"
@@ -567,8 +561,8 @@ useKeyboardBindings({
         </SimpleTooltip>
 
         <SimpleTooltip
-          :shortcut-keys="['Escape']"
           :tooltip="$t('composer.discardDraft')"
+          shortcut="Escape"
         >
           <Button
             :disabled="isSending || isSavingDraft"
@@ -585,8 +579,8 @@ useKeyboardBindings({
         />
 
         <SimpleTooltip
-          :shortcut-keys="['mod', 'Enter']"
           :tooltip="$t('composer.send')"
+          shortcut="mod + enter"
         >
           <Button
             :disabled="!canSend"

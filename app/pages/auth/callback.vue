@@ -74,6 +74,10 @@ const closeWindow = async () => {
     window.close()
   }
 }
+
+definePageMeta({
+  layout: 'empty'
+})
 </script>
 
 <template>

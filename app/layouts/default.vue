@@ -1,29 +1,43 @@
 <script lang="ts" setup>
 
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { useElementHover, useMouse, useTimeoutFn } from '@vueuse/core'
+import { useElementHover, useMouse, useTimeoutFn, useFocusWithin } from '@vueuse/core'
 import { Button } from '~/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '~/components/ui/resizable'
+import { SimpleTooltip } from '~/components/ui/tooltip'
 
 const stickySidebar = ref<boolean>(true)
 const showSidebar = ref<boolean>(true)
-const router = useRouter()
 
+const { register, unregister, executeAction, getAction } = useActions()
 // refs for hover targets
 const btnRef = useTemplateRef<HTMLElement | null>('btnRef')
 const isHoveringBtn = useElementHover(btnRef)
 const leftOffset = ref(16)
 const sidebarRef = useTemplateRef<HTMLElement | null>('sidebarRef')
+const { focused } = useFocusWithin(sidebarRef)
 
-// use mouse x position to detect proximity to the left edge (no blocking element)
+function hideSidebar() {
+  if (!stickySidebar.value) {
+    showSidebar.value = false
+    leftOffset.value = 16
+  }
+}
+
 const { x } = useMouse()
 const isNearLeft = computed(() => (x.value ?? Infinity) < leftOffset.value) // widen threshold to 48px
 
 const hideDelay = 500
-const hideTimer = useTimeoutFn(() => {
-  showSidebar.value = false
-  leftOffset.value = 16
-}, hideDelay)
+const hideTimer = useTimeoutFn(hideSidebar, hideDelay)
+
+watch(focused, (isFocused) => {
+  if (isFocused) {
+    hideTimer.stop()
+    leftOffset.value = 260
+    showSidebar.value = true
+  } else if (!stickySidebar.value) {
+    hideTimer.start()
+  }
+}, { immediate: true })
 
 watch([isHoveringBtn, isNearLeft], ([hBtn, near]) => {
   if (hBtn || near) {
@@ -51,6 +65,22 @@ const collapseSidebar = (collapse: boolean) => {
   }
 }
 
+register({
+  id: 'toggleSidebarSticky',
+  namespace: 'global',
+  handler: () => {
+    collapseSidebar(stickySidebar.value)
+  }
+})
+
+const toggleAction = getAction('global', 'toggleSidebarSticky')
+const searchAction = getAction('global', 'search')
+const composeAction = getAction('global', 'composeEmail')
+
+onBeforeUnmount(() => {
+  unregister('global', 'toggleSidebarSticky')
+})
+
 </script>
 
 <template>
@@ -60,33 +90,49 @@ const collapseSidebar = (collapse: boolean) => {
     direction="horizontal"
   >
     <div class="fixed top-1 left-21 z-20">
-      <Button
-        ref="btnRef"
-        size="bar"
-        variant="ghost"
-        @click="collapseSidebar(stickySidebar)"
+      <SimpleTooltip
+        :shortcut="toggleAction?.shortcut"
+        :tooltip-markdown="toggleAction?.tooltip"
       >
-        <Icon name="lucide:sidebar"/>
-      </Button>
+        <Button
+          ref="btnRef"
+          size="bar"
+          variant="ghost"
+          @click="collapseSidebar(stickySidebar)"
+        >
+          <Icon name="lucide:sidebar"/>
+        </Button>
+      </SimpleTooltip>
       <template
         v-if="!stickySidebar"
       >
-        <Button
-          size="bar"
-          variant="ghost"
-          @click="router.push('/search')"
+        <SimpleTooltip
+          :shortcut="searchAction?.shortcut"
+          :tooltip-markdown="searchAction?.tooltip"
         >
-          <Icon name="lucide:search"/>
-        </Button>
-        <Button
-          size="bar"
-          variant="ghost"
+          <Button
+            size="bar"
+            variant="ghost"
+            @click="executeAction('global', 'search')"
+          >
+            <Icon name="lucide:search"/>
+          </Button>
+        </SimpleTooltip>
+        <SimpleTooltip
+          :shortcut="composeAction?.shortcut"
+          :tooltip-markdown="composeAction?.tooltip"
         >
-          <Icon
-            class="text-primary"
-            name="lucide:square-pen"
-          />
-        </Button>
+          <Button
+            size="bar"
+            variant="ghost"
+            @click="executeAction('global', 'composeEmail')"
+          >
+            <Icon
+              class="text-primary"
+              name="lucide:square-pen"
+            />
+          </Button>
+        </SimpleTooltip>
       </template>
     </div>
     <ResizablePanel
