@@ -7773,9 +7773,9 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "turndown"
-version = "0.1.2"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25642275659f8e03d2507aaeb15a784244537887ee3d0f4f628fe9d33c84346b"
+checksum = "e57552d781ac9ada06777fe51b9a259125adb71867e39d638b481f74ceb8fea9"
 dependencies = [
  "html5ever 0.36.1",
  "markup5ever_rcdom",

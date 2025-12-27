@@ -18,6 +18,7 @@ use crate::state::AppState;
 use crate::sync::types::AccountSettings;
 use sqlx::types::Json;
 use std::sync::Arc;
+use turndown::Turndown;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttachmentData {
@@ -729,6 +730,34 @@ pub async fn update_read(
     );
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn email_parse_body_plain(
+    state: State<'_, AppState>,
+    email_id: Uuid,
+) -> Result<Email, String> {
+    let email_repo = SqliteEmailRepository::new(state.db_pool.clone());
+    let mut options = turndown::TurndownOptions::default();
+    options.strip_tracking_images = true;
+    let turndown = Turndown::with_options(options);
+
+    let mut email = email_repo
+        .find_by_id(email_id)
+        .await
+        .map_err(|e| format!("Failed to fetch email: {}", e))?
+        .ok_or_else(|| format!("Email {} not found", email_id))?;
+
+    email.body_plain = email.body_html.as_ref().map(|html| turndown.convert(html));
+
+    email_repo
+        .update(&email)
+        .await
+        .map_err(|e| format!("Failed to update email body: {}", e))?;
+
+    emit_email_event(&state.app_handle, "email:updated", serde_json::json!(email));
+
+    Ok(email)
 }
 
 #[tauri::command]

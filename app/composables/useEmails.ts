@@ -109,6 +109,20 @@ export function useEmails() {
     }
   }
 
+  const parseBody = async (emailId: string): Promise<void> => {
+    error.value = null
+
+    try {
+      await invoke('email_parse_body_plain', { emailId })
+    }
+    catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      error.value = errorMessage
+      console.error('Failed to parse email body:', errorMessage)
+      throw new Error(errorMessage)
+    }
+  }
+
   const move = async (emailId: string, folderId: string): Promise<void> => {
     error.value = null
 
@@ -231,6 +245,7 @@ export function useEmails() {
     fetchForFolder,
     fetchForLabels,
     updateRead,
+    parseBody,
     move,
     archive,
     junk,

@@ -438,6 +438,7 @@ fn main() {
             emails::get_emails_for_folders,
             emails::get_emails_for_labels,
             emails::update_read,
+            emails::email_parse_body_plain,
             emails::move_email,
             emails::archive,
             emails::junk,
