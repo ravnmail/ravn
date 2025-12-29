@@ -13,6 +13,7 @@
     "core:menu:default",
     "core:resources:default",
     "core:tray:default",
+    "core:webview:allow-set-webview-zoom",
     "core:window:allow-close",
     "core:window:allow-set-badge-count",
     "core:window:allow-set-title",
