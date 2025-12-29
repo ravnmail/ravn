@@ -153,6 +153,8 @@ impl CorvusService {
         Ok(OpenRouterClient::builder()
             .api_key(api_key)
             .base_url(&base_url)
+            .http_referer("https://ravnmail.com")
+            .x_title("RAVN Mail")
             .build()
             .unwrap())
     }
