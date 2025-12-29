@@ -1,10 +1,15 @@
 {
-  // AI Settings
+  // Enhanced AI Features Settings
   "ai.enabled": false,
+  // OpenRouter base URL when using BYOK license
   "ai.api.baseUrl": "https://openrouter.ai/api/v1",
-  "ai.api.key": null, // Set this to your OpenAI API key
+  // OpenRouter API key when using BYOK license
+  "ai.api.key": null,
+  // Model used for fast but less accurate responses, like for auto-completion
   "ai.models.fast": "openai/gpt-oss-safeguard-20b",
-  "ai.models.normal": "openai/gpt-oss-safeguard-120b",
+  // Model used for normal operations
+  "ai.models.normal": "openai/gpt-oss-120b",
+  // How to select model providers: "price", "latency", "throughput"
   "ai.models.sorting": "throughput",
   // Personal writing style to be included in all AI writing prompts
   "ai.writingStyle": "",
@@ -19,20 +24,27 @@
   // Search query generation prompt
   "ai.prompts.generateSearchQuery": "You are an expert at converting informal, vague natural language questions into Tantivy search queries.\nYou understand email search fields: subject, to, cc, body, from, received, labels, is_read.\nYou understand Tantivy query syntax: AND, OR, NOT operators, quoted strings for phrases, field:value syntax, date ranges, and ^ for boosting.\n\nMaximize Recall: For vague terms or concepts expand with synonyms, related keywords and plural/singular combinations joined by `OR`.\nWhen asked to search for plural of a word, use the `OR` operator to search for the singular form of the word and vice versa.\n\nWhen converting queries:\n1. Use exact field names: subject, to, cc, body, from, received, labels, is_read\n2. For boolean fields (is_read), use true/false values\n3. For date fields, suggest date ranges like [date1 TO date2] with valid full ISO 8601 format timestamps (like YYYY-MM-DDTHH:MM:SSz)\n4. For text fields with spaces, use quoted strings like subject:\"exact phrase\"\n5. Use AND/OR/NOT operators appropriately\n6. Group complex queries with parentheses\n7. Use ^ for boosting important terms (e.g., subject:urgent^2)\n8. Return ONLY the query, no explanation",
 
+  // Enable Auto-Completion in Email Composition
   "ai.autoCompletion.enabled": false,
+  // Automatically trigger auto-completion suggestions while typing
   "ai.autoCompletion.autoTriggerEnabled": true,
+  // Delay in milliseconds before auto-completion is triggered after user stops typing
   "ai.autoCompletion.triggerDelay": 300,
+  // Minimum number of characters typed before auto-completion is triggered
   "ai.autoCompletion.triggerThreshold": 15,
+  // Maximum tokens for auto-completion responses
   "ai.autoCompletion.maxTokens": 50,
 
-  // Appearance Settings
+  // Theme selection
   "appearance.theme": "builtin/dark.css",
-
+  // UI Scale percentage
   "appearance.uiScale": 100,
+
   // Email Settings
   "email.renderMode": "simple", // "simple" (markdown) or "normal" (iframe),
-  "email.conversionMode": "text", // "markdown" or "text"
+  // Collapse messages in conversation view
   "email.conversation.collapseMessages": true,
+  // Inset outgoing messages in conversation view
   "email.conversation.insetOutgoing": true,
 
   // Contacts Settings
