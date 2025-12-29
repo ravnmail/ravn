@@ -15,7 +15,7 @@ import Shortcuts from '~/components/ui/kbd/Shortcuts.vue'
 const router = useRouter()
 const isOpen = ref(false)
 
-const { register, unregister, executeAction, possibleActions } = useActions()
+const { register, unregister, executeAction, actions } = useActions()
 const { accounts } = useAccounts()
 const { folders, mapFolderTree, flattenAccountFolders } = useFolders()
 const { views } = useViews()
@@ -78,7 +78,7 @@ const handleSelect = (value: string) => {
       <CommandList>
         <CommandGroup>
           <CommandItem
-            v-for="item in possibleActions"
+            v-for="item in actions"
             :key="item.key"
             :value="item.key"
           >
