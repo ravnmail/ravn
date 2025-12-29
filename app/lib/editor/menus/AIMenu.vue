@@ -287,7 +287,7 @@ function handleKey(e) {
     >
       <div
         :class="{ 'shake-animation': isShaking }"
-        class="relative w-[450px] z-50"
+        class="relative w-md z-50"
         @keydown="handleKey"
       >
         <div

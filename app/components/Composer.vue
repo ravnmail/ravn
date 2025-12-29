@@ -619,7 +619,7 @@ async function handleGenerateSubject() {
 
     <div>
       <div class="flex items-start py-1">
-        <label class="text-sm font-medium text-muted pt-2 w-16 flex-shrink-0">
+        <label class="text-sm font-medium text-muted pt-2 w-16 shrink-0">
           {{ $t('composer.from') }}
         </label>
         <Select v-model="selectedAccountId">
@@ -641,7 +641,7 @@ async function handleGenerateSubject() {
       </div>
 
       <div class="flex items-start py-1">
-        <label class="text-sm font-medium text-muted pt-2 w-16 flex-shrink-0">
+        <label class="text-sm font-medium text-muted pt-2 w-16 shrink-0">
           {{ $t('composer.to') }}
         </label>
         <div class="flex-1 flex items-center gap-2">
@@ -676,7 +676,7 @@ async function handleGenerateSubject() {
         v-if="showCc"
         class="flex items-start py-1"
       >
-        <label class="text-sm font-medium text-muted pt-2 w-16 flex-shrink-0">
+        <label class="text-sm font-medium text-muted pt-2 w-16 shrink-0">
           {{ $t('composer.cc') }}
         </label>
         <div class="flex-1 flex items-center gap-2">
@@ -702,7 +702,7 @@ async function handleGenerateSubject() {
         v-if="showBcc"
         class="flex items-start py-1"
       >
-        <label class="text-sm font-medium text-muted pt-2 w-16 flex-shrink-0">
+        <label class="text-sm font-medium text-muted pt-2 w-16 shrink-0">
           {{ $t('composer.bcc') }}
         </label>
         <div class="flex-1 flex items-center gap-2">
@@ -725,7 +725,7 @@ async function handleGenerateSubject() {
         </div>
       </div>
       <div class="flex items-center py-1">
-        <label class="text-sm font-medium text-muted w-16 flex-shrink-0">
+        <label class="text-sm font-medium text-muted w-16 shrink-0">
           {{ $t('composer.subject') }}
         </label>
         <div class="flex-1 flex relative">
@@ -821,7 +821,7 @@ async function handleGenerateSubject() {
       </div>
     </div>
 
-    <div class="py-1 min-h-[40px]">
+    <div class="py-1 min-h-10">
       <div class="flex items-center justify-between w-full">
         <div class="flex-1">
           <Toolbar :editor="editor"/>

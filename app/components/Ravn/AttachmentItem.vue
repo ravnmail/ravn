@@ -49,7 +49,7 @@ const handleDoubleClick = () => {
         <span>{{ formatFileSize(attachment.size) }}</span>
         <span
           v-if="!attachment.is_cached"
-          class="text-xs text-yellow-500"
+          class="text-xs text-warning"
         >
           {{ t('components.attachment.notCached') }}
         </span>
