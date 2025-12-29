@@ -78,7 +78,7 @@ rand = "0.8"
 opener = "0.8"
 tantivy = "0.25"
 openrouter-rs = "0.4.6"
-turndown = "0.1.0"
+turndown = "0.1.4"
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))".dependencies]
 tauri-plugin-single-instance = { version = "2.3.6", features = ["deep-link"] }
