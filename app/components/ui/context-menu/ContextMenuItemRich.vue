@@ -2,6 +2,7 @@
 import { cn } from '@/lib/utils'
 import { ContextMenuItem, type ContextMenuItemProps, useForwardProps } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 import ContextMenuShortcut from '~/components/ui/context-menu/ContextMenuShortcut.vue'
 
 const props = defineProps<ContextMenuItemProps & {
@@ -9,7 +10,7 @@ const props = defineProps<ContextMenuItemProps & {
   icon?: string,
   iconColor?: string,
   shortcut?: string[] | string,
-  label?: string,
+  label?: string | CleanTranslation,
   inset?: boolean
 }>()
 
