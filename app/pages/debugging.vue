@@ -4,6 +4,7 @@ import type { ReindexResult } from '~/composables/useSearch'
 import { InputField } from '~/components/ui/form'
 import { Button } from '~/components/ui/button'
 import { invoke } from '@tauri-apps/api/core'
+import { getCurrentWebview } from '@tauri-apps/api/webview';
 
 const isLoading = ref(false)
 const { reindexAll } = useSearch()
@@ -11,6 +12,18 @@ const indexResult = ref<ReindexResult>({
   total_indexed: 0,
   success: null
 })
+
+const zoomFactor = ref(1.0);
+
+const increaseZoom = () => {
+  zoomFactor.value += 0.1;
+  getCurrentWebview().setZoom(zoomFactor.value)
+};
+
+const decreaseZoom = () => {
+  zoomFactor.value -= 0.1;
+  getCurrentWebview().setZoom(zoomFactor.value)
+};
 
 const handleReindex = async () => {
   isLoading.value = true
@@ -40,6 +53,20 @@ const soundName = ref('incoming_01')
           </Button>
           <div class="mt-2 text-sm">
             {{ indexResult }}
+          </div>
+        </div>
+
+        <div>
+          <div class="flex gap-2 mb-2">
+            <Button @click="decreaseZoom">
+              Zoom Out
+            </Button>
+            <Button @click="increaseZoom">
+              Zoom In
+            </Button>
+          </div>
+          <div class="text-sm">
+            Current Zoom: {{ (zoomFactor * 100).toFixed(0) }}%
           </div>
         </div>
 
