@@ -18,17 +18,17 @@ const forwarded = useForwardProps(delegatedProps)
 
 <template>
   <StepperIndicator
-    v-bind="forwarded"
     :class="cn(
-      'inline-flex items-center justify-center rounded-full text-muted w-8 h-8',
+      'inline-flex items-center justify-center rounded-full text-muted w-6 h-6',
       // Disabled
-      'group-data-[disabled]:text-muted group-data-[disabled]:opacity-50',
+      'group-data-disabled:text-muted group-data-disabled:opacity-50',
       // Active
-      'group-data-[state=active]:bg-primary group-data-[state=active]:text-primary-foreground',
+      'group-data-[state=active]:bg-selection group-data-[state=active]:text-selection-foreground',
       // Completed
-      'group-data-[state=completed]:bg-success-background group-data-[state=completed]:text-success-foreground',
+      'group-data-[state=completed]:bg-primary group-data-[state=completed]:text-primary-foreground',
       props.class,
     )"
+    v-bind="forwarded"
   >
     <slot />
   </StepperIndicator>

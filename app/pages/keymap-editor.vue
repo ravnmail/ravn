@@ -97,21 +97,25 @@ const trash = (keybinding: KeybindingListItem) => {
             :key="index"
             @dblclick="selectedKeybinding = keybinding"
           >
-            <TableCell class="space-x-2">
-              <button
+            <TableCell class="space-x-px">
+              <Button
                 v-if="keybinding.action"
                 tabindex="-1"
+                variant="ghost"
+                size="none"
                 @click="selectedKeybinding = clone(keybinding)"
               >
                 <Icon name="lucide:pencil"/>
-              </button>
-              <button
+              </Button>
+              <Button
                 class="hover:text-destructive"
                 tabindex="-1"
+                variant="ghost"
+                size="none"
                 @click="trash(keybinding)"
               >
                 <Icon name="lucide:trash-2"/>
-              </button>
+              </Button>
             </TableCell>
             <TableCell :class="[keybinding.action === null ? 'opacity-50' : '']">{{ keybinding.fullName }}</TableCell>
             <TableCell :class="[keybinding.action === null ? 'opacity-50' : '']">

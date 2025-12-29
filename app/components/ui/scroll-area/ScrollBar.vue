@@ -17,7 +17,7 @@ const delegatedProps = computed(() => {
 <template>
   <ScrollAreaScrollbar
     :class="
-      cn('flex touch-none select-none transition-colors',
+      cn('flex touch-none select-none transition-all duration-1000 ease-out data-[state=visible]:duration-200 data-[state=visible]:opacity-100 data-[state=hidden]:opacity-0',
          orientation === 'vertical'
            && 'h-full w-1.5 bg-scrollbar-track/10 rounded-full mr-0.5',
          orientation === 'horizontal'

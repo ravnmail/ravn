@@ -4,7 +4,7 @@ import type { EmailListItem } from '~/types/email'
 import { Button } from '~/components/ui/button'
 import { UnobstrusiveSheetContent } from '~/components/ui/sheet'
 import ConversationViewer from '~/components/Ravn/ConversationViewer.vue'
-import { HorizontalScrollArea, ScrollArea } from '~/components/ui/scroll-area'
+import { ScrollArea } from '~/components/ui/scroll-area'
 import KanbanSwimlane from '~/components/Ravn/KanbanSwimlane.vue'
 import type { DragData } from '~/composables/useDragAndDrop'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
@@ -214,7 +214,7 @@ const onSheetClose = () => {
         />
       </Button>
     </div>
-    <HorizontalScrollArea class="h-full flex-1">
+    <ScrollArea class="h-full flex-1">
       <div class="flex flex-1 w-full h-full gap-4 p-4">
         <KanbanSwimlane
           v-for="swimlane in swimlanes"
@@ -233,7 +233,7 @@ const onSheetClose = () => {
           icon-name="lucide:layout-dashboard"
         />
       </div>
-    </HorizontalScrollArea>
+    </ScrollArea>
     <UnobstrusiveSheetContent
       v-if="selectedConversationId"
       @close="onSheetClose()"

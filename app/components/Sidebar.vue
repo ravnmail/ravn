@@ -305,10 +305,11 @@ const checkForUpdate = async () => {
       <DropdownMenu>
         <DropdownMenuTrigger>
           <Button
-            class="p-1.5!"
+            size="xs"
             variant="ghost"
           >
             <Icon
+              :size="16"
               name="lucide:help-circle"
             />
           </Button>
