@@ -12,6 +12,7 @@ const isCreateViewWizardOpen = ref(false)
 
 const { setupKeybindings, setupContext } = useActions()
 const { getKeybindings, onKeybindingsChanged } = useKeybindings()
+const { initPlatform } = usePlatform()
 
 async function loadKeybindings() {
   try {
@@ -23,6 +24,7 @@ async function loadKeybindings() {
 }
 
 onMounted(async () => {
+  initPlatform()
   setupContext([{ name: 'global', focused: computed(() => true) }])
   await loadKeybindings()
 

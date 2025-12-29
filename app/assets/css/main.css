@@ -338,6 +338,22 @@
   --tw-exit-translate-x: --value(--translate-*, [percentage], ratio, [length]);
 }
 
+@custom-variant mac {
+  .platform-mac & {
+    @slot;
+  }
+}
+@custom-variant windows {
+  .platform-windows & {
+    @slot;
+  }
+}
+@custom-variant linux {
+  .platform-linux & {
+    @slot;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .transition {
     transition: none !important;
