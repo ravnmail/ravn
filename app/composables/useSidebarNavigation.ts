@@ -49,8 +49,8 @@ export type SidebarNavigationItem = SidebarViewItem | SidebarFolderItem
 export type SideBarNavigation = Array<SidebarSectionItem>
 
 export const useSidebarNavigation = () => {
-  const isCreateViewWizardOpen = inject('isCreateViewWizardOpen')
   const { accounts } = useAccounts()
+  const { executeAction } = useActions()
   const { folders, mapFolderTree } = useFolders()
   const { views } = useViews()
   const { t } = useI18n()
@@ -70,7 +70,7 @@ export const useSidebarNavigation = () => {
       name: t('components.viewNav.newView') as string,
       icon: 'plus',
       type: 'view',
-      click: () => { isCreateViewWizardOpen.value = true },
+      click: () => { executeAction('global:openCreateViewWizard') },
     })
 
     const result: SideBarNavigation = [

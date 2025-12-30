@@ -1,4 +1,5 @@
 use crate::config::{ConfigWatcher, KeyBindings, KeyBindingsWatcher, Settings};
+use crate::licensing::{LicenseManager, LicenseRefreshRunner};
 use crate::search::SearchManager;
 use crate::services::avatar_service::AvatarService;
 use crate::services::corvus::CorvusService;
@@ -26,6 +27,8 @@ pub struct AppState {
     pub sync_coordinator: Arc<SyncCoordinator>,
     pub credential_store: Arc<CredentialStore>,
     pub search_manager: Arc<SearchManager>,
+    pub license_manager: Arc<LicenseManager>,
+    pub license_refresh_runner: Arc<LicenseRefreshRunner>,
     pub app_handle: tauri::AppHandle,
     pub app_data_dir: PathBuf,
     pub download_dir: PathBuf,

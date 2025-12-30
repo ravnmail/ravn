@@ -96,9 +96,13 @@ onUnmounted(() => {
 
 const list = useTemplateRef('list')
 const contextMenu = useTemplateRef('contextMenu')
-onClickOutside(list, (e) => {
-  // selectedIds.value = new Set()
-}, { ignore: [contextMenu] })
+
+// onFocusOutside(list, (event) => {
+//   if (!contextMenu?.value?.contains(event.relatedTarget as Node)) {
+//     selectedIds.value.clear()
+//     lastSelectedIndex.value = null
+//   }
+// })
 
 </script>
 

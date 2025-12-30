@@ -10,6 +10,7 @@ use app_lib::{
     commands::folders,
     commands::keybindings as keybindings_commands,
     commands::label,
+    commands::licensing,
     commands::navigation as nav_commands,
     commands::notification,
     commands::search,
@@ -21,6 +22,7 @@ use app_lib::{
     config::KeyBindingsWatcher,
     config::Settings,
     database::Database,
+    licensing::{LicenseManager, LicenseRefreshRunner},
     search::SearchManager,
     services::avatar_service::AvatarService,
     services::corvus::CorvusService,
@@ -260,7 +262,48 @@ fn main() {
                 Arc::clone(&credential_store),
             ));
 
-            let ai_service = Arc::new(CorvusService::new(Arc::clone(&settings)));
+            // Initialize licensing system
+            let activation_service_url =
+                option_env!("ACTIVATION_SERVICE_URL").map(|s| s.to_string());
+            let mid_secret = option_env!("MID_SECRET").map(|s| s.to_string());
+
+            log::info!(
+                "Licensing configuration - Service URL: {}, Secret: {}",
+                activation_service_url.is_some(),
+                mid_secret.is_some()
+            );
+
+            let license_manager = Arc::new(
+                LicenseManager::new(app_data_dir.clone(), activation_service_url, mid_secret)
+                    .expect("Failed to initialize license manager"),
+            );
+
+            // Load cached license
+            tauri::async_runtime::block_on(async {
+                if let Err(e) = license_manager.load_cached_license().await {
+                    log::error!("Failed to load cached license: {}", e);
+                }
+
+                // Validate license on startup if online
+                if !license_manager.is_open_source_mode() {
+                    match license_manager.validate_license().await {
+                        Ok(_) => log::info!("License validated successfully"),
+                        Err(e) => log::warn!("License validation failed on startup: {}", e),
+                    }
+                }
+            });
+
+            let license_refresh_runner =
+                Arc::new(LicenseRefreshRunner::new(Arc::clone(&license_manager)));
+            let license_refresh_runner_clone = Arc::clone(&license_refresh_runner);
+            tauri::async_runtime::spawn(async move {
+                license_refresh_runner_clone.start().await;
+            });
+
+            let ai_service = Arc::new(CorvusService::new(
+                Arc::clone(&settings),
+                Arc::clone(&license_manager),
+            ));
 
             let background_ai_analyzer = Arc::new(BackgroundAiAnalyzer::new(
                 db.get_pool().clone(),
@@ -311,6 +354,8 @@ fn main() {
                 sync_coordinator,
                 credential_store,
                 search_manager,
+                license_manager: Arc::clone(&license_manager),
+                license_refresh_runner: Arc::clone(&license_refresh_runner),
                 app_handle: app_handle.clone(),
                 download_dir: app_handle.path().download_dir().unwrap(),
                 app_data_dir: app_handle.path().app_data_dir().unwrap(),
@@ -413,6 +458,12 @@ fn main() {
             corvus::get_available_models,
             corvus::get_writing_style,
             corvus::set_writing_style,
+            licensing::license_activate,
+            licensing::license_trial,
+            licensing::license_status,
+            licensing::license_validate,
+            licensing::license_clear,
+            licensing::license_details,
             config::get_setting,
             config::set_setting,
             config::remove_setting,

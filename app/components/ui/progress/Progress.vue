@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 import { cn } from '@/lib/utils'
 import { ProgressIndicator, ProgressRoot, type ProgressRootProps, } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
@@ -19,17 +19,17 @@ const delegatedProps = computed(() => {
 
 <template>
   <ProgressRoot
-    v-bind="delegatedProps"
     :class="
       cn(
-        'relative h-2 w-full overflow-hidden rounded-full bg-primary/20',
+        'relative h-1.5 w-full overflow-hidden rounded-full bg-muted/30',
         props.class,
       )
     "
+    v-bind="delegatedProps"
   >
     <ProgressIndicator
-      class="h-full w-full flex-1 bg-primary transition-all"
       :style="`transform: translateX(-${100 - (props.modelValue ?? 0)}%);`"
+      class="h-full w-full flex-1 bg-primary transition-all rounded-full"
     />
   </ProgressRoot>
 </template>

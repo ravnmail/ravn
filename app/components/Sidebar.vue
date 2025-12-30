@@ -301,7 +301,7 @@ const checkForUpdate = async () => {
         </div>
       </div>
     </ScrollArea>
-    <div class="pb-1 px-2">
+    <div class="pb-1 px-2 flex items-center gap-2">
       <DropdownMenu>
         <DropdownMenuTrigger>
           <Button
@@ -319,9 +319,20 @@ const checkForUpdate = async () => {
           side="top"
         >
           <DropdownMenuItemRich
+            icon="lucide:keyboard"
+            label="Keymap Editor"
+            @select="() => navigateTo('/keymap-editor')"
+          />
+          <DropdownMenuItemRich
             icon="lucide:book-open"
             label="Documentation"
             @select="openUrl('https://www.ravnmail.com/docs')"
+          />
+          <DropdownMenuSeparator/>
+          <DropdownMenuItemRich
+            icon="lucide:lightbulb"
+            label="Request a Feature"
+            @select="openUrl('https://discord.gg/WWTfdpCwWE')"
           />
           <DropdownMenuItemRich
             icon="lucide:messages-square"
@@ -354,6 +365,7 @@ const checkForUpdate = async () => {
           />
         </DropdownMenuContent>
       </DropdownMenu>
+      <TrialBadge class="ml-auto"/>
     </div>
   </nav>
   <UnobstrusiveSheetContent
@@ -367,4 +379,3 @@ const checkForUpdate = async () => {
     />
   </UnobstrusiveSheetContent>
 </template>
-

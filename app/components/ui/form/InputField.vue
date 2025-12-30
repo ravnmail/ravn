@@ -75,7 +75,7 @@ const trigger = (action: InputActionType) => {
 
 <template>
   <FormField
-    :id="id"
+    v-slot="{ id: uniqueId, hasError }"
     :class="props.class"
     :description="description"
     :error="error"
@@ -84,34 +84,32 @@ const trigger = (action: InputActionType) => {
     :required="required"
     :tooltip="tooltip"
   >
-    <template #default="{ id, hasError }">
-      <div class="relative">
-        <Icon
-          v-if="icon"
-          :name="icon"
-          class="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
-        />
-        <Input
-          :id="id"
-          v-model="modelValue"
-          :class="{ 'border-red-500': hasError, 'pl-8': icon, 'pr-10': actions?.length }"
-          v-bind="{ ...inputProps, ...$attrs }"
-        />
-        <div
-          v-if="actions?.length"
-          class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5"
+    <div class="relative">
+      <Icon
+        v-if="icon"
+        :name="icon"
+        class="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+      />
+      <Input
+        :id="uniqueId"
+        v-model="modelValue"
+        :class="{ 'border-red-500': hasError, 'pl-8': icon, 'pr-10': actions?.length }"
+        v-bind="{ ...inputProps, ...$attrs }"
+      />
+      <div
+        v-if="actions?.length"
+        class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5"
+      >
+        <Button
+          v-for="action in actions"
+          :key="action"
+          :aria-label="action"
+          size="bar"
+          @click="trigger(action)"
         >
-          <Button
-            v-for="action in actions"
-            :key="action"
-            :aria-label="action"
-            size="bar"
-            @click="trigger(action)"
-          >
-            <Icon :name="icons[action]" />
-          </Button>
-        </div>
+          <Icon :name="icons[action]" />
+        </Button>
       </div>
-    </template>
+    </div>
   </FormField>
 </template>

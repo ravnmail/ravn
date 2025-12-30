@@ -5,12 +5,14 @@ import { Toaster } from 'vue-sonner'
 import { AlertDialogProvider } from '@/composables/useAlertDialog'
 import AddAccountModal from '~/components/Ravn/AddAccountModal.vue'
 import ViewCreationWizard from '~/components/Ravn/ViewCreationWizard.vue'
+import LicenseManagementDialog from '~/components/LicenseManagementDialog.vue'
 
 const queryClient = useQueryClient()
 const isAddAccountModalOpen = ref(false)
 const isCreateViewWizardOpen = ref(false)
+const isEnterLicenseDialogOpen = ref(false)
 
-const { setupKeybindings, setupContext } = useActions()
+const { setupKeybindings, setupContext, register } = useActions()
 const { getKeybindings, onKeybindingsChanged } = useKeybindings()
 const { initPlatform } = usePlatform()
 
@@ -27,6 +29,28 @@ onMounted(async () => {
   initPlatform()
   setupContext([{ name: 'global', focused: computed(() => true) }])
   await loadKeybindings()
+
+  register({
+    id: 'openLicenseDialog',
+    namespace: 'global',
+    handler: () => {
+      isEnterLicenseDialogOpen.value = true
+    }
+  })
+  register({
+    id: 'openAddAccountModal',
+    namespace: 'global',
+    handler: () => {
+      isAddAccountModalOpen.value = true
+    }
+  })
+  register({
+    id: 'openCreateViewWizard',
+    namespace: 'global',
+    handler: () => {
+      isCreateViewWizardOpen.value = true
+    }
+  })
 
   try {
     const unlisten = await onKeybindingsChanged(async () => {
@@ -50,8 +74,8 @@ useAppEvents()
 useTheme()
 useGlobalEventListeners(queryClient)
 
-provide('isAddAccountModalOpen', isAddAccountModalOpen)
-provide('isCreateViewWizardOpen', isCreateViewWizardOpen)
+// provide('isAddAccountModalOpen', isAddAccountModalOpen)
+// provide('isCreateViewWizardOpen', isCreateViewWizardOpen)
 
 </script>
 
@@ -70,6 +94,9 @@ provide('isCreateViewWizardOpen', isCreateViewWizardOpen)
     />
     <AddAccountModal
       v-model:open="isAddAccountModalOpen"
+    />
+    <LicenseManagementDialog
+      v-model:open="isEnterLicenseDialogOpen"
     />
     <Toaster
       position="bottom-left"

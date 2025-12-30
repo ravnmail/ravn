@@ -1,5 +1,6 @@
 use crate::config::Settings;
 use crate::database::models::email::Email;
+use crate::licensing::LicenseManager;
 use openrouter_rs::api::chat::{
     ChatCompletionRequest as ChatRequest, Message as OpenRouterChatMessage,
 };
@@ -14,6 +15,7 @@ const APPROX_CHARS_PER_TOKEN: usize = 4;
 
 pub struct CorvusService {
     settings: Arc<Settings>,
+    license_manager: Arc<LicenseManager>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -85,14 +87,41 @@ pub struct GenerateSearchQueryRequest {
 }
 
 impl CorvusService {
-    pub fn new(settings: Arc<Settings>) -> Self {
-        Self { settings }
+    pub fn new(settings: Arc<Settings>, license_manager: Arc<LicenseManager>) -> Self {
+        Self {
+            settings,
+            license_manager,
+        }
     }
 
-    fn get_api_key(&self) -> Result<String, String> {
-        self.settings.get::<String>("ai.api.key").map_err(|_| {
-            "API key not configured in settings. Please set ai.api.key in settings.json".to_string()
-        })
+    async fn get_api_key(&self) -> Result<String, String> {
+        // First check if user has configured their own API key
+        if let Ok(user_key) = self.settings.get::<String>("ai.api.key") {
+            if !user_key.is_empty() {
+                log::debug!("Using user-configured API key");
+                return Ok(user_key);
+            }
+        }
+
+        // If no user key, check if license provides one (SaaS mode)
+        if let Some(license_token) = self.license_manager.get_ai_token().await {
+            log::debug!("Using license-provided API key (SaaS mode)");
+            return Ok(license_token);
+        }
+
+        Err(
+            "API key not configured. Please set ai.api.key in settings or activate a SaaS license."
+                .to_string(),
+        )
+    }
+
+    pub async fn is_enabled(&self) -> bool {
+        let user_api_key = self.settings.get::<String>("ai.api.key").ok();
+        self.license_manager.should_enable_ai(user_api_key).await
+    }
+
+    pub async fn get_ai_limits(&self) -> (f64, f64) {
+        self.license_manager.get_ai_limits().await
     }
 
     fn get_base_url(&self) -> Result<String, String> {
@@ -146,8 +175,8 @@ impl CorvusService {
         }
     }
 
-    fn get_client(&self) -> Result<OpenRouterClient, String> {
-        let api_key = self.get_api_key()?;
+    async fn get_client(&self) -> Result<OpenRouterClient, String> {
+        let api_key = self.get_api_key().await?;
         let base_url = self.get_base_url()?;
 
         Ok(OpenRouterClient::builder()
@@ -173,12 +202,19 @@ impl CorvusService {
     }
 
     pub async fn ask_ai(&self, request: AskAiRequest) -> Result<String, String> {
+        if !self.is_enabled().await {
+            return Err(
+                "AI service is not enabled. Please configure an API key or activate a license."
+                    .to_string(),
+            );
+        }
+
         log::debug!(
             "Processing ask_ai request with {} messages",
             request.history.len()
         );
 
-        let client = self.get_client()?;
+        let client = self.get_client().await?;
         let model = self.get_model("normal")?;
         let mut system_prompt = self.get_prompt("askAi")?;
         system_prompt.push_str(&self.build_writing_style_context());
@@ -215,9 +251,16 @@ impl CorvusService {
         &self,
         request: EmailCompletionRequest,
     ) -> Result<String, String> {
+        if !self.is_enabled().await {
+            return Err(
+                "AI service is not enabled. Please configure an API key or activate a license."
+                    .to_string(),
+            );
+        }
+
         log::debug!("Processing email completion request");
 
-        let client = self.get_client()?;
+        let client = self.get_client().await?;
         let model = self.get_model("fast")?;
 
         let user_message = self.build_autocomplete_prompt(&request);
@@ -248,9 +291,16 @@ impl CorvusService {
         &self,
         request: GenerateSubjectRequest,
     ) -> Result<String, String> {
+        if !self.is_enabled().await {
+            return Err(
+                "AI service is not enabled. Please configure an API key or activate a license."
+                    .to_string(),
+            );
+        }
+
         log::debug!("Processing generate subject request");
 
-        let client = self.get_client()?;
+        let client = self.get_client().await?;
         let model = self.get_model("normal")?;
         let mut system_prompt = self.get_prompt("generateSubject")?;
         system_prompt.push_str(&self.build_writing_style_context());
@@ -279,9 +329,16 @@ impl CorvusService {
     }
 
     pub async fn analyze_email(&self, email: &Email) -> Result<EmailAnalysis, String> {
+        if !self.is_enabled().await {
+            return Err(
+                "AI service is not enabled. Please configure an API key or activate a license."
+                    .to_string(),
+            );
+        }
+
         log::debug!("Processing email analysis request for email {}", email.id);
 
-        let client = self.get_client()?;
+        let client = self.get_client().await?;
         let model = self.get_model("normal")?;
         let system_prompt = self.get_prompt("analyzeEmail")?;
         let writing_style = self.get_writing_style().unwrap_or_default();
@@ -392,9 +449,16 @@ Content:
         &self,
         request: GenerateSearchQueryRequest,
     ) -> Result<String, String> {
+        if !self.is_enabled().await {
+            return Err(
+                "AI service is not enabled. Please configure an API key or activate a license."
+                    .to_string(),
+            );
+        }
+
         log::debug!("Processing search query generation request");
 
-        let client = self.get_client()?;
+        let client = self.get_client().await?;
         let model = self.get_model("fast")?;
         let system_prompt = self.get_prompt("generateSearchQuery")?;
 
@@ -424,9 +488,16 @@ Content:
     }
 
     pub async fn get_available_models(&self) -> Result<Vec<AvailableModel>, String> {
+        if !self.is_enabled().await {
+            return Err(
+                "AI service is not enabled. Please configure an API key or activate a license."
+                    .to_string(),
+            );
+        }
+
         log::debug!("Fetching available models");
 
-        let client = self.get_client()?;
+        let client = self.get_client().await?;
 
         let mut result = client
             .list_models()

@@ -10,7 +10,7 @@ const isLoading = ref(false)
 const { reindexAll } = useSearch()
 const indexResult = ref<ReindexResult>({
   total_indexed: 0,
-  success: null
+  success: false
 })
 
 const zoomFactor = ref(1.0);
@@ -43,7 +43,6 @@ const soundName = ref('incoming_01')
         <h2 class="text-xl font-semibold">
           Other Tests
         </h2>
-
         <div>
           <Button
             :disabled="isLoading"

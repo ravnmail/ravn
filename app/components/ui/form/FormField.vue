@@ -23,12 +23,12 @@ const hasError = computed(() => !!props.error)
 
 <template>
   <div :class="['grid w-full items-center gap-2', props.class]">
-    <!-- Label and tooltip container -->
     <div
       v-if="label"
       class="flex items-center gap-2"
     >
       <Label
+        :for="uniqueId"
         :hide-label="hideLabel"
         :label="label"
         :required="required"

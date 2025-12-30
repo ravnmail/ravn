@@ -1112,6 +1112,91 @@
       "reset": "Reset to default",
       "copyLink": "Copy link to this setting",
       "linkCopied": "Link copied to clipboard"
+    },
+    "license": {
+      "manageTitle": "Manage License",
+      "manageDescription": "View and manage your RAVN Mail license",
+      "upgradeTitle": "Upgrade License",
+      "upgradeDescription": "Upgrade from trial to a full license",
+      "currentLicense": "Current License",
+      "mode": "Mode",
+      "expires": "Expires",
+      "trialEnds": "Trial Ends",
+      "aiOperations": {
+        "title": "AI Operations",
+        "description": "Number of AI operations included in your license",
+        "unlimited": "Unlimited",
+        "percentUsed": "{used}% used"
+      },
+      "daysRemaining": "{days} days remaining",
+      "chooseUpgrade": "Choose Your License",
+      "chooseLicense": "Choose License Type",
+      "alreadyActive": "Active",
+      "upgradeLicense": "Upgrade License",
+      "status": {
+        "expired": "Your license has expired",
+        "expiresEndsToday": "Your license expires today",
+        "expiresTomorrow": "Your license expires tomorrow",
+        "expiresSoon": "Your license expires in {days} days"
+      },
+      "unlicensedMessage": "You don't have an active license. Start a trial or activate your license to unlock all features.",
+      "viewDetails": "View Details"
+    }
+  },
+  "onboarding": {
+    "customize": {
+      "title": "Customize",
+      "header": "Customize Your Experience",
+      "description": "Choose your preferred theme and settings to get started with RAVN Mail."
+    },
+    "license": {
+      "title": "License",
+      "header": "Get started with RAVN Mail",
+      "description": "Reclaim your inbox and boost your productivity.",
+      "terms": "By continuing, you agree to our [Terms of Service](https://www.ravnmail.com/terms) and [Privacy Policy](https://www.ravnmail.com/privacy).",
+      "getStarted": "Get Started",
+      "emailLabel": "Email Address",
+      "emailPlaceholder": "your@email.com",
+      "emailHint": "We'll send your trial license details to this email",
+      "licenseKeyLabel": "License Key",
+      "licenseKeyPlaceholder": "XXXX-XXXX-XXXX-XXXX",
+      "licenseKeyHint": "Enter your license key received after purchase",
+      "startTrial": "Start Free Trial",
+      "activateLicense": "Activate License",
+      "processing": "Processing...",
+      "benefits": "Full access to all features\nAI-powered email assistance\nNo credit card required\n14 days free trial\n",
+      "noLicense": {
+        "header": "Need a License?",
+        "intro": "Whether you're looking for a subscription or a one-time purchase, we've got you covered.",
+        "cta": "Visit our pricing page"
+      },
+      "licenseModes": {
+        "trial": {
+          "title": "Trial Mode",
+          "description": "Start a free 14-day trial to explore all features of RAVN Mail with limited AI operations included.",
+          "badge": "14-Day Free Trial"
+        },
+        "subscription": {
+          "title": "Subscription License",
+          "description": "Enter your subscription license key to unlock all features of RAVN Mail with monthly AI operations included.",
+          "cta": "Subscribe Now"
+        },
+        "purchase": {
+          "title": "One-Time Purchase",
+          "description": "Enter your license to unlock all features of RAVN Mail and bring your own AI API key.",
+          "cta": "Purchase License"
+        },
+        "activate": {
+          "title": "Activate License",
+          "description": "Already have a license key? Enter it below to activate your subscription or one-time purchase.",
+          "cta": "Get a License"
+        }
+      }
+    },
+    "complete": {
+      "title": "All Set!",
+      "header": "You're all set to start using RAVN Mail",
+      "description": "Add your email accounts and take control of your inbox."
     }
   },
   "credentials": {

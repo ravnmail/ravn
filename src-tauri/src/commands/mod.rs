@@ -8,6 +8,7 @@ pub mod emails;
 pub mod folders;
 pub mod keybindings;
 pub mod label;
+pub mod licensing;
 pub mod navigation;
 pub mod notification;
 pub mod search;

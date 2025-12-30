@@ -6,6 +6,12 @@ dayjs.extend(LocalizedFormat)
 
 export default function useFormatting() {
   return {
+    formatNumber(num: number) {
+      return Intl.NumberFormat(undefined, {
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 2
+      }).format(num)
+    },
     formatEmailDate(email: Email, showTimeOnlyForDaysAgo = 2, options: {
       dateFormat: string,
       timeFormat: string,
