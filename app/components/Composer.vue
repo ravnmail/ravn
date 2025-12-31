@@ -138,6 +138,9 @@ onMounted(async () => {
   }
 
   startAutoSave()
+
+  // Focus the editor/composer on mount
+  editor.commands.focus()
 })
 
 onUnmounted(() => {
@@ -172,12 +175,22 @@ function initializeReply(email: EmailDetail) {
   selectedAccountId.value = email.account_id
   const toAddresses = [email.from]
 
+  const originalDate = new Date(email.sent_at || email.received_at).toLocaleString()
+  const originalFrom = email.from.name || email.from.address
+  const quotedBody = email.body_html || email.body_plain || ''
+
+  let initialBodyContent = toSimpleHtml(props.initialContent)
+  if (initialBodyContent && initialBodyContent !== '\n') {
+    initialBodyContent = `${initialBodyContent}<p><br></p>`
+  } else {
+    initialBodyContent = '<p><br></p>'
+  }
+
   if (props.isReplyAll) {
     const originalRecipients = [
       ...email.to,
       ...(email.cc || [])
     ]
-    // Filter out the sender's own email from CC to prevent self-cc
     const senderEmail = selectedAccount.value?.email
     const ccSet = new Set(originalRecipients.filter(addr =>
       addr.address !== email.from.address &&
@@ -190,14 +203,7 @@ function initializeReply(email: EmailDetail) {
       cc: ccList,
       bcc: [],
       subject: email.subject?.startsWith('Re:') ? email.subject : `Re: ${email.subject || ''}`,
-      body_html: `
-        ${toSimpleHtml(props.initialContent)}
-        <p><br></p>
-        <p>On ${new Date(email.sent_at || email.received_at).toLocaleString()}, ${email.from.name || email.from.address} wrote:</p>
-        <blockquote style="margin-left: 1em; padding-left: 1em; border-left: 2px solid #ccc;">
-          ${email.body_html || email.body_plain || ''}
-        </blockquote>
-      `,
+      body_html: initialBodyContent,
       conversation_id: email.conversation_id,
     }
     showCc.value = true
@@ -207,47 +213,62 @@ function initializeReply(email: EmailDetail) {
       cc: [],
       bcc: [],
       subject: email.subject?.startsWith('Re:') ? email.subject : `Re: ${email.subject || ''}`,
-      body_html: `
-        ${toSimpleHtml(props.initialContent)}
-        <p><br></p>
-        <p>On ${new Date(email.sent_at || email.received_at).toLocaleString()}, ${email.from.name || email.from.address} wrote:</p>
-        <blockquote style="margin-left: 1em; padding-left: 1em; border-left: 2px solid #ccc;">
-          ${email.body_html || email.body_plain || ''}
-        </blockquote>
-      `,
+      body_html: initialBodyContent,
       conversation_id: email.conversation_id,
     }
   }
 
-  editor.commands.setContent(draft.value.body_html || '')
+  editor.commands.setContent(initialBodyContent)
+
+  editor.commands.setQuotedContent(
+    {
+      type: 'reply',
+      originalFrom,
+      originalDate,
+    },
+    quotedBody
+  )
+
   markAsChanged()
 }
 
 async function initializeForward(email: EmailDetail) {
   selectedAccountId.value = email.account_id
 
-  const forwardedBody = `
-    ${toSimpleHtml(props.initialContent)}
-    <p><br></p>
-    <p>---------- Forwarded message ---------</p>
-    <p><strong>From:</strong> ${email.from.name || email.from.address}</p>
-    <p><strong>Date:</strong> ${new Date(email.sent_at || email.received_at).toLocaleString()}</p>
-    <p><strong>Subject:</strong> ${email.subject || ''}</p>
-    <p><strong>To:</strong> ${email.to.map(e => e.name || e.address).join(', ')}</p>
-    <p><br></p>
-    ${email.body_html || email.body_plain || ''}
-  `
+  const originalDate = new Date(email.sent_at || email.received_at).toLocaleString()
+  const originalFrom = email.from.name || email.from.address
+  const originalSubject = email.subject || ''
+  const originalTo = email.to.map(e => e.name || e.address).join(', ')
+  const quotedBody = email.body_html || email.body_plain || ''
+
+  let initialBodyContent = toSimpleHtml(props.initialContent)
+  if (initialBodyContent && initialBodyContent !== '\n') {
+    initialBodyContent = `${initialBodyContent}<p><br></p>`
+  } else {
+    initialBodyContent = '<p><br></p>'
+  }
 
   draft.value = {
     to: [],
     cc: [],
     bcc: [],
     subject: email.subject?.startsWith('Fwd:') ? email.subject : `Fwd: ${email.subject || ''}`,
-    body_html: forwardedBody,
+    body_html: initialBodyContent,
     conversation_id: email.conversation_id,
   }
 
-  editor.commands.setContent(forwardedBody)
+  editor.commands.setContent(initialBodyContent)
+
+  editor.commands.setQuotedContent(
+    {
+      type: 'forward',
+      originalFrom,
+      originalDate,
+      originalSubject,
+      originalTo,
+    },
+    quotedBody
+  )
 
   if (email.has_attachments) {
     await loadForwardedAttachments(email.id)

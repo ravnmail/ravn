@@ -33,6 +33,7 @@ import { Link } from './Link'
 import { MarkdownPaste } from './MarkdownPaste'
 import { OrderedList } from './OrderedList'
 import { Placeholder } from './Placeholder'
+import { QuotedContent } from './QuotedContent'
 import { Selection } from './Selection'
 import { SlashCommand } from './SlashCommand'
 import { Strike } from './Strike'
@@ -140,6 +141,15 @@ export const MailKit = Extension.create({
 
       Blockquote,
       CodeBlock,
+      QuotedContent.configure({
+        replyLabel: t('composer.quotedContent.reply'),
+        forwardedMessageLabel: t('composer.quotedContent.forwardedMessage'),
+        fromLabel: t('composer.quotedContent.from'),
+        dateLabel: t('composer.quotedContent.date'),
+        subjectLabel: t('composer.quotedContent.subject'),
+        toLabel: t('composer.quotedContent.to'),
+        wroteLabel: t('composer.quotedContent.wrote'),
+      }),
 
       HighlightParagraph,
       SlashCommand,
