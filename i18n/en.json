@@ -724,6 +724,7 @@
     },
     "signature": {
       "tooltip": "Signature",
+      "none": "None",
       "dialog": {
         "title": "Insert Signature",
         "signature": "Signature",
