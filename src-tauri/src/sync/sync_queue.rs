@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use sqlx::SqlitePool;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::sync::Arc;
@@ -67,16 +66,14 @@ impl Ord for SyncQueueItem {
 }
 
 pub struct SyncQueue {
-    pool: SqlitePool,
     queue: Arc<Mutex<BinaryHeap<SyncQueueItem>>>,
     active_syncs: Arc<RwLock<std::collections::HashSet<Uuid>>>,
     workers_limit: usize,
 }
 
 impl SyncQueue {
-    pub fn new(pool: SqlitePool, workers_limit: usize) -> Self {
+    pub fn new(workers_limit: usize) -> Self {
         Self {
-            pool,
             queue: Arc::new(Mutex::new(BinaryHeap::new())),
             active_syncs: Arc::new(RwLock::new(std::collections::HashSet::new())),
             workers_limit: workers_limit.min(100).max(1),

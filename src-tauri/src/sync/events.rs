@@ -86,12 +86,12 @@ pub struct FolderMovedEvent {
 pub struct SyncStatusEvent {
     pub account_id: Uuid,
     pub folder_id: Option<Uuid>,
-    pub status: SyncStatus,
+    pub status: SyncEventStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SyncStatus {
+pub enum SyncEventStatus {
     Started,
     InProgress {
         current: usize,

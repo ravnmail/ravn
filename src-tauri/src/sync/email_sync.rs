@@ -7,16 +7,12 @@ use super::error::{SyncError, SyncResult};
 use super::provider::ProviderFactory;
 use super::storage::LocalFileStorage;
 use super::types::{ProviderCredentials, SyncEmail, SyncFolder};
-use crate::config::Settings;
 use crate::database::models::account::{Account, AccountType};
-use crate::database::models::email::EmailAddress;
 use crate::database::repositories::EmailRepository;
 use crate::database::repositories::RepositoryFactory;
 use crate::search::SearchManager;
 use crate::services::notification_service::NotificationService;
-use crate::sync::conversion_mode::EmailConversionMode;
 use chrono::{DateTime, Utc};
-use regex::Regex;
 use sqlx::SqlitePool;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -32,7 +28,6 @@ pub struct EmailSync {
     search_manager: Option<Arc<SearchManager>>,
     app_handle: Option<tauri::AppHandle>,
     notification_service: Option<Arc<NotificationService>>,
-    settings: Arc<Settings>,
     turndown: Arc<Turndown>,
 }
 
@@ -51,7 +46,6 @@ impl EmailSync {
         pool: SqlitePool,
         app_data_dir: String,
         credential_store: Arc<CredentialStore>,
-        settings: Arc<Settings>,
     ) -> Self {
         let cache_dir = PathBuf::from(app_data_dir).join("attachments");
         let storage = Arc::new(LocalFileStorage::new(cache_dir));
@@ -71,7 +65,6 @@ impl EmailSync {
             search_manager: None,
             app_handle: None,
             notification_service: None,
-            settings,
             turndown,
         }
     }
@@ -183,93 +176,74 @@ impl EmailSync {
         };
 
         let mut total_added = 0;
-        let mut total_modified = 0;
+        let total_modified = 0;
         let mut total_deleted = 0;
         let mut provider_remote_ids: std::collections::HashSet<String> =
             std::collections::HashSet::new();
         let mut next_sync_token: Option<String> = None;
 
-        // Try to use Office365 paged processing for better interactivity
         if account.account_type == AccountType::Office365 {
             if let Some(o365_provider) = provider
                 .as_any()
                 .downcast_ref::<crate::sync::providers::office365::Office365Provider>(
             ) {
-                // Get sync token for delta sync
                 let sync_token = if !full {
                     self.get_sync_token(folder).await.ok().flatten()
                 } else {
                     None
                 };
 
-                // Use paged processing - process each page immediately as it arrives
                 if let Some(token) = sync_token {
-                    // Delta sync with paging
                     let account_id = account.id;
                     let folder_clone = folder.clone();
-                    let self_ptr = self.clone();
 
                     if let Ok((new_token, deleted_ids)) = o365_provider
                         .fetch_emails_delta_paged(folder, &token, move |page_emails| {
-                            let sync_inner = self_ptr.clone();
                             let folder_inner = folder_clone.clone();
 
                             async move {
-                                // Store each email from this page immediately
                                 for email in &page_emails {
-                                    let _ =
-                                        sync_inner.upsert_email(email, account_id, "synced").await;
+                                    let _ = self.upsert_email(email, account_id, "synced").await;
                                 }
-                                // Store sync state after each page for resilience
-                                let _ = sync_inner.update_sync_state(&folder_inner).await;
+                                let _ = self.update_sync_state(&folder_inner).await;
                                 Ok(())
                             }
                         })
                         .await
                     {
                         next_sync_token = new_token;
-                        // Process deleted emails from delta response
                         total_deleted = self
                             .process_deleted_emails(&deleted_ids, folder)
                             .await
                             .unwrap_or(0);
                     }
                 } else {
-                    // Full sync with paging
                     let account_id = account.id;
                     let folder_clone = folder.clone();
-                    let self_ptr = self.clone();
 
                     if let Ok(new_token) = o365_provider
                         .fetch_emails_full_paged(folder, move |page_emails| {
-                            let sync_inner = self_ptr.clone();
                             let folder_inner = folder_clone.clone();
 
                             async move {
-                                // Store each email from this page immediately
                                 for email in &page_emails {
-                                    let _ =
-                                        sync_inner.upsert_email(email, account_id, "synced").await;
+                                    let _ = self.upsert_email(email, account_id, "synced").await;
                                 }
-                                // Store sync state after each page for resilience
-                                let _ = sync_inner.update_sync_state(&folder_inner).await;
+                                let _ = self.update_sync_state(&folder_inner).await;
                                 Ok(())
                             }
                         })
                         .await
                     {
                         next_sync_token = new_token;
-                        // After paging completes, get all provider remote IDs from DB
                         provider_remote_ids = self
                             .get_existing_remote_ids_for_folder(folder)
                             .await
                             .unwrap_or_default();
-                        // Set total_added to the count of emails from this sync
                         total_added = provider_remote_ids.len();
                     }
                 }
 
-                // Compute deletions for full sync
                 if full {
                     total_deleted = self
                         .process_deleted_emails(
@@ -494,7 +468,7 @@ impl EmailSync {
     /// - Full sync: aggressively detects moved and deleted emails
     /// - Incremental sync: conservatively detects moved emails, skips unknown deletions
     /// Respects pagination by only checking emails that could reasonably be affected
-    async fn handle_missing_emails(
+    async fn _handle_missing_emails(
         &self,
         account: &Account,
         provider: &mut Box<dyn super::provider::EmailProvider>,
@@ -711,7 +685,7 @@ impl EmailSync {
     }
 
     /// Get last synced UID for a folder
-    async fn get_last_synced_uid(&self, folder: &SyncFolder) -> SyncResult<Option<u32>> {
+    async fn _get_last_synced_uid(&self, folder: &SyncFolder) -> SyncResult<Option<u32>> {
         let folder_id_str = folder.id.unwrap().to_string();
         let record = sqlx::query!(
             "SELECT last_uid FROM sync_state WHERE folder_id = ?",

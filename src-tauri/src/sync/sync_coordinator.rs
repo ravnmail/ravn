@@ -7,7 +7,6 @@ use uuid::Uuid;
 use super::auth::CredentialStore;
 use super::error::{SyncError, SyncResult};
 use super::SyncManager;
-use crate::config::settings::Settings;
 use crate::database::models::account::Account;
 use crate::database::repositories::{AccountRepository, RepositoryFactory};
 use crate::search::SearchManager;
@@ -21,7 +20,6 @@ pub struct SyncCoordinator {
     app_data_dir: String,
     credential_store: Arc<CredentialStore>,
     search_manager: Option<Arc<SearchManager>>,
-    settings: Arc<Settings>,
     app_handle: Option<tauri::AppHandle>,
     /// Cache of account_id -> SyncManager instances
     managers: Arc<RwLock<HashMap<Uuid, Arc<SyncManager>>>>,
@@ -32,14 +30,12 @@ impl SyncCoordinator {
         pool: SqlitePool,
         app_data_dir: String,
         credential_store: Arc<CredentialStore>,
-        settings: Arc<Settings>,
     ) -> Self {
         Self {
             pool,
             app_data_dir,
             credential_store,
             search_manager: None,
-            settings,
             app_handle: None,
             managers: Arc::new(RwLock::new(HashMap::new())),
         }
@@ -109,7 +105,6 @@ impl SyncCoordinator {
             self.pool.clone(),
             self.app_data_dir.clone(),
             Arc::clone(&self.credential_store),
-            Arc::clone(&self.settings),
         );
 
         if let Some(search_manager) = &self.search_manager {

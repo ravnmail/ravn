@@ -13,7 +13,6 @@ use super::error::{SyncError, SyncResult};
 use super::sync_manager::SyncManager;
 use super::sync_queue::{SyncPriority, SyncQueue, SyncQueueItem, SyncQueueWorker};
 use super::types::FolderType;
-use crate::config::settings::Settings;
 use crate::database::repositories::{
     AccountRepository, SqliteAccountRepository, SqliteSyncStateRepository, SyncStateRepository,
 };
@@ -28,7 +27,6 @@ pub struct BackgroundSyncManager {
     pool: SqlitePool,
     app_data_dir: String,
     credential_store: Arc<CredentialStore>,
-    settings: Arc<Settings>,
     tasks: Arc<RwLock<HashMap<Uuid, SyncTask>>>,
     shutdown_tx: tokio::sync::broadcast::Sender<()>,
     app_handle: tauri::AppHandle,
@@ -40,7 +38,6 @@ impl BackgroundSyncManager {
         pool: SqlitePool,
         app_data_dir: String,
         credential_store: Arc<CredentialStore>,
-        settings: Arc<Settings>,
         app_handle: tauri::AppHandle,
     ) -> Self {
         let (shutdown_tx, _) = tokio::sync::broadcast::channel(16);
@@ -49,7 +46,6 @@ impl BackgroundSyncManager {
             pool,
             app_data_dir,
             credential_store,
-            settings,
             tasks: Arc::new(RwLock::new(HashMap::new())),
             shutdown_tx,
             app_handle,
@@ -137,7 +133,6 @@ impl BackgroundSyncManager {
         let pool = self.pool.clone();
         let app_data_dir = self.app_data_dir.clone();
         let credential_store = Arc::clone(&self.credential_store);
-        let settings = Arc::clone(&self.settings);
         let app_handle = self.app_handle.clone();
         let mut shutdown_rx = self.shutdown_tx.subscribe();
         let account_id_copy = *account_id;
@@ -154,7 +149,6 @@ impl BackgroundSyncManager {
                     pool.clone(),
                     app_data_dir.clone(),
                     Arc::clone(&credential_store),
-                    Arc::clone(&settings),
                 )
                 .with_app_handle(app_handle.clone());
 
@@ -179,7 +173,7 @@ impl BackgroundSyncManager {
                         log::info!("Shutdown signal received for account {}", account_id_copy);
                         break;
                     }
-                    _ = Self::sync_folders_periodic(&pool, &app_data_dir, Arc::clone(&credential_store), Arc::clone(&settings), app_handle.clone(), account_id_copy) => {
+                    _ = Self::sync_folders_periodic(&pool, &app_data_dir, Arc::clone(&credential_store), app_handle.clone(), account_id_copy) => {
                     }
                 }
             }
@@ -263,18 +257,12 @@ impl BackgroundSyncManager {
         pool: &SqlitePool,
         app_data_dir: &str,
         credential_store: Arc<CredentialStore>,
-        settings: Arc<Settings>,
         app_handle: tauri::AppHandle,
         account_id: Uuid,
     ) {
         let sync_manager = Arc::new(
-            SyncManager::new(
-                pool.clone(),
-                app_data_dir.to_string(),
-                credential_store,
-                settings,
-            )
-            .with_app_handle(app_handle),
+            SyncManager::new(pool.clone(), app_data_dir.to_string(), credential_store)
+                .with_app_handle(app_handle),
         );
 
         let account_repo = SqliteAccountRepository::new(pool.clone());
@@ -310,7 +298,7 @@ impl BackgroundSyncManager {
             return;
         }
 
-        let sync_queue = Arc::new(SyncQueue::new(pool.clone(), 3));
+        let sync_queue = Arc::new(SyncQueue::new(3));
         let mut worker_handles = vec![];
 
         for worker_id in 0..sync_queue.workers_limit() {

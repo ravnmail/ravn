@@ -252,7 +252,6 @@ fn main() {
                 db.get_pool().clone(),
                 app_data_dir_str.clone(),
                 Arc::clone(&credential_store),
-                Arc::clone(&settings),
                 app_handle.clone(),
             ));
 
@@ -333,7 +332,6 @@ fn main() {
                     db.get_pool().clone(),
                     app_data_dir_str,
                     Arc::clone(&credential_store),
-                    Arc::clone(&settings),
                 )
                 .with_search_manager(Arc::clone(&search_manager))
                 .with_app_handle(app_handle.clone()),

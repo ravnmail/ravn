@@ -1107,7 +1107,6 @@ impl Office365Provider {
             .id
             .ok_or_else(|| SyncError::DatabaseError("Folder ID is required".to_string()))?;
 
-        let page_size = 100;
         let folder_remote_id = folder.remote_id.clone();
         let mut next_link: Option<String> = None;
         let mut delta_link: Option<String> = None;

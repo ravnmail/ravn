@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     database::{
-        models::view::{KanbanSwimlane, SwimlaneState, View, ViewConfig, ViewType},
+        models::view::{SwimlaneState, View, ViewConfig, ViewType},
         repositories::{RepositoryFactory, ViewRepository},
     },
     state::AppState,

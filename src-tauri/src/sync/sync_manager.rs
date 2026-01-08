@@ -10,7 +10,6 @@ use super::error::{SyncError, SyncResult};
 use super::events::*;
 use super::folder_sync::FolderSync;
 use super::types::SyncFolder;
-use crate::config::settings::Settings;
 use crate::database::error::DatabaseError;
 use crate::database::models::account::Account;
 use crate::database::repositories::{
@@ -29,7 +28,6 @@ pub struct SyncManager {
     // settings: Arc<Settings>,
     active_syncs: Arc<RwLock<HashMap<Uuid, bool>>>,
     app_handle: Option<tauri::AppHandle>,
-    settings: Arc<Settings>,
 }
 
 impl SyncManager {
@@ -37,14 +35,12 @@ impl SyncManager {
         pool: SqlitePool,
         app_data_dir: String,
         credential_store: Arc<CredentialStore>,
-        settings: Arc<Settings>,
     ) -> Self {
         let folder_sync = Arc::new(FolderSync::new(pool.clone(), Arc::clone(&credential_store)));
         let email_sync = Arc::new(EmailSync::new(
             pool.clone(),
             app_data_dir.clone(),
             Arc::clone(&credential_store),
-            Arc::clone(&settings),
         ));
 
         Self {
@@ -54,7 +50,6 @@ impl SyncManager {
             email_sync,
             credential_store,
             search_manager: None,
-            settings: Arc::clone(&settings),
             active_syncs: Arc::new(RwLock::new(HashMap::new())),
             app_handle: None,
         }
@@ -67,7 +62,6 @@ impl SyncManager {
             self.pool.clone(),
             self.app_data_dir.clone(),
             Arc::clone(&self.credential_store),
-            Arc::clone(&self.settings),
         )
         .with_search_manager(search_manager);
 
@@ -89,7 +83,6 @@ impl SyncManager {
             self.pool.clone(),
             self.app_data_dir.clone(),
             Arc::clone(&self.credential_store),
-            Arc::clone(&self.settings),
         )
         .with_app_handle(app_handle.clone());
 
@@ -152,7 +145,7 @@ impl SyncManager {
             SyncStatusEvent {
                 account_id: account.id,
                 folder_id: None,
-                status: SyncStatus::Started,
+                status: SyncEventStatus::Started,
             },
         );
 
@@ -181,7 +174,7 @@ impl SyncManager {
                     SyncStatusEvent {
                         account_id: account.id,
                         folder_id: None,
-                        status: SyncStatus::Error {
+                        status: SyncEventStatus::Error {
                             message: e.to_string(),
                         },
                     },
@@ -244,7 +237,7 @@ impl SyncManager {
             SyncStatusEvent {
                 account_id: account.id,
                 folder_id: None,
-                status: SyncStatus::Completed {
+                status: SyncEventStatus::Completed {
                     folders_synced: report.folders_synced,
                     emails_synced: report.emails_synced,
                 },
@@ -269,10 +262,6 @@ impl SyncManager {
         full: bool,
     ) -> SyncResult<usize> {
         let count = self.email_sync.sync_folder(account, folder, full).await?;
-
-        if let Some(folder_id) = folder.id {
-            // Todo: Emit event for folder sync completion if needed
-        }
 
         if let Some(folder_id) = folder.id {
             self.emit_event(

@@ -1,6 +1,7 @@
 use crate::database::models::email::{Email, EmailAddress};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 use uuid::Uuid;
 
 // Re-export FolderType from database models for consistency
@@ -150,14 +151,15 @@ pub enum SyncStatus {
     Paused,
 }
 
-impl ToString for SyncStatus {
-    fn to_string(&self) -> String {
-        match self {
+impl Display for SyncStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
             SyncStatus::Idle => "idle".to_string(),
             SyncStatus::Syncing => "syncing".to_string(),
             SyncStatus::Error => "error".to_string(),
             SyncStatus::Paused => "paused".to_string(),
-        }
+        };
+        write!(f, "{}", str)
     }
 }
 

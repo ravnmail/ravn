@@ -1,11 +1,10 @@
 use super::error::{SyncError, SyncResult};
-use crate::database::repositories::{AccountRepository, ContactRepository, RepositoryFactory};
+use crate::database::repositories::{ContactRepository, RepositoryFactory};
 use crate::services::avatar_service::{AvatarProvider, AvatarService};
 use sqlx::SqlitePool;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
-use uuid::Uuid;
 
 const FETCH_BATCH_SIZE: i64 = 20;
 const FETCH_INTERVAL_SECS: u64 = 30;
@@ -63,7 +62,7 @@ impl BackgroundAvatarFetcher {
                         break;
                     }
                     _ = sleep(Duration::from_secs(FETCH_INTERVAL_SECS)) => {
-                        if let Err(e) = Self::fetch_missing_avatars(
+                        if let Err(e) = Self::fetch_avatars(
                             &pool,
                             &avatar_service,
                         ).await {
@@ -80,20 +79,6 @@ impl BackgroundAvatarFetcher {
     pub fn stop(&self) {
         log::info!("[BackgroundAvatarFetcher] Stopping background avatar fetcher service");
         let _ = self.shutdown_tx.send(());
-    }
-
-    async fn fetch_missing_avatars(
-        pool: &SqlitePool,
-        avatar_service: &Arc<AvatarService>,
-    ) -> SyncResult<()> {
-        let repo_factory = RepositoryFactory::new(pool.clone());
-        let account_repo = repo_factory.account_repository();
-
-        if let Err(e) = Self::fetch_avatars(pool, avatar_service).await {
-            log::error!("[BackgroundAvatarFetcher] Failed to fetch avatars: {}", e);
-        }
-
-        Ok(())
     }
 
     async fn fetch_avatars(

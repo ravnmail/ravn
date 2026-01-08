@@ -188,7 +188,7 @@ impl CorvusService {
             .unwrap())
     }
 
-    fn getProviderPreferences(&self) -> Result<ProviderPreferences, String> {
+    fn get_provider_preferences(&self) -> Result<ProviderPreferences, String> {
         let sorting_preference = self.get_sorting_preference()?;
         Ok(ProviderPreferences {
             allow_fallbacks: None,
@@ -235,7 +235,7 @@ impl CorvusService {
         let chat_request = ChatRequest::builder()
             .model(model.clone())
             .messages(messages)
-            .provider(self.getProviderPreferences()?)
+            .provider(self.get_provider_preferences()?)
             .build()
             .map_err(|e| format!("Failed to build chat request: {}", e))?;
 
@@ -275,7 +275,7 @@ impl CorvusService {
         let chat_request = ChatRequest::builder()
             .model(model.clone())
             .messages(messages)
-            .provider(self.getProviderPreferences()?)
+            .provider(self.get_provider_preferences()?)
             .build()
             .map_err(|e| format!("Failed to build chat request: {}", e))?;
 
@@ -316,7 +316,7 @@ impl CorvusService {
         let chat_request = ChatRequest::builder()
             .model(model.clone())
             .messages(messages)
-            .provider(self.getProviderPreferences()?)
+            .provider(self.get_provider_preferences()?)
             .build()
             .map_err(|e| format!("Failed to build chat request: {}", e))?;
 
@@ -426,7 +426,7 @@ Content:
         let chat_request = ChatRequest::builder()
             .model(model.clone())
             .messages(messages)
-            .provider(self.getProviderPreferences()?)
+            .provider(self.get_provider_preferences()?)
             .build()
             .map_err(|e| format!("Failed to build chat request: {}", e))?;
 
