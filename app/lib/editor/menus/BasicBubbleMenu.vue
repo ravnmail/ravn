@@ -8,7 +8,7 @@ import { BubbleMenu } from '@tiptap/vue-3'
 import type { MailKitOptions } from '~/lib/editor/extensions/Mailkit'
 import type { BubbleTypeMenu } from './BasicBubble'
 import { useTiptapStore } from '~/lib/editor/hooks'
-import { ToolbarRoot } from '../../../../../../../libraries/reka-ui/packages/core'
+import { ToolbarRoot } from 'reka-ui'
 
 interface Props {
   editor: Editor
