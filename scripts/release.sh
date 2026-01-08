@@ -35,10 +35,7 @@ year=$(date +"%y")
 month=$(date +"%m" | sed 's/^0//')
 day=$(date +"%d" | sed 's/^0//')
 version="${year}.${month}.${day}"
-
-month_padded=$(date +"%m")
-day_padded=$(date +"%d")
-version_tag="v${year}.${month_padded}.${day_padded}"
+version_tag="${year}.${month}.${day}"
 
 if [[ -f "package.json" ]]; then
     sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"${version}\"/" package.json
@@ -46,11 +43,13 @@ fi
 if [[ -f "src-tauri/Cargo.toml" ]]; then
     sed -i '' "s/^version = \"[^\"]*\"/version = \"${version}\"/" src-tauri/Cargo.toml
 fi
+if [[ -f README.md ]]; then
+    sed -i '' "s/badge\/version-[0-9]\{1,\}\.[0-9]\{1,\}\.[0-9]\{1,\}/badge\/version-${version}/" README.md
+fi
 
 git add package.json src-tauri/Cargo.toml
-git commit -m "🚀 release ${version_tag}"
+git commit -m "🚀 release v${version_tag}"
 
 git tag "$version_tag"
-
 git push origin main
 git push origin "$version_tag"
