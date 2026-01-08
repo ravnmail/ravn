@@ -4,7 +4,7 @@
 
 RAVN is a feature-rich desktop email client built with modern web technologies. It combines the power of a native desktop application with the flexibility of a web frontend, offering a superior email experience for power users.
 
-![Version](https://img.shields.io/badge/version-25.12.15-blue)
+![Version](https://img.shields.io/badge/version-26.1.8-blue)
 ![Nuxt](https://img.shields.io/badge/Nuxt-4.2-00DC82)
 ![Tauri](https://img.shields.io/badge/Tauri-2.9-FFC131)
 ![License](https://img.shields.io/github/license/ravnmail/ravn)
