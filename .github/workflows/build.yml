@@ -5,7 +5,7 @@ on:
     branches:
       - main
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+*'
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
   pull_request:
     branches:
       - main
@@ -54,6 +54,7 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             TAG="${{ github.ref }}"
             VERSION="${TAG#refs/tags/}"
+            VERSION="${VERSION#v}"
             echo "build-type=release" >> $GITHUB_OUTPUT
             echo "version=$VERSION" >> $GITHUB_OUTPUT
           else
@@ -278,13 +279,13 @@ jobs:
       - name: Create Release with Assets
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ needs.determine-build-type.outputs.version }}
-          name: Release ${{ needs.determine-build-type.outputs.version }}
+          tag_name: v${{ needs.determine-build-type.outputs.version }}
+          name: Release v${{ needs.determine-build-type.outputs.version }}
           body: |
             ## Release v${{ needs.determine-build-type.outputs.version }}
             
             **Build Information:**
-            - **Version**: ${{ needs.determine-build-type.outputs.version }}
+            - **Version**: v${{ needs.determine-build-type.outputs.version }}
             - **Commit**: ${{ needs.determine-build-type.outputs.short-hash }}
             - **Release Date**: ${{ github.event.head_commit.timestamp }}
             
@@ -335,6 +336,6 @@ jobs:
             exit 1
           else
             echo "✓ Nightly build completed successfully"
-            echo "Version: ${{ needs.determine-build-type.outputs.version }}"
+            echo "Version: v${{ needs.determine-build-type.outputs.version }}"
             echo "Commit: ${{ needs.determine-build-type.outputs.short-hash }}"
           fi
