@@ -1,13 +1,13 @@
 <script lang="ts" setup>
 import { onClickOutside } from '@vueuse/core'
-import type { ContactSummary } from '~/types/contact'
 import {
   TagsInput,
+  TagsInputInput,
   TagsInputItem,
-  TagsInputItemText,
   TagsInputItemDelete,
-  TagsInputInput
 } from '~/components/ui/tags-input'
+import { parseEmailAddress } from '~/lib/utils/email'
+import type { ContactSummary } from '~/types/contact'
 import type { EmailAddress } from '~/types/email'
 
 const { t } = useI18n()
@@ -20,7 +20,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: 'Enter email...',
-  delimiter: () => /[\s,;]+/
+  delimiter: () => /[\s,;]+/,
 })
 
 const emit = defineEmits<{
@@ -34,7 +34,7 @@ const { data: topAccounts } = useGetTopContacts({
   limit: 12,
 })
 const { data: results } = useSearchContacts(searchQuery, {
-  limit: 12
+  limit: 12,
 })
 
 const isOpen = ref(false)
@@ -47,7 +47,10 @@ const handleFocus = () => {
 }
 
 const selectContact = (contact: ContactSummary) => {
-  emit('update:modelValue', [...props.modelValue, { name: contact.display_name, address: contact.email }])
+  emit('update:modelValue', [
+    ...props.modelValue,
+    { name: contact.display_name, address: contact.email },
+  ])
 
   const inputElement = containerRef.value?.querySelector('input')
   if (inputElement) {
@@ -91,8 +94,16 @@ const handleKeyDown = (event: KeyboardEvent) => {
   }
 }
 
-const handleModelValueChange = (value: EmailAddress[]) => {
-  emit('update:modelValue', value)
+const handleModelValueChange = (value: Array<EmailAddress | string>) => {
+  emit(
+    'update:modelValue',
+    value.map((v: EmailAddress | string): EmailAddress => {
+      if (typeof v === 'string') {
+        return parseEmailAddress(v)
+      }
+      return v
+    })
+  )
 
   if (value.length > props.modelValue.length) {
     searchQuery.value = ''
@@ -169,8 +180,10 @@ onUnmounted(() => {
           class="ml-1"
           size="xs"
         />
-        <span class="py-0.5 px-2 text-sm">{{ email.name ? `${email.name} <${email.address}>` : email.address }}</span>
-        <TagsInputItemDelete/>
+        <span class="px-2 py-0.5 text-sm">{{
+          email.name ? `${email.name} <${email.address}>` : email.address
+        }}</span>
+        <TagsInputItemDelete />
       </TagsInputItem>
       <TagsInputInput
         :placeholder="placeholder"
@@ -181,20 +194,24 @@ onUnmounted(() => {
     </TagsInput>
     <div
       v-show="isOpen"
-      class="absolute left-0 right-0 top-full p-1 z-50 mt-1 bg-popover text-popover-foreground border border-popover-border rounded-md shadow-lg max-h-96 overflow-y-auto"
+      class="absolute top-full right-0 left-0 z-50 mt-1 max-h-96 overflow-y-auto rounded-md border border-popover-border bg-popover p-1 text-popover-foreground shadow-lg"
     >
       <div
         v-if="suggestions.length === 0"
-        class="px-3 py-2 text-sm text-muted-foreground"
+        class="text-muted-foreground px-3 py-2 text-sm"
       >
-        {{ searchQuery ? t('components.emailAutocomplete.noResults') : t('components.emailAutocomplete.noContacts') }}
+        {{
+          searchQuery
+            ? t('components.emailAutocomplete.noResults')
+            : t('components.emailAutocomplete.noContacts')
+        }}
       </div>
       <div
         v-for="(contact, index) in suggestions"
         :key="contact.id"
         :class="{ 'bg-selection text-selection-foreground': index === selectedIndex }"
         :data-index="index"
-        class="flex items-center gap-2 p-2 rounded hover:bg-selection hover:text-selection-foreground transition-colors"
+        class="flex items-center gap-2 rounded p-2 transition-colors hover:bg-selection hover:text-selection-foreground"
         @click="selectContact(contact)"
         @mouseenter="selectedIndex = index"
       >
@@ -203,13 +220,13 @@ onUnmounted(() => {
           class="shrink-0"
         />
 
-        <div class="flex-1 min-w-0">
-          <div class="font-semibold text-sm truncate">
+        <div class="min-w-0 flex-1">
+          <div class="truncate text-sm font-semibold">
             {{ contact.display_name || contact.email }}
           </div>
           <div
             v-if="contact.display_name"
-            class="text-xs truncate opacity-70"
+            class="truncate text-xs opacity-70"
           >
             {{ contact.email }}
           </div>
