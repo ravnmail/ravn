@@ -33,7 +33,7 @@ const props = defineProps<{
 const { useGetConversationsForFolder } = useConversation()
 const { data: conversations } = useGetConversationsForFolder(
   props.folderId,
-  200,
+  400,
   0
 )
 
