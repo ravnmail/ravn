@@ -11,9 +11,9 @@
         "@tailwindcss/line-clamp": "^0.4.4",
         "@tailwindcss/postcss": "^4.1.18",
         "@tailwindcss/vite": "^4.1.18",
-        "@tanstack/vue-query": "^5.92.5",
+        "@tanstack/vue-query": "^5.92.8",
         "@tauri-apps/api": "^2.9.1",
-        "@tauri-apps/plugin-dialog": "^2.4.2",
+        "@tauri-apps/plugin-dialog": "^2.6.0",
         "@tauri-apps/plugin-os": "~2.3.2",
         "@tauri-apps/plugin-updater": "^2.9.0",
         "@tauri-apps/plugin-window-state": "~2.4.1",
@@ -59,7 +59,7 @@
         "tailwind-merge": "^3.4.0",
         "tailwindcss": "^4.1.18",
         "tiptap-extension-auto-joiner": "^0.1.3",
-        "vue": "^3.5.26",
+        "vue": "^3.5.27",
         "vue-router": "^4.6.4",
         "vue-sonner": "^2.0.9",
         "y-prosemirror": "^1.3.7",
@@ -71,10 +71,10 @@
         "@tauri-apps/cli": "^2.9.6",
         "@types/eslint": "^9.6.1",
         "@types/eslint-plugin-tailwindcss": "^3.17.0",
-        "@types/lodash": "^4.17.21",
+        "@types/lodash": "^4.17.23",
         "eslint": "^9.39.2",
         "eslint-plugin-tailwindcss": "^3.18.2",
-        "eslint-plugin-vue": "^10.6.2",
+        "eslint-plugin-vue": "^10.7.0",
         "husky": "^9.1.7",
         "lint-staged": "^16.2.7",
         "nuxt-i18n-micro-types": "^1.0.15",
@@ -1688,7 +1688,7 @@
 
     "nuxt": ["nuxt@4.2.2", "", { "dependencies": { "@dxup/nuxt": "^0.2.2", "@nuxt/cli": "^3.31.1", "@nuxt/devtools": "^3.1.1", "@nuxt/kit": "4.2.2", "@nuxt/nitro-server": "4.2.2", "@nuxt/schema": "4.2.2", "@nuxt/telemetry": "^2.6.6", "@nuxt/vite-builder": "4.2.2", "@unhead/vue": "^2.0.19", "@vue/shared": "^3.5.25", "c12": "^3.3.2", "chokidar": "^5.0.0", "compatx": "^0.2.0", "consola": "^3.4.2", "cookie-es": "^2.0.0", "defu": "^6.1.4", "destr": "^2.0.5", "devalue": "^5.6.0", "errx": "^0.1.0", "escape-string-regexp": "^5.0.0", "exsolve": "^1.0.8", "h3": "^1.15.4", "hookable": "^5.5.3", "ignore": "^7.0.5", "impound": "^1.0.0", "jiti": "^2.6.1", "klona": "^2.0.6", "knitwork": "^1.3.0", "magic-string": "^0.30.21", "mlly": "^1.8.0", "nanotar": "^0.2.0", "nypm": "^0.6.2", "ofetch": "^1.5.1", "ohash": "^2.0.11", "on-change": "^6.0.1", "oxc-minify": "^0.102.0", "oxc-parser": "^0.102.0", "oxc-transform": "^0.102.0", "oxc-walker": "^0.6.0", "pathe": "^2.0.3", "perfect-debounce": "^2.0.0", "pkg-types": "^2.3.0", "radix3": "^1.1.2", "scule": "^1.3.0", "semver": "^7.7.3", "std-env": "^3.10.0", "tinyglobby": "^0.2.15", "ufo": "^1.6.1", "ultrahtml": "^1.6.0", "uncrypto": "^0.1.3", "unctx": "^2.4.1", "unimport": "^5.5.0", "unplugin": "^2.3.11", "unplugin-vue-router": "^0.19.0", "untyped": "^2.0.0", "vue": "^3.5.25", "vue-router": "^4.6.3" }, "peerDependencies": { "@parcel/watcher": "^2.1.0", "@types/node": ">=18.12.0" }, "optionalPeers": ["@parcel/watcher", "@types/node"], "bin": { "nuxi": "bin/nuxt.mjs", "nuxt": "bin/nuxt.mjs" } }, "sha512-n6oYFikgLEb70J4+K19jAzfx4exZcRSRX7yZn09P5qlf2Z59VNOBqNmaZO5ObzvyGUZ308SZfL629/Q2v2FVjw=="],
 
-    "nuxt-i18n-micro": ["nuxt-i18n-micro@2.16.3", "", { "dependencies": { "@i18n-micro/core": "1.0.28", "@i18n-micro/test-utils": "1.0.8", "@i18n-micro/types": "1.0.16", "@nuxt/devtools-kit": "^2.6.3", "@nuxt/kit": "^3.18.1 || ^4.0.0", "chokidar": "^3.6.0", "globby": "^14.1.0", "ufo": "^1.5.4" }, "optionalDependencies": { "@rollup/rollup-linux-x64-gnu": "^4.28.1", "@rollup/rollup-win32-x64-msvc": "^4.28.1" }, "peerDependencies": { "vue-router": ">=4.4.0" } }, "sha512-mAELRwp6yv6djhrWYxr8TBOM4nooGZeUTNSZHwmvMc9YlwwzBzTjgha68PxLVvK8XxCMa6sBvTxcq03/jIdcsw=="],
+    "nuxt-i18n-micro": ["nuxt-i18n-micro@2.17.1", "", { "dependencies": { "@i18n-micro/core": "1.0.28", "@i18n-micro/test-utils": "1.0.8", "@i18n-micro/types": "1.0.16", "@nuxt/devtools-kit": "^2.6.3", "@nuxt/kit": "^3.18.1 || ^4.0.0", "chokidar": "^3.6.0", "globby": "^14.1.0", "ufo": "^1.5.4" }, "optionalDependencies": { "@rollup/rollup-linux-x64-gnu": "^4.28.1", "@rollup/rollup-win32-x64-msvc": "^4.28.1" }, "peerDependencies": { "vue-router": ">=4.4.0" } }, "sha512-xmP1+zb8cLI83B3JzS1A3CLXdwFkNh3c0BTS3RZPYkrOIVcqBcqQLLDt9F+yiVz4v5dGu0+W2jxurjhxkfRJ5Q=="],
 
     "nuxt-i18n-micro-types": ["nuxt-i18n-micro-types@1.0.15", "", {}, "sha512-tph2hxW09iXuluu8JeTI3mMe536xww0fi/tecTncJQq6qKW9sH5dmg0SmVYfeaXBTDsnMwHYDDV0NCTbYfWUZw=="],
 

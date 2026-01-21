@@ -1,11 +1,15 @@
 {
   "name": "ravn",
-  "description": "Ravn Mail - the modern email client for digital natives",
   "version": "26.1.8",
-  "author": "Michael Wallner @ Coder's Cantina",
+  "description": "Ravn Mail - the modern email client for digital natives",
+  "homepage": "https://www.ravnmail.com",
   "license": "GPL-3.0-only",
+  "author": "Michael Wallner @ Coder's Cantina",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ravnmail/ravn"
+  },
   "type": "module",
-  "packageManager": "bun@1.3.0",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -15,9 +19,6 @@
     "tauri": "tauri",
     "tauri:dev": "RUST_LOG=info tauri dev",
     "tauri:build": "nuxt generate && tauri build"
-  },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx,vue}": "eslint --fix"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.7",
@@ -67,7 +68,7 @@
     "lodash": "^4.17.21",
     "marked": "^16.4.2",
     "nuxt": "^4.2.2",
-    "nuxt-i18n-micro": "^2.16.3",
+    "nuxt-i18n-micro": "^2.17.1",
     "popover": "^2.4.1",
     "prism-code-editor": "^4.2.0",
     "reka-ui": "^2.7.0",
@@ -98,9 +99,8 @@
     "vite-svg-loader": "^5.1.0",
     "vue-tsc": "^3.2.2"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/ravnmail/ravn"
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,vue}": "oxfmt --fix"
   },
-  "homepage": "https://www.ravnmail.com"
+  "packageManager": "bun@1.3.0"
 }
