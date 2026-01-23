@@ -1,21 +1,21 @@
 <script lang="ts" setup>
 
-import dayjs from 'dayjs'
 import { useFocusWithin } from '@vueuse/core'
-import type { ConversationListItem } from '~/types/conversation'
-import ConversationItem from '~/components/Ravn/ConversationItem.vue'
-import { useMultiSelect } from '~/composables/useDragAndDrop'
-import { ScrollArea } from '~/components/ui/scroll-area'
-import { Button } from '~/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
-import { FormField } from '~/components/ui/form'
-import { Switch } from '~/components/ui/switch'
-import EmptyState from '~/components/ui/empty/EmptyState.vue'
-import MailContextMenu from '~/components/Ravn/MailContextMenu.vue'
+import dayjs from 'dayjs'
 import { toast } from 'vue-sonner'
+import ConversationItem from '~/components/Ravn/ConversationItem.vue'
+import MailContextMenu from '~/components/Ravn/MailContextMenu.vue'
 import IconName from '~/components/ui/IconName.vue'
 import { Badge } from '~/components/ui/badge'
+import { Button } from '~/components/ui/button'
+import EmptyState from '~/components/ui/empty/EmptyState.vue'
+import { FormField } from '~/components/ui/form'
+import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
+import { ScrollArea } from '~/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
+import { Switch } from '~/components/ui/switch'
+import { useMultiSelect } from '~/composables/useDragAndDrop'
+import type { ConversationListItem } from '~/types/conversation'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -547,8 +547,6 @@ watch(() => props.folderId, () => {
                   :folder-id="folderId"
                   :is-multi-selected="multiSelect.isSelected(conversation.id).value"
                   :is-selected="useRoute().params.conversation === conversation.id"
-                  :left-actions="leftActions"
-                  :right-actions="rightActions"
                   :selected-ids="multiSelect.selectedIds.value"
                   :selected-message-ids="selectedMessageIds"
                   @action="handleAction"
@@ -565,8 +563,6 @@ watch(() => props.folderId, () => {
             :conversation="conversation"
             :folder-id="folderId"
             :is-selected="useRoute().params.conversation === conversation.id"
-            :left-actions="leftActions"
-            :right-actions="rightActions"
             @action="handleAction"
             @contextmenu="handleSelect(conversation, $event)"
             @click.exact="handleSelect(conversation)"
@@ -576,4 +572,3 @@ watch(() => props.folderId, () => {
     </ScrollArea>
   </div>
 </template>
-
