@@ -20,3 +20,14 @@ export function parseEmailAddress(value: string): EmailAddress {
     ...(name && { name }),
   }
 }
+
+export function formatEmailAddress(email: EmailAddress): string {
+  if (email.name) {
+    return `"${email.name.replace(/"/g, '\\"')}" <${email.address}>`
+  }
+  return email.address
+}
+
+export function formatEmailAddresses(emails: EmailAddress[]): string {
+  return emails.map(formatEmailAddress).join(', ')
+}

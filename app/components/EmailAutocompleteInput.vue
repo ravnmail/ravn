@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
+import type { CleanupFn } from '@atlaskit/pragmatic-drag-and-drop/types'
 import { onClickOutside } from '@vueuse/core'
 import {
   TagsInput,
@@ -6,7 +8,7 @@ import {
   TagsInputItem,
   TagsInputItemDelete,
 } from '~/components/ui/tags-input'
-import { parseEmailAddress } from '~/lib/utils/email'
+import { formatEmailAddress, parseEmailAddress } from '~/lib/utils/email'
 import type { ContactSummary } from '~/types/contact'
 import type { EmailAddress } from '~/types/email'
 
@@ -27,6 +29,23 @@ const emit = defineEmits<{
   'update:modelValue': [value: EmailAddress[]]
 }>()
 
+// Drag and drop state
+interface EmailTokenDragData {
+  type: 'email-token'
+  email: EmailAddress
+  sourceInstanceId: string
+  emailString: string
+  isCopy: boolean
+  [key: string]: unknown
+}
+
+const instanceId = `email-autocomplete-${Math.random().toString(36).substr(2, 9)}`
+const dragCleanups = ref<Map<string, CleanupFn>>(new Map())
+const isDropTarget = ref(false)
+const canAcceptDrop = ref(false)
+const isDragCopy = ref(false)
+let currentDragAltKey = false
+
 const searchQuery = ref('')
 
 const { useSearchContacts, useGetTopContacts } = useContacts()
@@ -41,6 +60,7 @@ const isOpen = ref(false)
 const containerRef = ref<HTMLElement>()
 const selectedIndex = ref(-1)
 let inputListener: ((e: Event) => void) | null = null
+let dropTargetCleanup: CleanupFn | null = null
 
 const handleFocus = () => {
   isOpen.value = true
@@ -127,7 +147,118 @@ watch(suggestions, () => {
   selectedIndex.value = -1
 })
 
+const setupDraggableToken = (element: HTMLElement, email: EmailAddress) => {
+  const key = email.address
+
+  const existingCleanup = dragCleanups.value.get(key)
+  if (existingCleanup) {
+    existingCleanup()
+  }
+
+  const emailString = formatEmailAddress(email)
+  const handleMouseDown = (e: MouseEvent) => {
+    currentDragAltKey = e.altKey
+  }
+
+  element.addEventListener('mousedown', handleMouseDown)
+
+  const cleanup = draggable({
+    element,
+    getInitialData: () => ({
+      type: 'email-token',
+      email,
+      sourceInstanceId: instanceId,
+      emailString,
+      isCopy: currentDragAltKey,
+    }),
+    onDragStart: () => {
+      element.style.opacity = '0.5'
+      isDragCopy.value = currentDragAltKey
+    },
+    onDrop: () => {
+      element.style.opacity = '1'
+      isDragCopy.value = false
+      currentDragAltKey = false
+    },
+  })
+
+  // Return original cleanup wrapped to also remove mousedown listener
+  const originalCleanup = cleanup
+  const wrappedCleanup = () => {
+    element.removeEventListener('mousedown', handleMouseDown)
+    originalCleanup()
+  }
+
+  dragCleanups.value.set(key, wrappedCleanup)
+}
+
+const setupDropTarget = (element: HTMLElement) => {
+  if (dropTargetCleanup) {
+    dropTargetCleanup()
+  }
+
+  dropTargetCleanup = dropTargetForElements({
+    element,
+    canDrop: (args) => {
+      const data = args.source.data as unknown as EmailTokenDragData
+      return data.type === 'email-token' && data.sourceInstanceId !== instanceId
+    },
+    onDragEnter: (args) => {
+      const data = args.source.data as unknown as EmailTokenDragData
+      isDropTarget.value = true
+      canAcceptDrop.value = data.type === 'email-token' && data.sourceInstanceId !== instanceId
+    },
+    onDragLeave: () => {
+      isDropTarget.value = false
+      canAcceptDrop.value = false
+    },
+    onDrop: (args) => {
+      const data = args.source.data as unknown as EmailTokenDragData
+      isDropTarget.value = false
+      canAcceptDrop.value = false
+
+      if (data.type === 'email-token' && data.sourceInstanceId !== instanceId) {
+        const exists = props.modelValue.some((e) => e.address === data.email.address)
+        if (!exists) {
+          emit('update:modelValue', [...props.modelValue, data.email])
+        }
+
+        // Check if Alt key was pressed (copy mode)
+        const isCopyMode = data.isCopy || isDragCopy.value
+
+        window.dispatchEvent(
+          new CustomEvent('email-token-dropped', {
+            detail: {
+              email: data.email,
+              sourceInstanceId: data.sourceInstanceId,
+              targetInstanceId: instanceId,
+              isCopyMode,
+            },
+          })
+        )
+      }
+    },
+  })
+}
+
+const handleEmailTokenDropped = (event: CustomEvent) => {
+  const { email, sourceInstanceId, targetInstanceId, isCopyMode } = event.detail
+  if (sourceInstanceId === instanceId && !isCopyMode && targetInstanceId) {
+    emit(
+      'update:modelValue',
+      props.modelValue.filter((e) => e.address !== email.address)
+    )
+  }
+}
+
+watch(containerRef, (newContainer) => {
+  if (newContainer) {
+    setupDropTarget(newContainer)
+  }
+})
+
 onMounted(() => {
+  window.addEventListener('email-token-dropped', handleEmailTokenDropped as EventListener)
   setTimeout(() => {
     if (containerRef.value) {
       const inputElement = containerRef.value.querySelector('input')
@@ -149,11 +280,22 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('email-token-dropped', handleEmailTokenDropped as EventListener)
+
   if (containerRef.value && inputListener) {
     const inputElement = containerRef.value.querySelector('input')
     if (inputElement) {
       inputElement.removeEventListener('input', inputListener)
     }
+  }
+
+  dragCleanups.value.forEach((cleanup) => {
+    cleanup()
+  })
+  dragCleanups.value.clear()
+
+  if (dropTargetCleanup) {
+    dropTargetCleanup()
   }
 })
 </script>
@@ -161,7 +303,11 @@ onUnmounted(() => {
 <template>
   <div
     ref="containerRef"
-    class="relative flex-1"
+    class="relative flex-1 transition-all"
+    :class="{
+      'ring-1 ring-selection ring-offset-2': isDropTarget && canAcceptDrop,
+    }"
+    c
   >
     <TagsInput
       :delimiter="delimiter"
@@ -172,12 +318,19 @@ onUnmounted(() => {
       <TagsInputItem
         v-for="email in modelValue"
         :key="email.address"
+        :ref="
+          (el: any) => {
+            if (el && el.$el) {
+              setupDraggableToken(el.$el as HTMLElement, email)
+            }
+          }
+        "
         :value="email"
       >
         <RavnAvatar
           :email="email.address"
           :name="email.name"
-          class="ml-1"
+          class="pointer-events-none ml-1"
           size="xs"
         />
         <span class="px-2 py-0.5 text-sm">{{
