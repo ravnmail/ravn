@@ -29,7 +29,6 @@ const emit = defineEmits<{
   'update:modelValue': [value: EmailAddress[]]
 }>()
 
-// Drag and drop state
 interface EmailTokenDragData {
   type: 'email-token'
   email: EmailAddress
@@ -40,13 +39,19 @@ interface EmailTokenDragData {
 }
 
 const instanceId = `email-autocomplete-${Math.random().toString(36).substr(2, 9)}`
-const dragCleanups = ref<Map<string, CleanupFn>>(new Map())
-const isDropTarget = ref(false)
-const canAcceptDrop = ref(false)
-const isDragCopy = ref(false)
-let currentDragAltKey = false
+
+const dragCleanups = new Map<string, CleanupFn>()
+const tokenElementRefs = new Map<string, HTMLElement>()
 
 const searchQuery = ref('')
+const isOpen = ref(false)
+const containerRef = ref<HTMLElement>()
+const selectedIndex = ref(-1)
+const isDropTarget = ref(false)
+const canAcceptDrop = ref(false)
+
+let currentDragAltKey = false
+let dropTargetCleanup: CleanupFn | null = null
 
 const { useSearchContacts, useGetTopContacts } = useContacts()
 const { data: topAccounts } = useGetTopContacts({
@@ -56,54 +61,71 @@ const { data: results } = useSearchContacts(searchQuery, {
   limit: 12,
 })
 
-const isOpen = ref(false)
-const containerRef = ref<HTMLElement>()
-const selectedIndex = ref(-1)
-let inputListener: ((e: Event) => void) | null = null
-let dropTargetCleanup: CleanupFn | null = null
+const suggestions = computed<ContactSummary[]>(() => {
+  if (searchQuery.value.trim()) {
+    return results.value ?? []
+  }
+  return topAccounts.value ?? []
+})
+
+watch(suggestions, () => {
+  selectedIndex.value = -1
+})
 
 const handleFocus = () => {
   isOpen.value = true
 }
 
 const selectContact = (contact: ContactSummary) => {
-  emit('update:modelValue', [
-    ...props.modelValue,
-    { name: contact.display_name, address: contact.email },
-  ])
-
-  const inputElement = containerRef.value?.querySelector('input')
-  if (inputElement) {
-    inputElement.value = ''
-    inputElement.focus()
+  const newEmail: EmailAddress = {
+    name: contact.display_name ?? undefined,
+    address: contact.email,
   }
+
+  const exists = props.modelValue.some((e) => e.address === newEmail.address)
+  if (!exists) {
+    emit('update:modelValue', [...props.modelValue, newEmail])
+  }
+
   searchQuery.value = ''
   isOpen.value = false
   selectedIndex.value = -1
+
+  nextTick(() => {
+    const inputElement = containerRef.value?.querySelector('input')
+    if (inputElement) {
+      inputElement.value = ''
+      inputElement.focus()
+    }
+  })
 }
 
 const handleKeyDown = (event: KeyboardEvent) => {
-  if (!isOpen.value || suggestions.value.length === 0) return
+  if (!isOpen.value || suggestions.value.length === 0) {
+    return
+  }
+
   switch (event.key) {
     case 'ArrowDown':
       event.preventDefault()
       selectedIndex.value = Math.min(selectedIndex.value + 1, suggestions.value.length - 1)
       break
+
     case 'ArrowUp':
       event.preventDefault()
       selectedIndex.value = Math.max(selectedIndex.value - 1, -1)
       break
+
     case 'Enter':
       if (selectedIndex.value >= 0 && selectedIndex.value < suggestions.value.length) {
         event.preventDefault()
-        selectContact(suggestions.value[selectedIndex.value])
-        searchQuery.value = ''
-        const inputElement = containerRef.value?.querySelector('input')
-        if (inputElement) {
-          inputElement.value = ''
+        const contact = suggestions.value[selectedIndex.value]
+        if (contact) {
+          selectContact(contact)
         }
       }
       break
+
     case 'Escape':
       event.preventDefault()
       event.stopPropagation()
@@ -114,48 +136,32 @@ const handleKeyDown = (event: KeyboardEvent) => {
   }
 }
 
-const handleModelValueChange = (value: Array<EmailAddress | string>) => {
-  emit(
-    'update:modelValue',
-    value.map((v: EmailAddress | string): EmailAddress => {
-      if (typeof v === 'string') {
-        return parseEmailAddress(v)
-      }
-      return v
-    })
-  )
+const handleModelValueChange = (value: unknown[]) => {
+  const normalizedValue = value.map((v: unknown): EmailAddress => {
+    if (typeof v === 'string') {
+      return parseEmailAddress(v)
+    }
+    return v as EmailAddress
+  })
 
-  if (value.length > props.modelValue.length) {
+  emit('update:modelValue', normalizedValue)
+
+  if (normalizedValue.length > props.modelValue.length) {
     searchQuery.value = ''
   }
 }
 
-onClickOutside(containerRef, () => {
-  isOpen.value = false
-  selectedIndex.value = -1
-})
-
-const suggestions = computed<ContactSummary[]>(() => {
-  if (searchQuery.value.trim()) {
-    return results.value || []
-  } else {
-    return topAccounts.value || []
-  }
-})
-
-watch(suggestions, () => {
-  selectedIndex.value = -1
-})
-
 const setupDraggableToken = (element: HTMLElement, email: EmailAddress) => {
   const key = email.address
 
-  const existingCleanup = dragCleanups.value.get(key)
+  const existingCleanup = dragCleanups.get(key)
   if (existingCleanup) {
     existingCleanup()
+    dragCleanups.delete(key)
   }
 
   const emailString = formatEmailAddress(email)
+
   const handleMouseDown = (e: MouseEvent) => {
     currentDragAltKey = e.altKey
   }
@@ -173,28 +179,25 @@ const setupDraggableToken = (element: HTMLElement, email: EmailAddress) => {
     }),
     onDragStart: () => {
       element.style.opacity = '0.5'
-      isDragCopy.value = currentDragAltKey
     },
     onDrop: () => {
       element.style.opacity = '1'
-      isDragCopy.value = false
       currentDragAltKey = false
     },
   })
 
-  // Return original cleanup wrapped to also remove mousedown listener
-  const originalCleanup = cleanup
   const wrappedCleanup = () => {
     element.removeEventListener('mousedown', handleMouseDown)
-    originalCleanup()
+    cleanup()
   }
 
-  dragCleanups.value.set(key, wrappedCleanup)
+  dragCleanups.set(key, wrappedCleanup)
 }
 
 const setupDropTarget = (element: HTMLElement) => {
   if (dropTargetCleanup) {
     dropTargetCleanup()
+    dropTargetCleanup = null
   }
 
   dropTargetCleanup = dropTargetForElements({
@@ -205,8 +208,9 @@ const setupDropTarget = (element: HTMLElement) => {
     },
     onDragEnter: (args) => {
       const data = args.source.data as unknown as EmailTokenDragData
+      const canDrop = data.type === 'email-token' && data.sourceInstanceId !== instanceId
       isDropTarget.value = true
-      canAcceptDrop.value = data.type === 'email-token' && data.sourceInstanceId !== instanceId
+      canAcceptDrop.value = canDrop
     },
     onDragLeave: () => {
       isDropTarget.value = false
@@ -223,16 +227,13 @@ const setupDropTarget = (element: HTMLElement) => {
           emit('update:modelValue', [...props.modelValue, data.email])
         }
 
-        // Check if Alt key was pressed (copy mode)
-        const isCopyMode = data.isCopy || isDragCopy.value
-
         window.dispatchEvent(
           new CustomEvent('email-token-dropped', {
             detail: {
               email: data.email,
               sourceInstanceId: data.sourceInstanceId,
               targetInstanceId: instanceId,
-              isCopyMode,
+              isCopyMode: data.isCopy,
             },
           })
         )
@@ -241,8 +242,10 @@ const setupDropTarget = (element: HTMLElement) => {
   })
 }
 
-const handleEmailTokenDropped = (event: CustomEvent) => {
-  const { email, sourceInstanceId, targetInstanceId, isCopyMode } = event.detail
+const handleEmailTokenDropped = (event: Event) => {
+  const customEvent = event as CustomEvent
+  const { email, sourceInstanceId, targetInstanceId, isCopyMode } = customEvent.detail
+
   if (sourceInstanceId === instanceId && !isCopyMode && targetInstanceId) {
     emit(
       'update:modelValue',
@@ -251,51 +254,91 @@ const handleEmailTokenDropped = (event: CustomEvent) => {
   }
 }
 
-watch(containerRef, (newContainer) => {
-  if (newContainer) {
-    setupDropTarget(newContainer)
+const handleInputChange = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  const value = target.value
+  searchQuery.value = value
+
+  if (!isOpen.value && value) {
+    isOpen.value = true
   }
+}
+
+const setTokenRef = (email: EmailAddress) => {
+  return (el: any) => {
+    if (el && el.$el) {
+      const element = el.$el as HTMLElement
+      const key = email.address
+
+      tokenElementRefs.set(key, element)
+
+      nextTick(() => {
+        setupDraggableToken(element, email)
+      })
+    }
+  }
+}
+
+watch(
+  () => props.modelValue,
+  (newValue, oldValue) => {
+    if (!oldValue) return
+
+    const newAddresses = new Set(newValue.map((e) => e.address))
+    const removedEmails = oldValue.filter((e) => !newAddresses.has(e.address))
+
+    removedEmails.forEach((email) => {
+      const key = email.address
+      const cleanup = dragCleanups.get(key)
+      if (cleanup) {
+        cleanup()
+        dragCleanups.delete(key)
+      }
+      tokenElementRefs.delete(key)
+    })
+  },
+  { deep: true }
+)
+
+onClickOutside(containerRef, () => {
+  isOpen.value = false
+  selectedIndex.value = -1
 })
 
 onMounted(() => {
-  window.addEventListener('email-token-dropped', handleEmailTokenDropped as EventListener)
-  setTimeout(() => {
+  window.addEventListener('email-token-dropped', handleEmailTokenDropped)
+
+  nextTick(() => {
     if (containerRef.value) {
+      setupDropTarget(containerRef.value)
+
       const inputElement = containerRef.value.querySelector('input')
       if (inputElement) {
-        inputListener = (e: Event) => {
-          const target = e.target as HTMLInputElement
-          const value = target.value
-          searchQuery.value = value
-
-          if (!isOpen.value && value) {
-            isOpen.value = true
-          }
-        }
-
-        inputElement.addEventListener('input', inputListener)
+        inputElement.addEventListener('input', handleInputChange)
       }
     }
-  }, 100)
+  })
 })
 
 onUnmounted(() => {
-  window.removeEventListener('email-token-dropped', handleEmailTokenDropped as EventListener)
+  window.removeEventListener('email-token-dropped', handleEmailTokenDropped)
 
-  if (containerRef.value && inputListener) {
+  if (containerRef.value) {
     const inputElement = containerRef.value.querySelector('input')
     if (inputElement) {
-      inputElement.removeEventListener('input', inputListener)
+      inputElement.removeEventListener('input', handleInputChange)
     }
   }
 
-  dragCleanups.value.forEach((cleanup) => {
+  dragCleanups.forEach((cleanup) => {
     cleanup()
   })
-  dragCleanups.value.clear()
+  dragCleanups.clear()
+  tokenElementRefs.clear()
 
   if (dropTargetCleanup) {
     dropTargetCleanup()
+    dropTargetCleanup = null
   }
 })
 </script>
@@ -307,24 +350,17 @@ onUnmounted(() => {
     :class="{
       'ring-1 ring-selection ring-offset-2': isDropTarget && canAcceptDrop,
     }"
-    c
   >
     <TagsInput
       :delimiter="delimiter"
       :model-value="modelValue"
       class="flex-1"
-      @update:model-value="(v) => handleModelValueChange(v as EmailAddress[])"
+      @update:model-value="handleModelValueChange"
     >
       <TagsInputItem
         v-for="email in modelValue"
         :key="email.address"
-        :ref="
-          (el: any) => {
-            if (el && el.$el) {
-              setupDraggableToken(el.$el as HTMLElement, email)
-            }
-          }
-        "
+        :ref="setTokenRef(email)"
         :value="email"
       >
         <RavnAvatar
@@ -333,9 +369,9 @@ onUnmounted(() => {
           class="pointer-events-none ml-1"
           size="xs"
         />
-        <span class="px-2 py-0.5 text-sm">{{
-          email.name ? `${email.name} <${email.address}>` : email.address
-        }}</span>
+        <span class="px-2 py-0.5 text-sm">
+          {{ email.name ? `${email.name} <${email.address}>` : email.address }}
+        </span>
         <TagsInputItemDelete />
       </TagsInputItem>
       <TagsInputInput
@@ -345,49 +381,64 @@ onUnmounted(() => {
         @keydown="handleKeyDown"
       />
     </TagsInput>
-    <div
-      v-show="isOpen"
-      class="absolute top-full right-0 left-0 z-50 mt-1 max-h-96 overflow-y-auto rounded-md border border-popover-border bg-popover p-1 text-popover-foreground shadow-lg"
+
+    <Transition
+      enter-active-class="transition duration-100 ease-out"
+      enter-from-class="transform opacity-0 scale-95"
+      enter-to-class="transform opacity-100 scale-100"
+      leave-active-class="transition duration-75 ease-in"
+      leave-from-class="transform opacity-100 scale-100"
+      leave-to-class="transform opacity-0 scale-95"
     >
       <div
-        v-if="suggestions.length === 0"
-        class="text-muted-foreground px-3 py-2 text-sm"
+        v-show="isOpen"
+        class="absolute top-full right-0 left-0 z-50 mt-1 max-h-96 overflow-y-auto rounded-md border border-popover-border bg-popover p-1 text-popover-foreground shadow-lg"
       >
-        {{
-          searchQuery
-            ? t('components.emailAutocomplete.noResults')
-            : t('components.emailAutocomplete.noContacts')
-        }}
-      </div>
-      <div
-        v-for="(contact, index) in suggestions"
-        :key="contact.id"
-        :class="{ 'bg-selection text-selection-foreground': index === selectedIndex }"
-        :data-index="index"
-        class="flex items-center gap-2 rounded p-2 transition-colors hover:bg-selection hover:text-selection-foreground"
-        @click="selectContact(contact)"
-        @mouseenter="selectedIndex = index"
-      >
-        <RavnAvatar
-          :email="contact.email"
-          class="shrink-0"
-        />
+        <div
+          v-if="suggestions.length === 0"
+          class="text-muted-foreground px-3 py-2 text-sm"
+        >
+          {{
+            searchQuery
+              ? t('components.emailAutocomplete.noResults')
+              : t('components.emailAutocomplete.noContacts')
+          }}
+        </div>
 
-        <div class="min-w-0 flex-1">
-          <div class="truncate text-sm font-semibold">
-            {{ contact.display_name || contact.email }}
+        <div
+          v-for="(contact, index) in suggestions"
+          :key="contact.id"
+          :class="{ 'bg-selection text-selection-foreground': index === selectedIndex }"
+          :data-index="index"
+          class="flex cursor-pointer items-center gap-2 rounded p-2 transition-colors hover:bg-selection hover:text-selection-foreground"
+          @click="selectContact(contact)"
+          @mouseenter="selectedIndex = index"
+        >
+          <RavnAvatar
+            :email="contact.email"
+            class="shrink-0"
+          />
+
+          <div class="min-w-0 flex-1">
+            <div class="truncate text-sm font-semibold">
+              {{ contact.display_name || contact.email }}
+            </div>
+            <div
+              v-if="contact.display_name"
+              class="truncate text-xs opacity-70"
+            >
+              {{ contact.email }}
+            </div>
           </div>
+
           <div
-            v-if="contact.display_name"
-            class="truncate text-xs opacity-70"
+            v-if="contact.send_count"
+            class="shrink-0 text-xs opacity-60"
           >
-            {{ contact.email }}
+            {{ contact.send_count }}
           </div>
-        </div>
-        <div class="flex-shrink-0 text-xs opacity-60">
-          {{ contact.send_count }}
         </div>
       </div>
-    </div>
+    </Transition>
   </div>
 </template>
