@@ -1,4 +1,5 @@
 {
+  "language_servers": ["!eslint", "..."],
   "lsp": {
     "oxlint": {
       "initialization_options": {
