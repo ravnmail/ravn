@@ -2,6 +2,7 @@
 import MessageView from '~/components/Ravn/MessageView.vue'
 import EmailAIAnalysis from '~/components/Ravn/EmailAIAnalysis.vue'
 import EmailActionButtons from '~/components/Ravn/EmailActionButtons.vue'
+import Composer from '~/components/Composer.vue'
 import type { EmailDetail } from '~/types/email'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
 
@@ -87,7 +88,10 @@ const handleQuickReply = (content: string) => {
 
 <template>
   <div class="flex flex-col w-full h-full">
-    <div v-if="selectedEmail">
+    <div v-if="selectedEmail && selectedEmail.is_draft" class="p-3">
+      <Composer :draft="selectedEmail" />
+    </div>
+    <div v-else-if="selectedEmail">
       <div class="px-3 pb-3">
         <div class="flex items-center justify-between">
           <h1 class="pl-4 text-xl font-semibold select-auto text-primary relative z-10">

@@ -6,6 +6,7 @@ pub mod email;
 pub mod email_dto;
 pub mod folder;
 pub mod label;
+pub mod pending_operation;
 pub mod signature;
 pub mod sync_state;
 pub mod view;

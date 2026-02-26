@@ -124,6 +124,8 @@ CREATE TABLE IF NOT EXISTS emails (
     scheduled_send_at TIMESTAMP,
     received_at TIMESTAMP NOT NULL,
     sent_at TIMESTAMP,
+    deleted_at TIMESTAMP,
+    deletion_source TEXT CHECK (deletion_source IN ('local', 'provider', 'sync')),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
@@ -178,12 +180,41 @@ CREATE TABLE IF NOT EXISTS sync_state (
         CHECK (sync_status IN ('idle', 'syncing', 'error', 'paused')),
     error_message TEXT,
     error_count INTEGER NOT NULL DEFAULT 0,
+    checkpoint_data TEXT,
+    full_sync_required BOOLEAN NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
     FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE,
     UNIQUE(account_id, folder_id)
 );
+
+-- Pending Operations: Queue for offline/async provider operations
+CREATE TABLE IF NOT EXISTS pending_operations (
+    id TEXT NOT NULL PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    email_id TEXT,
+    folder_id TEXT,
+    operation_type TEXT NOT NULL CHECK (operation_type IN (
+        'mark_read', 'mark_unread', 'flag', 'unflag',
+        'move', 'delete', 'permanent_delete',
+        'create_draft', 'update_draft', 'send'
+    )),
+    payload TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'in_progress', 'completed', 'failed', 'cancelled')),
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    max_retries INTEGER NOT NULL DEFAULT 3,
+    error_message TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    expires_at TIMESTAMP,
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_pending_ops_status ON pending_operations(status);
+CREATE INDEX IF NOT EXISTS idx_pending_ops_account ON pending_operations(account_id);
+CREATE INDEX IF NOT EXISTS idx_pending_ops_email ON pending_operations(email_id);
 
 -- OAuth Credentials: Metadata for OAuth tokens (actual tokens in OS keyring)
 CREATE TABLE IF NOT EXISTS oauth_credentials (

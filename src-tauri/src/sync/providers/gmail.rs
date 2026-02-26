@@ -43,10 +43,8 @@ struct GmailLabel {
 #[derive(Debug, Deserialize)]
 struct GmailMessagesResponse {
     messages: Option<Vec<GmailMessageRef>>,
-    // #[serde(rename = "nextPageToken")]
-    // next_page_token: Option<String>,
-    // #[serde(rename = "resultSizeEstimate")]
-    // result_size_estimate: Option<i32>,
+    #[serde(rename = "nextPageToken")]
+    next_page_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -64,8 +62,8 @@ struct GmailMessage {
     #[serde(rename = "labelIds")]
     label_ids: Option<Vec<String>>,
     snippet: Option<String>,
-    // #[serde(rename = "historyId")]
-    // history_id: Option<String>,
+    #[serde(rename = "historyId")]
+    history_id: Option<String>,
     #[serde(rename = "internalDate")]
     internal_date: Option<String>,
     payload: Option<GmailPayload>,
@@ -98,6 +96,61 @@ struct GmailBody {
     attachment_id: Option<String>,
     size: Option<i64>,
     data: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GmailHistoryResponse {
+    history: Option<Vec<GmailHistoryRecord>>,
+    #[serde(rename = "historyId")]
+    history_id: String,
+    #[serde(rename = "nextPageToken")]
+    next_page_token: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GmailHistoryRecord {
+    #[serde(rename = "messagesAdded")]
+    messages_added: Option<Vec<GmailHistoryMessage>>,
+    #[serde(rename = "messagesDeleted")]
+    messages_deleted: Option<Vec<GmailHistoryMessage>>,
+    #[serde(rename = "labelsAdded")]
+    labels_added: Option<Vec<GmailHistoryLabelChange>>,
+    #[serde(rename = "labelsRemoved")]
+    labels_removed: Option<Vec<GmailHistoryLabelChange>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GmailHistoryMessage {
+    message: GmailHistoryMessageRef,
+}
+
+#[derive(Debug, Deserialize)]
+struct GmailHistoryMessageRef {
+    id: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GmailHistoryLabelChange {
+    message: GmailHistoryMessageRef,
+    #[serde(rename = "labelIds")]
+    label_ids: Vec<String>,
+}
+
+/// Convert Gmail label IDs to IMAP-standard flags.
+/// Gmail uses labels like "UNREAD", "STARRED", "DRAFT" whereas the DB model
+/// expects IMAP-standard flags like "\Seen", "\Flagged", "\Draft".
+fn normalize_gmail_flags(label_ids: &[String]) -> Vec<String> {
+    let mut flags = Vec::new();
+    if !label_ids.iter().any(|l| l == "UNREAD") {
+        flags.push("\\Seen".to_string());
+    }
+    if label_ids.iter().any(|l| l == "STARRED") {
+        flags.push("\\Flagged".to_string());
+    }
+    if label_ids.iter().any(|l| l == "DRAFT") {
+        flags.push("\\Draft".to_string());
+    }
+    flags
 }
 
 impl GmailProvider {
@@ -134,6 +187,158 @@ impl GmailProvider {
 
         self.access_token = Some(credentials.access_token.clone());
         Ok(credentials.access_token)
+    }
+
+    /// Perform delta sync using Gmail History API
+    /// Returns (added/modified emails, deleted remote IDs, new historyId)
+    async fn sync_history(
+        &self,
+        folder: &SyncFolder,
+        start_history_id: &str,
+    ) -> SyncResult<(Vec<SyncEmail>, Vec<String>, String)> {
+        let token = self
+            .access_token
+            .as_ref()
+            .ok_or_else(|| SyncError::AuthenticationError("Not authenticated".to_string()))?;
+
+        let _folder_id = folder
+            .id
+            .ok_or_else(|| SyncError::DatabaseError("Folder ID is required".to_string()))?;
+
+        let mut added_ids = std::collections::HashSet::new();
+        let mut deleted_ids = std::collections::HashSet::new();
+        let mut page_token: Option<String> = None;
+        let mut latest_history_id = start_history_id.to_string();
+
+        // Paginate through all history records
+        loop {
+            let mut request = self
+                .client
+                .get(format!("{}/users/me/history", GMAIL_API_BASE))
+                .bearer_auth(token)
+                .query(&[
+                    ("startHistoryId", start_history_id),
+                    ("labelId", &folder.remote_id),
+                ]);
+
+            if let Some(ref pt) = page_token {
+                request = request.query(&[("pageToken", pt)]);
+            }
+
+            let response = request.send().await?;
+
+            if response.status() == reqwest::StatusCode::NOT_FOUND
+                || response.status() == reqwest::StatusCode::GONE
+            {
+                // 404/410: historyId is too old, caller should fall back to full sync
+                return Err(SyncError::SyncTokenExpired(
+                    "Gmail history ID expired, full sync required".to_string(),
+                ));
+            }
+
+            if !response.status().is_success() {
+                return Err(SyncError::GmailError(format!(
+                    "Failed to fetch history: {}",
+                    response.status()
+                )));
+            }
+
+            let history_response: GmailHistoryResponse = response.json().await?;
+            latest_history_id = history_response.history_id.clone();
+
+            if let Some(records) = history_response.history {
+                for record in records {
+                    // Messages added to this label
+                    if let Some(added) = record.messages_added {
+                        for msg in added {
+                            added_ids.insert(msg.message.id);
+                        }
+                    }
+                    // Labels added (message moved into this folder)
+                    if let Some(label_changes) = record.labels_added {
+                        for change in label_changes {
+                            if change.label_ids.contains(&folder.remote_id) {
+                                added_ids.insert(change.message.id);
+                            }
+                        }
+                    }
+                    // Messages deleted from this label
+                    if let Some(deleted) = record.messages_deleted {
+                        for msg in deleted {
+                            deleted_ids.insert(msg.message.id);
+                        }
+                    }
+                    // Labels removed (message moved out of this folder)
+                    if let Some(label_changes) = record.labels_removed {
+                        for change in label_changes {
+                            if change.label_ids.contains(&folder.remote_id) {
+                                deleted_ids.insert(change.message.id);
+                            }
+                        }
+                    }
+                }
+            }
+
+            match history_response.next_page_token {
+                Some(next_token) => page_token = Some(next_token),
+                None => break,
+            }
+        }
+
+        // Remove IDs that were both added and deleted (net effect: no change or re-fetch)
+        // If added after deleted, we should fetch it. If deleted after added, skip.
+        // Since history is chronological, keep the add if it appears at all (fetch will verify)
+        let net_deleted: Vec<String> = deleted_ids
+            .iter()
+            .filter(|id| !added_ids.contains(*id))
+            .cloned()
+            .collect();
+
+        // Fetch full message data for added/modified messages
+        let mut emails = Vec::new();
+        for msg_id in &added_ids {
+            match self.fetch_email(folder, msg_id).await {
+                Ok(email) => emails.push(email),
+                Err(e) => {
+                    log::warn!(
+                        "[Gmail] Failed to fetch delta message {}: {} (may have been deleted)",
+                        msg_id,
+                        e
+                    );
+                }
+            }
+        }
+
+        log::info!(
+            "[Gmail] History sync: {} added/modified, {} deleted (historyId: {} -> {})",
+            emails.len(),
+            net_deleted.len(),
+            start_history_id,
+            latest_history_id
+        );
+
+        Ok((emails, net_deleted, latest_history_id))
+    }
+
+    /// Get the latest historyId from the Gmail profile
+    async fn get_profile_history_id(&self, token: &str) -> Option<String> {
+        let response = self
+            .client
+            .get(format!("{}/users/me/profile", GMAIL_API_BASE))
+            .bearer_auth(token)
+            .send()
+            .await
+            .ok()?;
+
+        if !response.status().is_success() {
+            return None;
+        }
+
+        let profile: serde_json::Value = response.json().await.ok()?;
+        profile
+            .get("historyId")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
     }
 
     fn map_label_to_folder_type(label_id: &str, label_name: &str) -> FolderType {
@@ -259,11 +464,12 @@ impl GmailProvider {
                 .unwrap_or_else(|| Utc::now())
         };
 
-        let flags: Vec<String> = gmail_msg
+        let label_ids = gmail_msg
             .label_ids
             .as_ref()
-            .map(|labels| labels.iter().map(|l| l.clone()).collect())
+            .map(|labels| labels.to_vec())
             .unwrap_or_default();
+        let flags = normalize_gmail_flags(&label_ids);
 
         let attachments: Vec<SyncAttachment> = message
             .attachments()
@@ -384,11 +590,12 @@ impl GmailProvider {
             Utc::now()
         };
 
-        let flags: Vec<String> = msg
+        let label_ids = msg
             .label_ids
             .as_ref()
-            .map(|labels| labels.iter().map(|l| l.clone()).collect())
+            .map(|labels| labels.to_vec())
             .unwrap_or_default();
+        let flags = normalize_gmail_flags(&label_ids);
 
         let (body_plain, body_html, attachments) = Self::extract_parts(payload);
 
@@ -664,50 +871,108 @@ impl EmailProvider for GmailProvider {
     async fn sync_messages(
         &self,
         folder: &SyncFolder,
-        _sync_token: Option<String>,
+        sync_token: Option<String>,
     ) -> SyncResult<crate::sync::types::SyncDiff> {
+        // Delta sync via History API when we have a historyId
+        if let Some(ref history_id) = sync_token {
+            match self.sync_history(folder, history_id).await {
+                Ok((emails, deleted, new_history_id)) => {
+                    return Ok(crate::sync::types::SyncDiff {
+                        added: emails,
+                        modified: Vec::new(),
+                        deleted,
+                        next_sync_token: Some(new_history_id),
+                        is_complete: false, // Delta sync is not a complete enumeration
+                    });
+                }
+                Err(SyncError::SyncTokenExpired(_)) => {
+                    log::warn!(
+                        "[Gmail] History ID {} expired for folder {}, falling back to full sync",
+                        history_id,
+                        folder.name
+                    );
+                    // Fall through to full sync below
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        // Full sync: paginate through all messages
         let token = self
             .access_token
             .as_ref()
             .ok_or_else(|| SyncError::AuthenticationError("Not authenticated".to_string()))?;
 
         let max_results = 100;
+        let mut all_message_refs = Vec::new();
+        let mut page_token: Option<String> = None;
 
-        let response = self
-            .client
-            .get(format!("{}/users/me/messages", GMAIL_API_BASE))
-            .bearer_auth(token)
-            .query(&[
-                ("labelIds", &folder.remote_id),
-                ("maxResults", &max_results.to_string()),
-            ])
-            .send()
-            .await?;
+        loop {
+            let mut request = self
+                .client
+                .get(format!("{}/users/me/messages", GMAIL_API_BASE))
+                .bearer_auth(token)
+                .query(&[
+                    ("labelIds", &folder.remote_id),
+                    ("maxResults", &max_results.to_string()),
+                ]);
 
-        if !response.status().is_success() {
-            return Err(SyncError::GmailError(format!(
-                "Failed to fetch messages: {}",
-                response.status()
-            )));
+            if let Some(ref pt) = page_token {
+                request = request.query(&[("pageToken", pt)]);
+            }
+
+            let response = request.send().await?;
+
+            if !response.status().is_success() {
+                return Err(SyncError::GmailError(format!(
+                    "Failed to fetch messages: {}",
+                    response.status()
+                )));
+            }
+
+            let messages_response: GmailMessagesResponse = response.json().await?;
+
+            if let Some(refs) = messages_response.messages {
+                all_message_refs.extend(refs);
+            }
+
+            match messages_response.next_page_token {
+                Some(next_token) => {
+                    log::debug!(
+                        "[Gmail] Fetching next page of messages for folder {} ({} so far)",
+                        folder.name,
+                        all_message_refs.len()
+                    );
+                    page_token = Some(next_token);
+                }
+                None => break,
+            }
         }
 
-        let messages_response: GmailMessagesResponse = response.json().await?;
+        log::info!(
+            "[Gmail] Found {} messages in folder {}",
+            all_message_refs.len(),
+            folder.name
+        );
 
-        let message_refs = messages_response.messages.unwrap_or_default();
         let mut emails = Vec::new();
 
-        for msg_ref in message_refs {
+        for msg_ref in all_message_refs {
             match self.fetch_email(folder, &msg_ref.id).await {
                 Ok(email) => emails.push(email),
                 Err(e) => log::error!("Failed to fetch email {}: {}", msg_ref.id, e),
             }
         }
 
+        // Get latest historyId from profile for future delta sync
+        let latest_history_id = self.get_profile_history_id(token).await;
+
         Ok(crate::sync::types::SyncDiff {
             added: emails,
             modified: Vec::new(),
             deleted: Vec::new(),
-            next_sync_token: None,
+            next_sync_token: latest_history_id,
+            is_complete: true,
         })
     }
 

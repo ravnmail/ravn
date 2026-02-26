@@ -129,6 +129,9 @@ pub struct SyncDiff {
     pub deleted: Vec<String>,
     /// Delta token for next incremental sync (provider-specific)
     pub next_sync_token: Option<String>,
+    /// Whether this diff represents a complete view of the folder
+    /// (true = all emails enumerated; safe to compute deletions by diffing)
+    pub is_complete: bool,
 }
 
 #[derive(Debug, Clone)]

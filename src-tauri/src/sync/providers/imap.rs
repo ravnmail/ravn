@@ -1121,6 +1121,7 @@ impl EmailProvider for ImapProvider {
                 modified: Vec::new(),
                 deleted: Vec::new(),
                 next_sync_token: None,
+                is_complete: since_uid.is_none(), // Complete only for full sync
             });
         }
 
@@ -1150,6 +1151,7 @@ impl EmailProvider for ImapProvider {
                 modified: Vec::new(),
                 deleted: Vec::new(),
                 next_sync_token: None,
+                is_complete: since_uid.is_none(),
             });
         }
 
@@ -1184,18 +1186,19 @@ impl EmailProvider for ImapProvider {
             self.account_id
         );
 
-        // Get the highest UID from fetched emails for next sync
+        // Get the highest UID from fetched emails for next incremental sync
         let next_token = emails
             .iter()
-            .filter_map(|e| e.last_modified_at)
+            .filter_map(|e| e.remote_id.parse::<u32>().ok())
             .max()
-            .map(|dt| dt.timestamp().to_string());
+            .map(|uid| uid.to_string());
 
         Ok(crate::sync::types::SyncDiff {
             added: emails,
             modified: Vec::new(),
             deleted: Vec::new(),
             next_sync_token: next_token,
+            is_complete: since_uid.is_none(), // Complete only for full sync (no since_uid)
         })
     }
 

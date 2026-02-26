@@ -223,19 +223,33 @@ onBeforeUnmount(() => {
             />
           </div>
           <div class="px-3 pt-3 space-y-6">
-            <MessageView
+            <template
               v-for="(message, index) in conversation?.messages"
               :key="message.id"
-              :auto-analyze="true"
-              :class="[ settings.email.conversation.insetOutgoing && isSentMessage(message) ? 'ml-12' : '' ]"
-              :initial-reduced="settings.email.conversation.collapseMessages && index > 0"
-              :is-first="index === 0"
-              v-bind="message"
-              @forward="handleForward"
-              @reply="handleReply"
-              @reply-all="handleReplyAll"
-              @quick-reply="handleQuickReply"
-            />
+            >
+              <div
+                v-if="message.is_draft"
+                class="border border-border rounded-lg p-3"
+              >
+                <Composer
+                  :draft="message"
+                  @discarded="handleComposerDiscarded"
+                  @sent="handleComposerSent"
+                />
+              </div>
+              <MessageView
+                v-else
+                :auto-analyze="true"
+                :class="[ settings.email.conversation.insetOutgoing && isSentMessage(message) ? 'ml-12' : '' ]"
+                :initial-reduced="settings.email.conversation.collapseMessages && index > 0"
+                :is-first="index === 0"
+                v-bind="message"
+                @forward="handleForward"
+                @reply="handleReply"
+                @reply-all="handleReplyAll"
+                @quick-reply="handleQuickReply"
+              />
+            </template>
           </div>
         </ScrollArea>
       </div>

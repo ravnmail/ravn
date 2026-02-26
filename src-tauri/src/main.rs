@@ -28,7 +28,7 @@ use app_lib::{
     services::corvus::CorvusService,
     sync::{
         BackgroundAiAnalyzer, BackgroundAvatarFetcher, BackgroundBodyFetcher, BackgroundCleanup,
-        BackgroundSyncManager, OAuthStateManager,
+        BackgroundSyncManager, OAuthStateManager, OperationQueue,
     },
     AppState,
 };
@@ -337,6 +337,13 @@ fn main() {
                 .with_app_handle(app_handle.clone()),
             );
 
+            // Create the operation queue to process pending operations (delete, mark read, flag, move)
+            let op_queue = OperationQueue::new(
+                db.get_pool().clone(),
+                Arc::clone(&credential_store),
+            )
+            .with_app_handle(app_handle.clone());
+
             let state = AppState {
                 db_pool: db.get_pool().clone(),
                 settings: Arc::clone(&settings),
@@ -410,6 +417,9 @@ fn main() {
                     }
                 }
             });
+
+            // Start the operation queue background processor
+            op_queue.start();
 
             let menu = create_menu(app)?;
             app.set_menu(menu)?;
@@ -519,6 +529,7 @@ fn main() {
             sync::start_background_sync,
             sync::stop_background_sync,
             sync::get_sync_status,
+            sync::get_sync_health,
             sync::is_account_syncing,
             contacts::search_contacts,
             contacts::get_top_contacts,

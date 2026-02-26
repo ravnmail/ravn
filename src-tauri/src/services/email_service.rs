@@ -92,6 +92,8 @@ pub struct EmailData {
     pub subject: String,
     pub body_html: String,
     pub attachments: Vec<EmailAttachment>,
+    pub in_reply_to: Option<String>,
+    pub references: Option<String>,
 }
 
 /// Email service for sending emails via SMTP
@@ -161,6 +163,13 @@ impl EmailService {
         let mut message_builder = Message::builder()
             .from(from.clone())
             .subject(email_data.subject);
+
+        if let Some(in_reply_to) = email_data.in_reply_to {
+            message_builder = message_builder.in_reply_to(in_reply_to);
+        }
+        if let Some(references) = email_data.references {
+            message_builder = message_builder.references(references);
+        }
 
         for to_addr in &email_data.to {
             message_builder = message_builder.to(Self::to_mailbox(to_addr)?);

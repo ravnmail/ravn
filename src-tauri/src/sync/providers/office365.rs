@@ -1372,6 +1372,7 @@ impl EmailProvider for Office365Provider {
                 modified,
                 deleted,
                 next_sync_token: next_token,
+                is_complete: false, // Delta sync is not a complete enumeration
             })
         } else {
             // Full sync: fetch all emails
@@ -1387,6 +1388,7 @@ impl EmailProvider for Office365Provider {
                 modified: Vec::new(),
                 deleted: Vec::new(),
                 next_sync_token: next_token,
+                is_complete: true, // Full sync is a complete enumeration
             })
         }
     }
@@ -1559,29 +1561,69 @@ impl EmailProvider for Office365Provider {
         &self,
         email_remote_id: &str,
         _folder: &SyncFolder,
-        _permanent: bool,
+        permanent: bool,
     ) -> SyncResult<()> {
         let email_remote_id_owned = email_remote_id.to_string();
 
-        let response = self
-            .execute_with_401_retry(|token| {
-                let client = self.client.clone();
-                let remote_id = email_remote_id_owned.clone();
-                async move {
-                    client
-                        .delete(format!("{}/me/messages/{}", GRAPH_API_BASE, remote_id))
-                        .bearer_auth(token)
-                        .send()
-                        .await
-                }
-            })
-            .await?;
+        if permanent {
+            // Hard delete: permanently remove the message
+            let response = self
+                .execute_with_401_retry(|token| {
+                    let client = self.client.clone();
+                    let remote_id = email_remote_id_owned.clone();
+                    async move {
+                        client
+                            .delete(format!("{}/me/messages/{}", GRAPH_API_BASE, remote_id))
+                            .bearer_auth(token)
+                            .send()
+                            .await
+                    }
+                })
+                .await?;
 
-        if !response.status().is_success() {
-            return Err(SyncError::Office365Error(format!(
-                "Failed to delete message: {}",
-                response.status()
-            )));
+            if !response.status().is_success() {
+                return Err(SyncError::Office365Error(format!(
+                    "Failed to permanently delete message: {}",
+                    response.status()
+                )));
+            }
+        } else {
+            // Soft delete: move to Deleted Items folder
+            #[derive(Serialize, Clone)]
+            struct MoveRequest {
+                #[serde(rename = "destinationId")]
+                destination_id: String,
+            }
+
+            let request = MoveRequest {
+                destination_id: "deleteditems".to_string(),
+            };
+
+            let response = self
+                .execute_with_401_retry(|token| {
+                    let client = self.client.clone();
+                    let remote_id = email_remote_id_owned.clone();
+                    let req = request.clone();
+                    async move {
+                        client
+                            .post(format!(
+                                "{}/me/messages/{}/move",
+                                GRAPH_API_BASE, remote_id
+                            ))
+                            .bearer_auth(token)
+                            .json(&req)
+                            .send()
+                            .await
+                    }
+                })
+                .await?;
+
+            if !response.status().is_success() {
+                return Err(SyncError::Office365Error(format!(
+                    "Failed to move message to trash: {}",
+                    response.status()
+                )));
+            }
         }
 
         Ok(())
@@ -1801,6 +1843,9 @@ impl EmailProvider for Office365Provider {
         subject: String,
         body_html: String,
         attachments: Vec<crate::sync::types::EmailAttachmentData>,
+        in_reply_to: Option<String>,
+        references: Option<String>,
+        conversation_id: Option<String>,
     ) -> SyncResult<()> {
         log::info!("[Office365] Sending email with subject: {}", subject);
 
@@ -1823,6 +1868,19 @@ impl EmailProvider for Office365Provider {
             bcc_recipients: Vec<Recipient>,
             #[serde(skip_serializing_if = "Vec::is_empty")]
             attachments: Vec<Attachment>,
+            #[serde(
+                rename = "internetMessageHeaders",
+                skip_serializing_if = "Vec::is_empty"
+            )]
+            internet_message_headers: Vec<InternetMessageHeader>,
+            #[serde(rename = "conversationId", skip_serializing_if = "Option::is_none")]
+            conversation_id: Option<String>,
+        }
+
+        #[derive(Serialize)]
+        struct InternetMessageHeader {
+            name: String,
+            value: String,
         }
 
         #[derive(Serialize)]
@@ -1901,6 +1959,20 @@ impl EmailProvider for Office365Provider {
             })
             .collect();
 
+        let mut internet_message_headers = Vec::new();
+        if let Some(ref reply_to) = in_reply_to {
+            internet_message_headers.push(InternetMessageHeader {
+                name: "In-Reply-To".to_string(),
+                value: reply_to.clone(),
+            });
+        }
+        if let Some(ref refs) = references {
+            internet_message_headers.push(InternetMessageHeader {
+                name: "References".to_string(),
+                value: refs.clone(),
+            });
+        }
+
         let request_body = SendMailRequest {
             message: Message {
                 subject,
@@ -1912,6 +1984,8 @@ impl EmailProvider for Office365Provider {
                 cc_recipients,
                 bcc_recipients,
                 attachments: graph_attachments,
+                internet_message_headers,
+                conversation_id,
             },
             save_to_sent_items: true,
         };

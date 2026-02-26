@@ -462,6 +462,98 @@ pub async fn update_folder_settings(
     Ok(())
 }
 
+/// Sync health information for an account
+#[derive(Debug, Serialize)]
+pub struct SyncHealthInfo {
+    pub account_id: Uuid,
+    pub is_syncing: bool,
+    pub pending_operations_count: i64,
+    pub last_sync_at: Option<String>,
+    pub last_error: Option<String>,
+    pub folders_with_errors: Vec<FolderSyncStatus>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct FolderSyncStatus {
+    pub folder_id: String,
+    pub folder_name: String,
+    pub sync_status: String,
+    pub last_sync_at: Option<String>,
+    pub error_count: i64,
+    pub error_message: Option<String>,
+}
+
+#[tauri::command]
+pub async fn get_sync_health(
+    state: State<'_, AppState>,
+    account_id: Uuid,
+) -> Result<SyncHealthInfo, String> {
+    let pool = &state.db_pool;
+    let is_syncing = state.background_sync_manager.is_syncing(&account_id).await;
+
+    // Count pending operations
+    let account_id_str = account_id.to_string();
+    let pending_count = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM pending_operations WHERE account_id = ? AND status IN ('pending', 'in_progress')",
+        account_id_str
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    // Get sync state for all folders using runtime query to avoid type mapping issues
+    let rows = sqlx::query(
+        r#"
+        SELECT ss.folder_id, f.name as folder_name, ss.sync_status,
+               ss.last_sync_at, ss.error_count, ss.error_message
+        FROM sync_state ss
+        JOIN folders f ON f.id = ss.folder_id
+        WHERE ss.account_id = ?
+        ORDER BY ss.last_sync_at DESC
+        "#,
+    )
+    .bind(&account_id_str)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    use sqlx::Row;
+
+    let mut last_sync_at: Option<String> = None;
+    let mut last_error: Option<String> = None;
+    let mut folders_with_errors: Vec<FolderSyncStatus> = Vec::new();
+
+    for row in rows {
+        let sync_at: Option<String> = row.try_get("last_sync_at").ok();
+        let error_msg: Option<String> = row.try_get("error_message").ok().flatten();
+
+        if last_sync_at.is_none() {
+            last_sync_at = sync_at.clone();
+        }
+        if last_error.is_none() {
+            last_error = error_msg.clone();
+        }
+
+        folders_with_errors.push(FolderSyncStatus {
+            folder_id: row.try_get::<String, _>("folder_id").unwrap_or_default(),
+            folder_name: row.try_get::<String, _>("folder_name").unwrap_or_default(),
+            sync_status: row.try_get::<String, _>("sync_status").unwrap_or_default(),
+            last_sync_at: sync_at,
+            error_count: row.try_get::<i64, _>("error_count").unwrap_or(0),
+            error_message: error_msg,
+        });
+    }
+
+    Ok(SyncHealthInfo {
+        account_id,
+        is_syncing,
+        pending_operations_count: pending_count,
+        last_sync_at,
+        last_error,
+        folders_with_errors,
+    })
+}
+
 #[derive(Debug, Deserialize)]
 pub struct UndeleteEmailsRequest {
     pub account_id: Uuid,

@@ -114,6 +114,44 @@ pub struct CredentialsRequiredEvent {
     pub reason: String,
 }
 
+/// Event emitted when a pending operation fails permanently
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperationFailedEvent {
+    pub account_id: Uuid,
+    pub operation_id: Uuid,
+    pub email_id: Option<Uuid>,
+    pub operation_type: String,
+    pub error: String,
+}
+
+/// Event emitted when pending operation count changes
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PendingOperationsCountEvent {
+    pub account_id: Uuid,
+    pub count: i64,
+}
+
+/// Event emitted during sync to report progress
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncProgressEvent {
+    pub account_id: Uuid,
+    pub folder_id: Uuid,
+    pub folder_name: String,
+    pub added: usize,
+    pub modified: usize,
+    pub deleted: usize,
+    pub conflicts_resolved: usize,
+}
+
+/// Event emitted when a conflict between local and provider state is resolved
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConflictResolvedEvent {
+    pub account_id: Uuid,
+    pub email_id: Uuid,
+    pub operation_type: String,
+    pub resolution: String,
+}
+
 /// Helper to emit events to the frontend
 pub fn emit_event<T: Serialize + Clone>(
     app_handle: &tauri::AppHandle,

@@ -4,13 +4,15 @@ use tauri::{Emitter, State};
 use uuid::Uuid;
 
 use crate::database::models::account::AccountType;
+use crate::database::models::conversation::Conversation;
 use crate::database::models::email::{Email, EmailAddress};
 use crate::database::models::email_dto::{AttachmentInfo, EmailDetail, EmailListItem, LabelInfo};
 use crate::database::models::folder::FolderType;
 use crate::database::repositories::{
-    AccountRepository, AttachmentRepository, EmailRepository, FolderRepository, LabelRepository,
-    SqliteAccountRepository, SqliteAttachmentRepository, SqliteEmailRepository,
-    SqliteFolderRepository, SqliteLabelRepository,
+    AccountRepository, AttachmentRepository, ConversationRepository, EmailRepository,
+    FolderRepository, LabelRepository, SqliteAccountRepository, SqliteAttachmentRepository,
+    SqliteConversationRepository, SqliteEmailRepository, SqliteFolderRepository,
+    SqliteLabelRepository,
 };
 use crate::services::email_service::{EmailAttachment, EmailData, EmailService};
 use crate::services::notification_service::NotificationService;
@@ -55,6 +57,8 @@ pub struct SendFromAccountRequest {
     pub attachments: Vec<AttachmentData>,
     pub draft_id: Option<Uuid>,
     pub conversation_id: Option<String>,
+    pub in_reply_to: Option<String>,
+    pub references: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,6 +72,8 @@ pub struct SaveDraftRequest {
     pub body: String,
     pub scheduled_send_at: Option<String>,
     pub conversation_id: Option<String>,
+    pub in_reply_to: Option<String>,
+    pub references: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -134,6 +140,57 @@ pub async fn send_email_from_account(
         .map_err(|e| format!("Failed to find account: {}", e))?
         .ok_or_else(|| format!("Account {} not found", request.account_id))?;
 
+    // Resolve threading info: use request fields directly, or extract from draft headers
+    let (in_reply_to, references_header) = if request.in_reply_to.is_some() {
+        (request.in_reply_to.clone(), request.references.clone())
+    } else if let Some(draft_id) = request.draft_id {
+        let email_repo = SqliteEmailRepository::new(state.db_pool.clone());
+        if let Ok(Some(draft)) = email_repo.find_by_id(draft_id).await {
+            if let Some(ref headers_str) = draft.headers {
+                if let Ok(headers_json) = serde_json::from_str::<serde_json::Value>(headers_str) {
+                    (
+                        headers_json
+                            .get("In-Reply-To")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string()),
+                        headers_json
+                            .get("References")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string()),
+                    )
+                } else {
+                    (None, None)
+                }
+            } else {
+                (None, None)
+            }
+        } else {
+            (None, None)
+        }
+    } else {
+        (None, None)
+    };
+
+    // Resolve provider conversation ID from local conversation_id
+    let provider_conversation_id = if let Some(ref conv_id) = request.conversation_id {
+        if let Ok(conv_uuid) = Uuid::parse_str(conv_id) {
+            let conv_repo = SqliteConversationRepository::new(state.db_pool.clone());
+            if let Ok(Some(conv)) = conv_repo.find_by_id(conv_uuid).await {
+                if !conv.remote_id.starts_with("local-draft-") {
+                    Some(conv.remote_id)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     if account.account_type == AccountType::Office365 {
         use crate::sync::provider::ProviderFactory;
         use crate::sync::types::{EmailAttachmentData, EmailRecipient};
@@ -188,6 +245,9 @@ pub async fn send_email_from_account(
                 request.subject.clone(),
                 request.body.clone(),
                 attachment_data,
+                in_reply_to.clone(),
+                references_header.clone(),
+                provider_conversation_id,
             )
             .await
             .map_err(|e| format!("Failed to send email via Office365: {}", e))?;
@@ -248,6 +308,8 @@ pub async fn send_email_from_account(
             subject: request.subject.clone(),
             body_html: request.body.clone(),
             attachments,
+            in_reply_to: in_reply_to.clone(),
+            references: references_header.clone(),
         };
 
         email_service
@@ -343,6 +405,8 @@ pub async fn send_email_from_account(
                 last_body_fetch_attempt: None,
                 change_key: None,
                 last_modified_at: None,
+                deleted_at: None,
+                deletion_source: None,
                 created_at: Utc::now(),
                 updated_at: Utc::now(),
             };
@@ -407,6 +471,24 @@ pub async fn save_draft(
         None
     };
 
+    // Build headers JSON with threading info
+    let headers = {
+        let mut h = serde_json::Map::new();
+        if let Some(ref irt) = request.in_reply_to {
+            h.insert(
+                "In-Reply-To".to_string(),
+                serde_json::Value::String(irt.clone()),
+            );
+        }
+        if let Some(ref refs) = request.references {
+            h.insert(
+                "References".to_string(),
+                serde_json::Value::String(refs.clone()),
+            );
+        }
+        serde_json::Value::Object(h).to_string()
+    };
+
     if let Some(draft_id) = request.draft_id {
         let mut draft = email_repo
             .find_by_id(draft_id)
@@ -420,6 +502,7 @@ pub async fn save_draft(
         draft.subject = Some(request.subject);
         draft.body_html = Some(request.body);
         draft.conversation_id = request.conversation_id;
+        draft.headers = Some(headers);
         draft.scheduled_send_at = scheduled_send_at;
         draft.updated_at = Utc::now();
 
@@ -436,6 +519,26 @@ pub async fn save_draft(
             message: "Draft updated successfully".to_string(),
         })
     } else {
+        // Create a conversation for new drafts if one wasn't provided
+        let conversation_id = if let Some(conv_id) = request.conversation_id {
+            Some(conv_id)
+        } else {
+            let conv_repo = SqliteConversationRepository::new(state.db_pool.clone());
+            let conv = Conversation {
+                id: Uuid::now_v7(),
+                remote_id: format!("local-draft-{}", Uuid::now_v7()),
+                message_count: 0,
+                ai_cache: None,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            };
+            conv_repo
+                .create(&conv)
+                .await
+                .map_err(|e| format!("Failed to create conversation: {}", e))?;
+            Some(conv.id.to_string())
+        };
+
         let message_id = format!("<draft-{}@ravn.app>", Uuid::now_v7());
 
         let draft = Email {
@@ -443,7 +546,7 @@ pub async fn save_draft(
             account_id: account.id,
             folder_id: draft_folder.id,
             message_id,
-            conversation_id: request.conversation_id,
+            conversation_id,
             remote_id: None,
             from: Json(EmailAddress {
                 address: account.email.clone(),
@@ -462,7 +565,7 @@ pub async fn save_draft(
             ai_cache: None,
             received_at: Utc::now(),
             size: 0,
-            headers: Some("".to_string()),
+            headers: Some(headers),
             sent_at: None,
             scheduled_send_at,
             is_read: false,
@@ -477,6 +580,8 @@ pub async fn save_draft(
             last_body_fetch_attempt: None,
             change_key: None,
             last_modified_at: None,
+            deleted_at: None,
+            deletion_source: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };

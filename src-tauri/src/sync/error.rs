@@ -50,6 +50,9 @@ pub enum SyncError {
     #[error("Operation not supported: {0}")]
     NotSupported(String),
 
+    #[error("Sync token expired: {0}")]
+    SyncTokenExpired(String),
+
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 
@@ -63,7 +66,46 @@ pub enum SyncError {
     Other(String),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum ErrorCategory {
+    /// Network timeouts, rate limits — safe to retry
+    Transient,
+    /// Provider-side errors — retry with backoff
+    Provider,
+    /// Invalid data from provider — skip item, continue sync
+    DataCorruption,
+    /// Missing credentials, bad settings — requires user action
+    Configuration,
+    /// Unrecoverable errors (e.g., database failure)
+    Fatal,
+}
+
 impl SyncError {
+    pub fn category(&self) -> ErrorCategory {
+        match self {
+            SyncError::NetworkError(_) | SyncError::ReqwestError(_) => ErrorCategory::Transient,
+            SyncError::GmailError(_)
+            | SyncError::Office365Error(_)
+            | SyncError::ImapError(_) => ErrorCategory::Provider,
+            SyncError::ParseError(_) | SyncError::JsonError(_) => ErrorCategory::DataCorruption,
+            SyncError::AuthenticationError(_)
+            | SyncError::OAuth2Error(_)
+            | SyncError::InvalidConfiguration(_)
+            | SyncError::KeyringError(_) => ErrorCategory::Configuration,
+            SyncError::DatabaseError(_) | SyncError::IoError(_) => ErrorCategory::Fatal,
+            SyncError::SyncInProgress(_) | SyncError::NotSupported(_) => ErrorCategory::Transient,
+            SyncError::SyncTokenExpired(_) => ErrorCategory::Transient,
+            _ => ErrorCategory::Transient,
+        }
+    }
+
+    pub fn is_retryable(&self) -> bool {
+        matches!(
+            self.category(),
+            ErrorCategory::Transient | ErrorCategory::Provider
+        )
+    }
+
     pub(crate) fn timeout(_p0: String) -> SyncError {
         todo!()
     }

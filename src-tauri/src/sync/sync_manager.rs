@@ -12,8 +12,10 @@ use super::folder_sync::FolderSync;
 use super::types::SyncFolder;
 use crate::database::error::DatabaseError;
 use crate::database::models::account::Account;
+use crate::database::models::pending_operation::{PendingOperation, PendingOperationType};
 use crate::database::repositories::{
     EmailRepository, FolderRepository, SqliteEmailRepository, SqliteFolderRepository,
+    SqlitePendingOperationRepository,
 };
 use crate::search::SearchManager;
 
@@ -283,7 +285,7 @@ impl SyncManager {
         self.folder_sync.get_folders(account_id).await
     }
 
-    /// Move an email between folders
+    /// Move an email between folders (local-first: updates DB immediately, queues provider sync)
     pub async fn move_email(
         &self,
         account: &Account,
@@ -291,31 +293,40 @@ impl SyncManager {
         to_folder_id: Uuid,
     ) -> SyncResult<()> {
         let email_repo = SqliteEmailRepository::new(self.pool.clone());
+        let pending_repo = SqlitePendingOperationRepository::new(self.pool.clone());
+
         let (from_folder_id, remote_id) = email_repo
             .find_for_remote_operation(email_id)
             .await
             .map_err(|e| SyncError::DatabaseError(e.to_string()))?
             .ok_or_else(|| SyncError::EmailNotFound(format!("Email not found: {}", email_id)))?;
 
-        let from_folder = self.get_folder_by_id(from_folder_id).await?;
-        let to_folder = self.get_folder_by_id(to_folder_id).await?;
-
-        let provider = super::provider::ProviderFactory::create_with_app_handle(
-            account,
-            Arc::clone(&self.credential_store),
-            self.app_handle.clone(),
-        )?;
-        provider
-            .move_email(&remote_id, &from_folder, &to_folder)
-            .await?;
-
+        // 1. Optimistic local update
         email_repo
             .update_folder(email_id, to_folder_id)
             .await
             .map_err(|e| SyncError::DatabaseError(e.to_string()))?;
 
-        log::info!("Moved email {} to folder {}", email_id, to_folder.name);
+        // 2. Queue provider operation
+        let op = PendingOperation::new(
+            account.id,
+            Some(email_id),
+            Some(from_folder_id),
+            PendingOperationType::Move,
+            serde_json::json!({
+                "remote_id": remote_id,
+                "folder_id": from_folder_id.to_string(),
+                "to_folder_id": to_folder_id.to_string(),
+            }),
+        );
+        let _ = pending_repo
+            .create(&op)
+            .await
+            .map_err(|e| SyncError::DatabaseError(e.to_string()));
 
+        log::info!("Queued move for email {} to folder {}", email_id, to_folder_id);
+
+        // 3. Emit event immediately
         self.emit_event(
             "sync:email-moved",
             EmailMovedEvent {
@@ -329,7 +340,7 @@ impl SyncManager {
         Ok(())
     }
 
-    /// Delete an email
+    /// Delete an email (local-first: updates DB immediately, queues provider sync)
     pub async fn delete_email(
         &self,
         account: &Account,
@@ -337,39 +348,55 @@ impl SyncManager {
         permanent: bool,
     ) -> SyncResult<()> {
         let email_repo = SqliteEmailRepository::new(self.pool.clone());
+        let pending_repo = SqlitePendingOperationRepository::new(self.pool.clone());
+
         let (folder_id, remote_id) = email_repo
             .find_for_remote_operation(email_id)
             .await
             .map_err(|e| SyncError::DatabaseError(e.to_string()))?
             .ok_or_else(|| SyncError::EmailNotFound(format!("Email not found: {}", email_id)))?;
 
-        let folder = self.get_folder_by_id(folder_id).await?;
-
-        let provider = super::provider::ProviderFactory::create_with_app_handle(
-            account,
-            Arc::clone(&self.credential_store),
-            self.app_handle.clone(),
-        )?;
-        provider
-            .delete_email(&remote_id, &folder, permanent)
-            .await?;
-
+        // 1. Optimistic local update
         if permanent {
             email_repo
                 .delete(email_id)
                 .await
                 .map_err(|e| SyncError::DatabaseError(e.to_string()))?;
-
-            log::info!("Permanently deleted email {}", email_id);
         } else {
             email_repo
                 .soft_delete(email_id)
                 .await
                 .map_err(|e| SyncError::DatabaseError(e.to_string()))?;
-
-            log::info!("Marked email {} as deleted", email_id);
         }
 
+        // 2. Queue provider operation
+        let op_type = if permanent {
+            PendingOperationType::PermanentDelete
+        } else {
+            PendingOperationType::Delete
+        };
+        let op = PendingOperation::new(
+            account.id,
+            Some(email_id),
+            Some(folder_id),
+            op_type,
+            serde_json::json!({
+                "remote_id": remote_id,
+                "folder_id": folder_id.to_string(),
+            }),
+        );
+        let _ = pending_repo
+            .create(&op)
+            .await
+            .map_err(|e| SyncError::DatabaseError(e.to_string()));
+
+        log::info!(
+            "Queued {} for email {}",
+            if permanent { "permanent delete" } else { "delete" },
+            email_id
+        );
+
+        // 3. Emit event immediately
         self.emit_event(
             "sync:email-deleted",
             EmailDeletedEvent {
@@ -383,7 +410,7 @@ impl SyncManager {
         Ok(())
     }
 
-    /// Mark email as read/unread
+    /// Mark email as read/unread (local-first: updates DB immediately, queues provider sync)
     pub async fn mark_as_read(
         &self,
         account: &Account,
@@ -391,28 +418,44 @@ impl SyncManager {
         is_read: bool,
     ) -> SyncResult<()> {
         let email_repo = SqliteEmailRepository::new(self.pool.clone());
+        let pending_repo = SqlitePendingOperationRepository::new(self.pool.clone());
+
         let (folder_id, remote_id) = email_repo
             .find_for_remote_operation(email_id)
             .await
             .map_err(|e| SyncError::DatabaseError(e.to_string()))?
             .ok_or_else(|| SyncError::EmailNotFound(format!("Email not found: {}", email_id)))?;
 
-        let folder = self.get_folder_by_id(folder_id).await?;
-
-        let provider = super::provider::ProviderFactory::create_with_app_handle(
-            account,
-            Arc::clone(&self.credential_store),
-            self.app_handle.clone(),
-        )?;
-        provider.mark_as_read(&remote_id, &folder, is_read).await?;
-
+        // 1. Optimistic local update
         email_repo
             .update_read_status(email_id, is_read)
             .await
             .map_err(|e| SyncError::DatabaseError(e.to_string()))?;
 
-        log::info!("Marked email {} as read={}", email_id, is_read);
+        // 2. Queue provider operation
+        let op_type = if is_read {
+            PendingOperationType::MarkRead
+        } else {
+            PendingOperationType::MarkUnread
+        };
+        let op = PendingOperation::new(
+            account.id,
+            Some(email_id),
+            Some(folder_id),
+            op_type,
+            serde_json::json!({
+                "remote_id": remote_id,
+                "folder_id": folder_id.to_string(),
+            }),
+        );
+        let _ = pending_repo
+            .create(&op)
+            .await
+            .map_err(|e| SyncError::DatabaseError(e.to_string()));
 
+        log::info!("Queued mark_as_read={} for email {}", is_read, email_id);
+
+        // 3. Emit event immediately
         self.emit_event(
             "sync:email-read-status-changed",
             EmailReadStatusChangedEvent {
@@ -426,7 +469,7 @@ impl SyncManager {
         Ok(())
     }
 
-    /// Flag/unflag an email
+    /// Flag/unflag an email (local-first: updates DB immediately, queues provider sync)
     pub async fn set_flag(
         &self,
         account: &Account,
@@ -434,28 +477,44 @@ impl SyncManager {
         flagged: bool,
     ) -> SyncResult<()> {
         let email_repo = SqliteEmailRepository::new(self.pool.clone());
+        let pending_repo = SqlitePendingOperationRepository::new(self.pool.clone());
+
         let (folder_id, remote_id) = email_repo
             .find_for_remote_operation(email_id)
             .await
             .map_err(|e| SyncError::DatabaseError(e.to_string()))?
             .ok_or_else(|| SyncError::EmailNotFound(format!("Email not found: {}", email_id)))?;
 
-        let folder = self.get_folder_by_id(folder_id).await?;
-
-        let provider = super::provider::ProviderFactory::create_with_app_handle(
-            account,
-            Arc::clone(&self.credential_store),
-            self.app_handle.clone(),
-        )?;
-        provider.set_flag(&remote_id, &folder, flagged).await?;
-
+        // 1. Optimistic local update
         email_repo
             .update_flagged_status(email_id, flagged)
             .await
             .map_err(|e| SyncError::DatabaseError(e.to_string()))?;
 
-        log::info!("Set email {} flag to {}", email_id, flagged);
+        // 2. Queue provider operation
+        let op_type = if flagged {
+            PendingOperationType::Flag
+        } else {
+            PendingOperationType::Unflag
+        };
+        let op = PendingOperation::new(
+            account.id,
+            Some(email_id),
+            Some(folder_id),
+            op_type,
+            serde_json::json!({
+                "remote_id": remote_id,
+                "folder_id": folder_id.to_string(),
+            }),
+        );
+        let _ = pending_repo
+            .create(&op)
+            .await
+            .map_err(|e| SyncError::DatabaseError(e.to_string()));
 
+        log::info!("Queued set_flag={} for email {}", flagged, email_id);
+
+        // 3. Emit event immediately
         self.emit_event(
             "sync:email-flag-changed",
             EmailFlagChangedEvent {

@@ -112,6 +112,9 @@ pub trait EmailProvider: Send + Sync {
         _subject: String,
         _body_html: String,
         _attachments: Vec<super::types::EmailAttachmentData>,
+        _in_reply_to: Option<String>,
+        _references: Option<String>,
+        _conversation_id: Option<String>,
     ) -> SyncResult<()> {
         Err(SyncError::NotSupported(
             "This provider does not support API-based email sending".to_string(),

@@ -8,8 +8,10 @@ use super::provider::ProviderFactory;
 use super::storage::LocalFileStorage;
 use super::types::{ProviderCredentials, SyncEmail, SyncFolder};
 use crate::database::models::account::{Account, AccountType};
+use crate::database::models::pending_operation::PendingOperationType;
 use crate::database::repositories::EmailRepository;
 use crate::database::repositories::RepositoryFactory;
+use crate::database::repositories::SqlitePendingOperationRepository;
 use crate::search::SearchManager;
 use crate::services::notification_service::NotificationService;
 use chrono::{DateTime, Utc};
@@ -150,7 +152,15 @@ impl EmailSync {
         result
     }
 
-    /// Internal sync logic (extracted to allow status management in outer method)
+    /// Internal sync logic — unified path for all providers
+    ///
+    /// All providers go through the same flow:
+    /// 1. Authenticate with provider
+    /// 2. Get sync token for delta sync (if not forcing full sync)
+    /// 3. Call provider.sync_messages() to get a SyncDiff
+    /// 4. For full sync with complete results, compute server-side deletions
+    /// 5. Reconcile diff against local state (handles conflict resolution)
+    /// 6. Store sync token and update sync state
     async fn sync_folder_internal(
         &self,
         account: &Account,
@@ -168,151 +178,6 @@ impl EmailSync {
         let credentials = self.load_credentials(account).await?;
         provider.authenticate(credentials).await?;
 
-        // For full sync, get local emails upfront for deletion computation
-        let local_remote_ids = if full {
-            self.get_existing_remote_ids_for_folder(folder).await?
-        } else {
-            std::collections::HashSet::new()
-        };
-
-        let mut total_added = 0;
-        let total_modified = 0;
-        let mut total_deleted = 0;
-        let mut provider_remote_ids: std::collections::HashSet<String> =
-            std::collections::HashSet::new();
-        let mut next_sync_token: Option<String> = None;
-
-        if account.account_type == AccountType::Office365 {
-            if let Some(o365_provider) = provider
-                .as_any()
-                .downcast_ref::<crate::sync::providers::office365::Office365Provider>(
-            ) {
-                let sync_token = if !full {
-                    self.get_sync_token(folder).await.ok().flatten()
-                } else {
-                    None
-                };
-
-                if let Some(token) = sync_token {
-                    let account_id = account.id;
-                    let folder_clone = folder.clone();
-
-                    if let Ok((new_token, deleted_ids)) = o365_provider
-                        .fetch_emails_delta_paged(folder, &token, move |page_emails| {
-                            let folder_inner = folder_clone.clone();
-
-                            async move {
-                                for email in &page_emails {
-                                    let _ = self.upsert_email(email, account_id, "synced").await;
-                                }
-                                let _ = self.update_sync_state(&folder_inner).await;
-                                Ok(())
-                            }
-                        })
-                        .await
-                    {
-                        next_sync_token = new_token;
-                        total_deleted = self
-                            .process_deleted_emails(&deleted_ids, folder)
-                            .await
-                            .unwrap_or(0);
-                    }
-                } else {
-                    let account_id = account.id;
-                    let folder_clone = folder.clone();
-
-                    if let Ok(new_token) = o365_provider
-                        .fetch_emails_full_paged(folder, move |page_emails| {
-                            let folder_inner = folder_clone.clone();
-
-                            async move {
-                                for email in &page_emails {
-                                    let _ = self.upsert_email(email, account_id, "synced").await;
-                                }
-                                let _ = self.update_sync_state(&folder_inner).await;
-                                Ok(())
-                            }
-                        })
-                        .await
-                    {
-                        next_sync_token = new_token;
-                        provider_remote_ids = self
-                            .get_existing_remote_ids_for_folder(folder)
-                            .await
-                            .unwrap_or_default();
-                        total_added = provider_remote_ids.len();
-                    }
-                }
-
-                if full {
-                    total_deleted = self
-                        .process_deleted_emails(
-                            &local_remote_ids
-                                .iter()
-                                .filter(|id| !provider_remote_ids.contains(*id))
-                                .cloned()
-                                .collect::<Vec<_>>(),
-                            folder,
-                        )
-                        .await
-                        .unwrap_or(0);
-
-                    log::info!(
-                        "[EmailSync] Full sync: {} local emails, {} from provider, {} deletions",
-                        local_remote_ids.len(),
-                        provider_remote_ids.len(),
-                        total_deleted
-                    );
-                }
-            } else {
-                // Fallback to non-paged processing
-                return self.sync_folder_legacy(account, folder, full).await;
-            }
-        } else {
-            // Use legacy paging for non-Office365 providers
-            return self.sync_folder_legacy(account, folder, full).await;
-        }
-
-        let total = total_added + total_modified + total_deleted;
-
-        // Store final sync token
-        if let Some(token) = next_sync_token {
-            self.store_sync_token(folder, &token).await.ok();
-        }
-
-        // Update sync state and commit search indexer
-        self.update_sync_state(folder).await?;
-        self.update_folder_synced_at(folder).await?;
-        self.commit_search_index().await?;
-
-        log::info!(
-            "[EmailSync] Completed {} sync: +{} ~{} -{} (total: {})",
-            sync_type,
-            total_added,
-            total_modified,
-            total_deleted,
-            total
-        );
-
-        Ok(total)
-    }
-
-    /// Legacy sync folder implementation (without paging)
-    async fn sync_folder_legacy(
-        &self,
-        account: &Account,
-        folder: &SyncFolder,
-        full: bool,
-    ) -> SyncResult<usize> {
-        let mut provider = ProviderFactory::create_with_app_handle(
-            account,
-            Arc::clone(&self.credential_store),
-            self.app_handle.clone(),
-        )?;
-
-        let credentials = self.load_credentials(account).await?;
-        provider.authenticate(credentials).await?;
-
         // Get sync token for delta sync (if not forcing full sync)
         let sync_token = if !full {
             self.get_sync_token(folder).await.ok().flatten()
@@ -320,11 +185,12 @@ impl EmailSync {
             None
         };
 
-        // Get provider's view of the folder
+        // Get provider's view of the folder via unified sync_messages trait method
         let mut diff = provider.sync_messages(folder, sync_token).await?;
 
         // For full sync, compute deletions by comparing local emails with provider's additions
-        if full {
+        // Only safe to do when the provider returned a complete enumeration of all emails
+        if full && diff.is_complete {
             let local_remote_ids = self.get_existing_remote_ids_for_folder(folder).await?;
             let provider_remote_ids: std::collections::HashSet<_> =
                 diff.added.iter().map(|e| e.remote_id.clone()).collect();
@@ -341,18 +207,20 @@ impl EmailSync {
                 provider_remote_ids.len(),
                 diff.deleted.len()
             );
+        } else if full && !diff.is_complete {
+            log::warn!(
+                "[EmailSync] Full sync requested but provider returned incomplete results for folder {}; skipping deletion computation",
+                folder.name
+            );
         }
 
-        // Process changes
-        let added_count = self
-            .process_added_emails(&diff.added, account.id, folder)
+        // Reconcile changes through the reconciler (handles conflict resolution with pending ops)
+        let reconciler = super::reconciler::Reconciler::new(self.pool.clone());
+        let reconciliation = reconciler
+            .reconcile_diff(account.id, folder, &diff, self)
             .await?;
-        let modified_count = self
-            .process_modified_emails(&diff.modified, account.id, folder)
-            .await?;
-        let deleted_count = self.process_deleted_emails(&diff.deleted, folder).await?;
 
-        let total = added_count + modified_count + deleted_count;
+        let total = reconciliation.added + reconciliation.modified + reconciliation.deleted;
 
         // Store next sync token
         if let Some(token) = &diff.next_sync_token {
@@ -365,71 +233,16 @@ impl EmailSync {
         self.commit_search_index().await?;
 
         log::info!(
-            "[EmailSync] Completed legacy sync: +{} ~{} -{} (total: {})",
-            added_count,
-            modified_count,
-            deleted_count,
+            "[EmailSync] Completed {} sync: +{} ~{} -{} (conflicts: {}, total: {})",
+            sync_type,
+            reconciliation.added,
+            reconciliation.modified,
+            reconciliation.deleted,
+            reconciliation.conflicts_resolved,
             total
         );
 
         Ok(total)
-    }
-
-    async fn process_added_emails(
-        &self,
-        emails: &[SyncEmail],
-        account_id: Uuid,
-        _folder: &SyncFolder,
-    ) -> SyncResult<usize> {
-        let mut count = 0;
-        for email in emails {
-            let (_email_id, _inline_attachments, _is_new, _db_email) =
-                self.upsert_email(email, account_id, "synced").await?;
-            count += 1;
-        }
-        log::debug!("[EmailSync] Processed {} added emails", count);
-        Ok(count)
-    }
-
-    async fn process_modified_emails(
-        &self,
-        emails: &[SyncEmail],
-        account_id: Uuid,
-        _folder: &SyncFolder,
-    ) -> SyncResult<usize> {
-        let mut count = 0;
-        for email in emails {
-            let (_email_id, _inline_attachments, _is_new, _db_email) =
-                self.upsert_email(email, account_id, "synced").await?;
-            count += 1;
-        }
-        log::debug!("[EmailSync] Processed {} modified emails", count);
-        Ok(count)
-    }
-
-    async fn process_deleted_emails(
-        &self,
-        remote_ids: &[String],
-        folder: &SyncFolder,
-    ) -> SyncResult<usize> {
-        let mut count = 0;
-        let folder_id_str = folder.id.unwrap().to_string();
-
-        for remote_id in remote_ids {
-            sqlx::query!(
-                "UPDATE emails SET is_deleted = 1 WHERE folder_id = ? AND remote_id = ?",
-                folder_id_str,
-                remote_id
-            )
-            .execute(&self.pool)
-            .await
-            .map_err(|e| SyncError::DatabaseError(e.to_string()))?;
-
-            count += 1;
-        }
-
-        log::debug!("[EmailSync] Marked {} emails as deleted", count);
-        Ok(count)
     }
 
     async fn commit_search_index(&self) -> SyncResult<()> {
@@ -938,6 +751,8 @@ impl EmailSync {
             last_body_fetch_attempt: None,
             change_key,
             last_modified_at,
+            deleted_at: None,
+            deletion_source: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             size: sync_email.size,
@@ -946,7 +761,7 @@ impl EmailSync {
 
     /// Upsert an email into the database using repository pattern
     /// Returns (email_id, inline_attachment_ids, is_new, db_email)
-    async fn upsert_email(
+    pub async fn upsert_email(
         &self,
         email: &SyncEmail,
         account_id: Uuid,
@@ -1044,7 +859,7 @@ impl EmailSync {
                 should_update_body
             );
 
-            let db_email = self.sync_email_to_db_model(
+            let mut db_email = self.sync_email_to_db_model(
                 email,
                 email_id,
                 account_id,
@@ -1057,6 +872,30 @@ impl EmailSync {
                 email.change_key.clone(),
                 email.last_modified_at,
             )?;
+
+            // Protect optimistic local state: if there are pending operations for this email,
+            // preserve the local is_read/is_flagged/is_deleted values instead of overwriting
+            // with (potentially stale) provider state.
+            let pending_repo = SqlitePendingOperationRepository::new(self.pool.clone());
+            if let Ok(pending_ops) = pending_repo.find_pending_for_email(email_id).await {
+                for op in &pending_ops {
+                    match op.parsed_operation_type() {
+                        Some(PendingOperationType::MarkRead)
+                        | Some(PendingOperationType::MarkUnread) => {
+                            db_email.is_read = existing_email.is_read;
+                        }
+                        Some(PendingOperationType::Flag)
+                        | Some(PendingOperationType::Unflag) => {
+                            db_email.is_flagged = existing_email.is_flagged;
+                        }
+                        Some(PendingOperationType::Delete)
+                        | Some(PendingOperationType::PermanentDelete) => {
+                            db_email.is_deleted = existing_email.is_deleted;
+                        }
+                        _ => {}
+                    }
+                }
+            }
 
             if should_update_body {
                 log::debug!(

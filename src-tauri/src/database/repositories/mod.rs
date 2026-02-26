@@ -5,6 +5,7 @@ mod conversation_repository;
 mod email_repository;
 mod folder_repository;
 mod label_repository;
+mod pending_operation_repository;
 mod sync_state_repository;
 mod view_repository;
 
@@ -15,6 +16,7 @@ pub use conversation_repository::*;
 pub use email_repository::*;
 pub use folder_repository::*;
 pub use label_repository::*;
+pub use pending_operation_repository::*;
 pub use sync_state_repository::*;
 pub use view_repository::*;
 
@@ -63,5 +65,9 @@ impl RepositoryFactory {
 
     pub fn sync_state_repository(&self) -> SqliteSyncStateRepository {
         SqliteSyncStateRepository::new(self.pool.clone())
+    }
+
+    pub fn pending_operation_repository(&self) -> SqlitePendingOperationRepository {
+        SqlitePendingOperationRepository::new(self.pool.clone())
     }
 }

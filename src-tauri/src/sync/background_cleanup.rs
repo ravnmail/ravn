@@ -9,6 +9,10 @@ use uuid::Uuid;
 
 const CLEANUP_BATCH_SIZE: i64 = 50;
 const CLEANUP_INTERVAL_SECS: u64 = 60;
+/// Tombstoned emails older than this are permanently deleted
+const TOMBSTONE_RETENTION_DAYS: i64 = 30;
+/// Completed pending operations older than this are cleaned up
+const COMPLETED_OPS_RETENTION_DAYS: i64 = 7;
 
 pub struct BackgroundCleanup {
     pool: SqlitePool,
@@ -62,7 +66,11 @@ impl BackgroundCleanup {
                         }
 
                         if let Err(e) = Self::cleanup_deleted_emails(&pool, &storage).await {
-                            log::error!("[BackgroundCleanup] Error during cleanup: {}", e);
+                            log::error!("[BackgroundCleanup] Error during email cleanup: {}", e);
+                        }
+
+                        if let Err(e) = Self::cleanup_completed_operations(&pool).await {
+                            log::error!("[BackgroundCleanup] Error during operations cleanup: {}", e);
                         }
 
                         {
@@ -83,19 +91,26 @@ impl BackgroundCleanup {
         let _ = self.shutdown_tx.send(());
     }
 
-    /// Clean up emails marked as deleted
+    /// Clean up tombstoned emails older than TOMBSTONE_RETENTION_DAYS
     async fn cleanup_deleted_emails(
         pool: &SqlitePool,
         storage: &Arc<LocalFileStorage>,
     ) -> SyncResult<()> {
+        let cutoff =
+            chrono::Utc::now() - chrono::Duration::days(TOMBSTONE_RETENTION_DAYS);
+
         let emails = sqlx::query!(
             r#"
             SELECT id, account_id, has_attachments
             FROM emails
             WHERE is_deleted = 1
+              AND (deleted_at IS NOT NULL AND deleted_at < ?
+                   OR deleted_at IS NULL AND updated_at < ?)
             ORDER BY updated_at ASC
             LIMIT ?
             "#,
+            cutoff,
+            cutoff,
             CLEANUP_BATCH_SIZE
         )
         .fetch_all(pool)
@@ -107,8 +122,9 @@ impl BackgroundCleanup {
         }
 
         log::info!(
-            "[BackgroundCleanup] Found {} deleted emails to clean up",
-            emails.len()
+            "[BackgroundCleanup] Found {} tombstoned emails older than {} days to clean up",
+            emails.len(),
+            TOMBSTONE_RETENTION_DAYS
         );
 
         let mut cleaned_count = 0;
@@ -204,6 +220,35 @@ impl BackgroundCleanup {
                     }
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    /// Clean up completed/cancelled pending operations older than COMPLETED_OPS_RETENTION_DAYS
+    async fn cleanup_completed_operations(pool: &SqlitePool) -> SyncResult<()> {
+        let cutoff =
+            chrono::Utc::now() - chrono::Duration::days(COMPLETED_OPS_RETENTION_DAYS);
+
+        let result = sqlx::query!(
+            r#"
+            DELETE FROM pending_operations
+            WHERE status IN ('completed', 'cancelled')
+              AND completed_at IS NOT NULL
+              AND completed_at < ?
+            "#,
+            cutoff
+        )
+        .execute(pool)
+        .await
+        .map_err(|e| SyncError::DatabaseError(e.to_string()))?;
+
+        if result.rows_affected() > 0 {
+            log::info!(
+                "[BackgroundCleanup] Cleaned up {} completed/cancelled pending operations older than {} days",
+                result.rows_affected(),
+                COMPLETED_OPS_RETENTION_DAYS
+            );
         }
 
         Ok(())

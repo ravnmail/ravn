@@ -131,7 +131,7 @@ impl EmailRepository for SqliteEmailRepository {
         offset: i64,
     ) -> Result<Vec<Email>, DatabaseError> {
         sqlx::query_as::<_, Email>(
-            "SELECT * FROM emails WHERE folder_id = ? ORDER BY received_at DESC LIMIT ? OFFSET ?",
+            "SELECT * FROM emails WHERE folder_id = ? AND is_deleted = 0 ORDER BY received_at DESC LIMIT ? OFFSET ?",
         )
         .bind(folder_id.to_string())
         .bind(limit)
@@ -151,7 +151,7 @@ impl EmailRepository for SqliteEmailRepository {
         filter_read: Option<bool>,
         filter_has_attachments: Option<bool>,
     ) -> Result<Vec<Email>, DatabaseError> {
-        let mut query = String::from("SELECT * FROM emails WHERE folder_id = ?");
+        let mut query = String::from("SELECT * FROM emails WHERE folder_id = ? AND is_deleted = 0");
 
         // Add filters
         if let Some(is_read) = filter_read {
@@ -197,7 +197,7 @@ impl EmailRepository for SqliteEmailRepository {
         conversation_id: Uuid,
     ) -> Result<Vec<Email>, DatabaseError> {
         sqlx::query_as::<_, Email>(
-            "SELECT * FROM emails WHERE conversation_id = ? ORDER BY received_at DESC",
+            "SELECT * FROM emails WHERE conversation_id = ? AND is_deleted = 0 ORDER BY received_at DESC",
         )
         .bind(conversation_id.to_string())
         .fetch_all(&self.pool)
@@ -229,7 +229,7 @@ impl EmailRepository for SqliteEmailRepository {
                 r#"
                 SELECT DISTINCT e.*
                 FROM emails e
-                WHERE e.id IN (
+                WHERE e.is_deleted = 0 AND e.id IN (
                     SELECT email_id
                     FROM email_labels
                     WHERE label_id IN ({})
@@ -248,7 +248,7 @@ impl EmailRepository for SqliteEmailRepository {
                 SELECT DISTINCT e.*
                 FROM emails e
                 JOIN email_labels el ON el.email_id = e.id
-                WHERE el.label_id IN ({})
+                WHERE e.is_deleted = 0 AND el.label_id IN ({})
                 ORDER BY e.received_at DESC
                 LIMIT ? OFFSET ?
                 "#,
@@ -473,7 +473,7 @@ impl EmailRepository for SqliteEmailRepository {
                 bcc = ?, reply_to = ?, subject = ?,
                 received_at = ?, sent_at = ?, flags = ?, headers = ?, size = ?,
                 is_read = ?, is_flagged = ?, is_draft = ?, has_attachments = ?,
-                conversation_id = ?, change_key = ?, last_modified_at = ?, is_deleted = 0, updated_at = CURRENT_TIMESTAMP
+                conversation_id = ?, change_key = ?, last_modified_at = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             "#,
             folder_id,
@@ -542,7 +542,7 @@ impl EmailRepository for SqliteEmailRepository {
     }
 
     async fn count_unread_all(&self) -> Result<i64, DatabaseError> {
-        let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM emails WHERE is_read = 0")
+        let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM emails WHERE is_read = 0 AND is_deleted = 0")
             .fetch_one(&self.pool)
             .await
             .map_err(DatabaseError::ConnectionError)?;
@@ -563,7 +563,7 @@ impl EmailRepository for SqliteEmailRepository {
             .join(", ");
 
         let query = format!(
-            "SELECT COUNT(*) FROM emails WHERE is_read = 0 AND folder_id IN ({})",
+            "SELECT COUNT(*) FROM emails WHERE is_read = 0 AND is_deleted = 0 AND folder_id IN ({})",
             placeholders
         );
 
