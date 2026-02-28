@@ -118,15 +118,28 @@ impl EmailSync {
             current_status
         );
         if current_status == "syncing" {
-            log::warn!(
-                "[EmailSync] Sync already in progress for folder {} (account {}), skipping",
-                folder.name,
-                account.id
-            );
-            return Err(SyncError::SyncInProgress(format!(
-                "Sync already in progress for folder {}",
-                folder.name
-            )));
+            // Allow override if the syncing state is stale (older than 30 minutes).
+            // This handles the case where the app crashed while syncing.
+            const STALE_THRESHOLD_MINUTES: i64 = 30;
+            let is_stale = self.is_sync_status_stale(folder, STALE_THRESHOLD_MINUTES).await;
+            if is_stale {
+                log::warn!(
+                    "[EmailSync] Stale 'syncing' state detected for folder {} (account {}): overriding after {}m threshold",
+                    folder.name,
+                    account.id,
+                    STALE_THRESHOLD_MINUTES
+                );
+            } else {
+                log::warn!(
+                    "[EmailSync] Sync already in progress for folder {} (account {}), skipping",
+                    folder.name,
+                    account.id
+                );
+                return Err(SyncError::SyncInProgress(format!(
+                    "Sync already in progress for folder {}",
+                    folder.name
+                )));
+            }
         }
 
         // Set status to syncing
@@ -542,6 +555,34 @@ impl EmailSync {
             .unwrap_or_else(|| "idle".to_string()))
     }
 
+    /// Check if the current 'syncing' status is stale (older than threshold_minutes).
+    /// Returns true if the status should be considered abandoned.
+    async fn is_sync_status_stale(&self, folder: &SyncFolder, threshold_minutes: i64) -> bool {
+        let folder_id_str = folder.id.unwrap().to_string();
+        let record = sqlx::query(
+            "SELECT updated_at FROM sync_state WHERE folder_id = ? AND sync_status = 'syncing'",
+        )
+        .bind(&folder_id_str)
+        .fetch_optional(&self.pool)
+        .await;
+
+        match record {
+            Ok(Some(row)) => {
+                use sqlx::Row;
+                let updated_at: Option<chrono::DateTime<chrono::Utc>> =
+                    row.try_get("updated_at").ok().flatten();
+                if let Some(ts) = updated_at {
+                    let age = chrono::Utc::now() - ts;
+                    age.num_minutes() >= threshold_minutes
+                } else {
+                    // No timestamp — treat as stale to unblock sync
+                    true
+                }
+            }
+            _ => false,
+        }
+    }
+
     /// Set sync status (syncing, idle, error, paused)
     async fn set_sync_status(&self, folder: &SyncFolder, status: &str) -> SyncResult<()> {
         let id = Uuid::now_v7().to_string();
@@ -554,7 +595,8 @@ impl EmailSync {
             VALUES (?, ?, ?, ?)
             ON CONFLICT(account_id, folder_id)
             DO UPDATE SET
-                sync_status = ?
+                sync_status = ?,
+                updated_at = CURRENT_TIMESTAMP
             "#,
             id,
             account_id_str,

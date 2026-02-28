@@ -19,6 +19,9 @@ pub trait SyncStateRepository {
         status: &str,
         error_message: Option<&str>,
     ) -> Result<(), DatabaseError>;
+    /// Reset all folders stuck in 'syncing' status to 'idle'.
+    /// Should be called on application boot to recover from unclean shutdowns.
+    async fn reset_stale_syncing_states(&self) -> Result<u64, DatabaseError>;
 }
 
 pub struct SqliteSyncStateRepository {
@@ -87,5 +90,20 @@ impl SyncStateRepository for SqliteSyncStateRepository {
         .map_err(DatabaseError::ConnectionError)?;
 
         Ok(())
+    }
+
+    async fn reset_stale_syncing_states(&self) -> Result<u64, DatabaseError> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE sync_state
+            SET sync_status = 'idle', updated_at = CURRENT_TIMESTAMP
+            WHERE sync_status = 'syncing'
+            "#
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(DatabaseError::ConnectionError)?;
+
+        Ok(result.rows_affected())
     }
 }

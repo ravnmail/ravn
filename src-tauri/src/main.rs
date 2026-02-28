@@ -370,6 +370,25 @@ fn main() {
 
             app_handle.manage(state);
 
+            // Reset any folders stuck in 'syncing' state from a previous unclean shutdown
+            {
+                use app_lib::database::repositories::{
+                    SqliteSyncStateRepository, SyncStateRepository,
+                };
+                let pool = db.get_pool().clone();
+                tauri::async_runtime::block_on(async {
+                    let repo = SqliteSyncStateRepository::new(pool);
+                    match repo.reset_stale_syncing_states().await {
+                        Ok(n) if n > 0 => log::warn!(
+                            "[Boot] Reset {} stale 'syncing' folder states to 'idle'",
+                            n
+                        ),
+                        Ok(_) => log::debug!("[Boot] No stale syncing states found"),
+                        Err(e) => log::error!("[Boot] Failed to reset stale sync states: {}", e),
+                    }
+                });
+            }
+
             let sync_manager_clone = Arc::clone(&background_sync_manager);
             tauri::async_runtime::spawn(async move {
                 match sync_manager_clone.start_all().await {

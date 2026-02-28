@@ -1,15 +1,29 @@
 import { invoke } from '@tauri-apps/api/core'
-import { useQuery } from '@tanstack/vue-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/vue-query'
 import type { ConversationDetail, ConversationListItem } from '~/types/conversation'
+
+const PAGE_SIZE = 50
 
 const QUERY_KEYS = {
   all: ['conversations'] as const,
   lists: () => [...QUERY_KEYS.all, 'list'] as const,
-  listByFolder: (folderId: string, limit?: number, offset?: number) =>
-    [...QUERY_KEYS.lists(), { folderId, limit, offset }] as const,
+  listByFolder: (
+    folderId: string,
+    sortBy?: string,
+    sortOrder?: string,
+    filterRead?: boolean | null,
+    filterHasAttachments?: boolean | null,
+  ) => [...QUERY_KEYS.lists(), { folderId, sortBy, sortOrder, filterRead, filterHasAttachments }] as const,
   details: () => [...QUERY_KEYS.all, 'detail'] as const,
   detail: (id: string) => [...QUERY_KEYS.details(), id] as const,
   detailByMessage: (messageId: string) => [...QUERY_KEYS.details(), 'message', messageId] as const,
+}
+
+export type ConversationFolderFilters = {
+  sortBy?: MaybeRef<string>
+  sortOrder?: MaybeRef<string>
+  filterRead?: MaybeRef<boolean | null>
+  filterHasAttachments?: MaybeRef<boolean | null>
 }
 
 export function useConversation() {
@@ -27,25 +41,48 @@ export function useConversation() {
     })
   }
 
-  const useGetConversationsForFolder = (
+  /**
+   * Infinite query for folder conversations.
+   * Each page fetches PAGE_SIZE conversations using backend sort/filter.
+   * The `pageParam` is the offset (number of conversations already loaded).
+   */
+  const useGetConversationsForFolderInfinite = (
     folderId: MaybeRef<string>,
-    limit: MaybeRef<number> = 50,
-    offset: MaybeRef<number> = 0,
+    filters: ConversationFolderFilters = {},
   ) => {
     const resolvedFolderId = computed(() => unref(folderId))
-    const resolvedLimit = computed(() => unref(limit))
-    const resolvedOffset = computed(() => unref(offset))
+    const resolvedSortBy = computed(() => unref(filters.sortBy) ?? 'received_at')
+    const resolvedSortOrder = computed(() => unref(filters.sortOrder) ?? 'desc')
+    const resolvedFilterRead = computed(() => unref(filters.filterRead) ?? null)
+    const resolvedFilterHasAttachments = computed(() => unref(filters.filterHasAttachments) ?? null)
 
-    return useQuery({
+    return useInfiniteQuery({
       queryKey: computed(() =>
-        QUERY_KEYS.listByFolder(resolvedFolderId.value, resolvedLimit.value, resolvedOffset.value)
+        QUERY_KEYS.listByFolder(
+          resolvedFolderId.value,
+          resolvedSortBy.value,
+          resolvedSortOrder.value,
+          resolvedFilterRead.value,
+          resolvedFilterHasAttachments.value,
+        ),
       ),
-      queryFn: async () => {
-        return await invoke<ConversationListItem[]>('get_conversations_for_folder', {
+      queryFn: async ({ pageParam = 0 }) => {
+        const items = await invoke<ConversationListItem[]>('get_conversations_for_folder', {
           folderId: resolvedFolderId.value,
-          limit: resolvedLimit.value,
-          offset: resolvedOffset.value,
+          limit: PAGE_SIZE,
+          offset: pageParam as number,
+          sortBy: resolvedSortBy.value,
+          sortOrder: resolvedSortOrder.value,
+          filterRead: resolvedFilterRead.value,
+          filterHasAttachments: resolvedFilterHasAttachments.value,
         })
+        return { items, nextOffset: (pageParam as number) + items.length }
+      },
+      initialPageParam: 0,
+      getNextPageParam: (lastPage) => {
+        // Stop fetching when a page returns fewer items than PAGE_SIZE
+        if (lastPage.items.length < PAGE_SIZE) return undefined
+        return lastPage.nextOffset
       },
       enabled: computed(() => !!resolvedFolderId.value),
     })
@@ -67,7 +104,7 @@ export function useConversation() {
 
   return {
     useGetConversation,
-    useGetConversationsForFolder,
+    useGetConversationsForFolderInfinite,
     useGetConversationForMessage,
   }
 }

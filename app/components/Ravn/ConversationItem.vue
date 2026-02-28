@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import type { ConversationListItem } from '~/types/conversation'
-import useFormatting from '~/composables/useFormatting'
+import { Badge } from '~/components/ui/badge'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
 import { useDraggable } from '~/composables/useDragAndDrop'
+import useFormatting from '~/composables/useFormatting'
+import type { ConversationListItem } from '~/types/conversation'
 import type { EmailCategory } from '~/types/email'
-import { Badge } from '~/components/ui/badge'
 
 interface Props {
   conversation: ConversationListItem
@@ -34,20 +34,23 @@ const emit = defineEmits<{
 }>()
 
 const { formatEmailDate } = useFormatting()
-const firstMessage = computed(() => props.conversation.messages.filter(m => m.folder_id === props.folderId)[0])
+const firstMessage = computed(
+  () => props.conversation.messages.filter((m) => m.folder_id === props.folderId)[0]
+)
 
 const itemRef = ref<HTMLElement | null>(null)
 
 // Get message IDs from this conversation that are in the current folder
 const messageIdsInFolder = computed(() =>
-  props.conversation.messages
-    .filter(m => m.folder_id === props.folderId)
-    .map(m => m.id)
+  props.conversation.messages.filter((m) => m.folder_id === props.folderId).map((m) => m.id)
 )
 
 // Make conversation draggable with multi-select support
 const { isDragging } = useDraggable(itemRef, () => {
-  const isMultiDrag = props.selectedIds && props.selectedIds.length > 0 && props.selectedIds.includes(props.conversation.id)
+  const isMultiDrag =
+    props.selectedIds &&
+    props.selectedIds.length > 0 &&
+    props.selectedIds.includes(props.conversation.id)
 
   return {
     type: 'conversation',
@@ -64,29 +67,24 @@ const { isDragging } = useDraggable(itemRef, () => {
 })
 
 const mappedLeftActions = computed(() =>
-  props.leftActions.map(action => ({
+  props.leftActions.map((action) => ({
     ...action,
-    handler: () => emit('action', action.id, props.conversation.id)
+    handler: () => emit('action', action.id, props.conversation.id),
   }))
 )
 
 const mappedRightActions = computed(() =>
-  props.rightActions.map(action => ({
+  props.rightActions.map((action) => ({
     ...action,
-    handler: () => emit('action', action.id, props.conversation.id)
+    handler: () => emit('action', action.id, props.conversation.id),
   }))
 )
 
-const {
-  swipeOffset,
-  activeActionSide,
-  visibleSide,
-  activeActionIndex,
-  handleActionClick
-} = useSwipeActions(itemRef, {
-  leftActions: mappedLeftActions.value,
-  rightActions: mappedRightActions.value
-})
+const { swipeOffset, activeActionSide, visibleSide, activeActionIndex, handleActionClick } =
+  useSwipeActions(itemRef, {
+    leftActions: mappedLeftActions.value,
+    rightActions: mappedRightActions.value,
+  })
 
 const contentTransform = computed(() => `translateX(${swipeOffset.value}px)`)
 
@@ -97,20 +95,16 @@ const rightActionsWidth = computed(() => props.rightActions.length * actionWidth
 const filteredLabels = computed(() => {
   if (!firstMessage.value) return []
   if (props.excludeLabels && props.excludeLabels.length > 0) {
-    return firstMessage.value.labels.filter(l => !props.excludeLabels!.includes(l.id))
+    return firstMessage.value.labels.filter((l) => !props.excludeLabels!.includes(l.id))
   }
   return firstMessage.value.labels
 })
 
 // Check if any message in the conversation is unread
-const hasUnread = computed(() =>
-  props.conversation.messages.some(m => !m.is_read)
-)
+const hasUnread = computed(() => props.conversation.messages.some((m) => !m.is_read))
 
 // Check if any message has attachments
-const hasAttachments = computed(() =>
-  props.conversation.messages.some(m => m.has_attachments)
-)
+const hasAttachments = computed(() => props.conversation.messages.some((m) => m.has_attachments))
 
 const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = {
   personal: {
@@ -130,7 +124,6 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
     color: '#f44336',
   },
 }
-
 </script>
 
 <template>
@@ -138,8 +131,8 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
     v-if="firstMessage"
     ref="itemRef"
     :class="[
-      'relative overflow-hidden touch-pan-x rounded transition-opacity',
-      isDragging ? 'opacity-30 cursor-grabbing' : ''
+      'relative touch-pan-x overflow-hidden rounded transition-opacity',
+      isDragging ? 'cursor-grabbing opacity-30' : '',
     ]"
   >
     <div
@@ -179,7 +172,7 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
           'flex p-2 transition-transform duration-200 ease-out',
           hasUnread ? 'text-primary' : '',
           isSelected ? 'bg-selection text-selection-foreground' : '',
-          isMultiSelected ? 'bg-primary/10 ring-1 ring-primary' : ''
+          isMultiSelected ? 'bg-primary/10 ring-1 ring-primary' : '',
         ]"
         @click="(e) => emit('click', e)"
       >
@@ -187,20 +180,25 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
           v-if="firstMessage.from.address"
           :email="firstMessage.from.address"
           :name="firstMessage.from.name"
-          class="mr-4 pointer-events-none"
+          :key="firstMessage.from.address"
+          class="pointer-events-none mr-4"
           size="lg"
         />
         <div class="grow">
           <div class="flex items-center gap-1">
             <div
               v-if="hasUnread"
-              class="size-2 bg-accent rounded-full shrink-0"
+              class="size-2 shrink-0 rounded-full bg-accent"
             />
-            <span class="line-clamp-1 text-sm">{{ firstMessage.from.name || firstMessage.from.address }}</span>
-            <span class="ml-auto text-sm opacity-60 text-nowrap">{{ formatEmailDate(firstMessage, 2) }}</span>
+            <span class="line-clamp-1 text-sm">{{
+              firstMessage.from.name || firstMessage.from.address
+            }}</span>
+            <span class="ml-auto text-sm text-nowrap opacity-60">{{
+              formatEmailDate(firstMessage, 2)
+            }}</span>
           </div>
           <div class="flex items-center gap-2">
-            <span class="font-bold line-clamp-1">{{ firstMessage.subject }}</span>
+            <span class="line-clamp-1 font-bold">{{ firstMessage.subject }}</span>
             <div class="ml-auto flex items-center gap-2">
               <Icon
                 v-if="hasAttachments"
@@ -217,15 +215,16 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
                 v-if="conversation.message_count > 1"
                 size="sm"
                 variant="background"
-              >{{ conversation.message_count }}</Badge>
+                >{{ conversation.message_count }}</Badge
+              >
             </div>
           </div>
-          <div class="text-sm opacity-50 line-clamp-2">
+          <div class="line-clamp-2 text-sm opacity-50">
             {{ firstMessage.snippet?.replace(/\s\s+/, ' ') }}
           </div>
           <div
             v-if="filteredLabels?.length > 0"
-            class="flex mt-2 gap-1 flex-wrap"
+            class="mt-2 flex flex-wrap gap-1"
           >
             <EmailLabel
               v-for="l in filteredLabels"

@@ -178,8 +178,9 @@ impl EmailRepository for SqliteEmailRepository {
             "DESC"
         };
 
+        // Secondary sort by `id` ensures deterministic ordering when the primary column has ties.
         query.push_str(&format!(
-            " ORDER BY {} {} LIMIT ? OFFSET ?",
+            " ORDER BY {} {} NULLS LAST, id ASC LIMIT ? OFFSET ?",
             order_column, order_direction
         ));
 

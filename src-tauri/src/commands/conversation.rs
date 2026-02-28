@@ -1,5 +1,5 @@
-use std::collections::HashSet;
 /// Conversation/thread query commands using repository pattern and DTOs
+use std::collections::{HashMap, HashSet};
 use tauri::State;
 use uuid::Uuid;
 
@@ -33,6 +33,8 @@ pub async fn get_conversations_for_folder(
     let sort_by = sort_by.unwrap_or_else(|| "received_at".to_string());
     let sort_order = sort_order.unwrap_or_else(|| "desc".to_string());
 
+    // Fetch enough raw emails to fill `limit` unique conversations.
+    // We use limit*10 as a heuristic for heavily-threaded folders.
     let emails = email_repo
         .find_by_folder_with_filters(
             folder_id,
@@ -46,12 +48,14 @@ pub async fn get_conversations_for_folder(
         .await
         .map_err(|e| format!("Failed to fetch emails: {}", e))?;
 
+    // Deduplicate conversation IDs while preserving the sort order from the email query.
+    // A HashSet tracks what we've seen; the Vec preserves insertion order.
+    let mut seen = HashSet::new();
     let conversation_ids: Vec<Uuid> = emails
         .iter()
         .filter_map(|email| email.conversation_id.as_ref())
         .filter_map(|id| Uuid::parse_str(id).ok())
-        .collect::<HashSet<_>>()
-        .into_iter()
+        .filter(|id| seen.insert(*id))
         .take(limit as usize)
         .collect();
 
@@ -59,12 +63,13 @@ pub async fn get_conversations_for_folder(
         return Ok(Vec::new());
     }
 
+    // Build a map of conversation_id -> list item so we can restore sort order afterwards.
     let conversations = conversation_repo
         .find_by_ids(conversation_ids.clone())
         .await
         .map_err(|e| format!("Failed to fetch conversations: {}", e))?;
 
-    let mut result = Vec::new();
+    let mut conversation_map: HashMap<Uuid, _> = HashMap::new();
     for conversation in conversations {
         let conversation_emails = email_repo
             .find_by_conversation_id(conversation.id)
@@ -84,8 +89,14 @@ pub async fn get_conversations_for_folder(
             email_list_items.push(EmailListItem::from_email(&email, labels));
         }
 
-        result.push(conversation.to_list_item(email_list_items));
+        conversation_map.insert(conversation.id, conversation.to_list_item(email_list_items));
     }
+
+    // Return conversations in the original sorted order derived from the email query.
+    let result = conversation_ids
+        .iter()
+        .filter_map(|id| conversation_map.remove(id))
+        .collect();
 
     Ok(result)
 }
