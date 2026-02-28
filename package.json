@@ -18,7 +18,11 @@
     "postinstall": "nuxt prepare",
     "tauri": "tauri",
     "tauri:dev": "RUST_LOG=info tauri dev",
-    "tauri:build": "nuxt generate && tauri build"
+    "tauri:build": "nuxt generate && tauri build",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint . --fix",
+    "format": "oxfmt .",
+    "format:check": "oxfmt . --check"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.7",
@@ -28,6 +32,7 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/vue-query": "^5.92.8",
+    "@tanstack/vue-virtual": "^3.13.19",
     "@tauri-apps/api": "^2.9.1",
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-os": "~2.3.2",
@@ -82,25 +87,23 @@
   },
   "devDependencies": {
     "@faker-js/faker": "^10.2.0",
-    "@nuxt/eslint": "1.10.0",
-    "@nuxtjs/eslint-config-typescript": "^12.1.0",
     "@tauri-apps/cli": "^2.9.6",
-    "@types/eslint": "^9.6.1",
-    "@types/eslint-plugin-tailwindcss": "^3.17.0",
     "@types/lodash": "^4.17.23",
-    "eslint": "^9.39.2",
-    "eslint-plugin-tailwindcss": "^3.18.2",
-    "eslint-plugin-vue": "^10.7.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "nuxt-i18n-micro-types": "^1.0.15",
+    "oxfmt": "latest",
+    "oxlint": "latest",
     "sass": "^1.97.2",
     "typescript": "^5.9.3",
     "vite-svg-loader": "^5.1.0",
     "vue-tsc": "^3.2.2"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,vue}": "oxfmt --fix"
+    "*.{js,jsx,ts,tsx,vue}": [
+      "oxfmt --fix",
+      "oxlint --fix"
+    ]
   },
   "packageManager": "bun@1.3.0"
 }
