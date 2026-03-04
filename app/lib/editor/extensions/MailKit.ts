@@ -1,18 +1,16 @@
+import { invoke } from '@tauri-apps/api/core'
 import type { AnyExtension } from '@tiptap/core'
 import { Extension } from '@tiptap/core'
-import { invoke } from '@tauri-apps/api/core'
-
-import { Highlight } from '@tiptap/extension-highlight'
-import AutoJoiner from 'tiptap-extension-auto-joiner'
-import { Text } from '@tiptap/extension-text'
-import { Paragraph } from '@tiptap/extension-paragraph'
-import { Gapcursor } from '@tiptap/extension-gapcursor'
 import { Dropcursor } from '@tiptap/extension-dropcursor'
+import { Gapcursor } from '@tiptap/extension-gapcursor'
 import { HardBreak } from '@tiptap/extension-hard-break'
+import { Highlight } from '@tiptap/extension-highlight'
 import { ListItem } from '@tiptap/extension-list-item'
+import { Paragraph } from '@tiptap/extension-paragraph'
+import { Text } from '@tiptap/extension-text'
+import AutoJoiner from 'tiptap-extension-auto-joiner'
 
-import { TrailingNode } from './TrailingNode'
-
+import { defaultBubbleList, generateBubbleTypeMenu } from '../menus/BasicBubble'
 import { AI } from './AI'
 import { Autocomplete } from './Autocomplete'
 import { Blockquote } from './Blockquote'
@@ -39,13 +37,23 @@ import { SlashCommand } from './SlashCommand'
 import { Strike } from './Strike'
 import { TaskList } from './TaskList'
 import { TextBubble } from './TextBubble'
+import { TrailingNode } from './TrailingNode'
 import { Underline } from './UnderLine'
-
-import { defaultBubbleList, generateBubbleTypeMenu } from '../menus/BasicBubble'
 
 const { settings } = useSettings()
 
-export type MailKitOptions = {}
+export interface MailKitEmailContext {
+  sender: () => string
+  subject: () => string
+  isReply: () => boolean
+  recipients: () => string[]
+  priorEmail: () => string | undefined
+  contactNotes: () => Array<{ email: string; display_name?: string | null; notes: string }>
+}
+
+export type MailKitOptions = {
+  emailContext?: MailKitEmailContext
+}
 
 export const MailKit = Extension.create({
   name: 'mail-kit',
@@ -64,7 +72,7 @@ export const MailKit = Extension.create({
             'underline',
             'strike',
             'code',
-            'link'
+            'link',
           ],
         },
         defaultBubbleList,
@@ -102,7 +110,13 @@ export const MailKit = Extension.create({
           if (node.type.name === 'codeBlock') {
             return t('composer.placeholders.code')
           }
-          if (nodeTypeName === 'table' || nodeTypeName === 'bulletList' || nodeTypeName === 'orderedList' || nodeTypeName === 'taskList' || nodeTypeName === 'listItem') {
+          if (
+            nodeTypeName === 'table' ||
+            nodeTypeName === 'bulletList' ||
+            nodeTypeName === 'orderedList' ||
+            nodeTypeName === 'taskList' ||
+            nodeTypeName === 'listItem'
+          ) {
             return ''
           }
 
@@ -165,7 +179,7 @@ export const MailKit = Extension.create({
       Indent,
       AI.configure({
         completions: async (history, signal) => {
-          console.log('AI completions called with history:', {...history})
+          console.log('AI completions called with history:', { ...history })
           const result = await invoke('ask_ai', {
             context: { history },
           })
@@ -174,15 +188,10 @@ export const MailKit = Extension.create({
 
           return result
         },
-        shortcuts: []
+        shortcuts: [],
       }),
       AutoJoiner.configure({
-        elementsToJoin: [
-          'blockquote',
-          'codeBlock',
-          'bulletList',
-          'orderedList',
-        ],
+        elementsToJoin: ['blockquote', 'codeBlock', 'bulletList', 'orderedList'],
       }),
       Callout.configure(),
       EmailSignature.configure({
@@ -191,7 +200,9 @@ export const MailKit = Extension.create({
             signatureId = settings.value?.signatures.globalDefault || null
           }
           if (signatureId) {
-            return settings.value?.signatures.items.find(({ id }) => id === signatureId)?.content || ''
+            return (
+              settings.value?.signatures.items.find(({ id }) => id === signatureId)?.content || ''
+            )
           }
           return ''
         },
@@ -199,7 +210,24 @@ export const MailKit = Extension.create({
     ]
 
     if (settings.value.ai.autoCompletion.enabled) {
-      extensions.push(Autocomplete.configure(settings.value.ai.autoCompletion))
+      const emailCtx = this.options.emailContext
+      extensions.push(
+        Autocomplete.configure({
+          ...settings.value.ai.autoCompletion,
+          ...(emailCtx
+            ? {
+                emailMetadata: () => ({
+                  sender: emailCtx.sender(),
+                  subject: emailCtx.subject(),
+                  is_reply: emailCtx.isReply(),
+                  recipients: emailCtx.recipients(),
+                }),
+                contactNotes: emailCtx.contactNotes,
+                priorEmail: emailCtx.priorEmail,
+              }
+            : {}),
+        })
+      )
     }
 
     return extensions

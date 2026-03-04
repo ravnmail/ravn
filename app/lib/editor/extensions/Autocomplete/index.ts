@@ -1,26 +1,46 @@
+import { invoke } from '@tauri-apps/api/core'
 import { Extension } from '@tiptap/core'
+import debounce from 'lodash/debounce'
 import { Plugin, PluginKey } from 'prosemirror-state'
 import { Decoration, DecorationSet } from 'prosemirror-view'
-import { invoke } from '@tauri-apps/api/core'
-import debounce from 'lodash/debounce'
+
+export interface AutocompleteContactNote {
+  email: string
+  display_name?: string | null
+  notes: string
+}
+
+export interface AutocompleteEmailMetadata {
+  sender: string
+  subject: string
+  is_reply: boolean
+  recipients: string[]
+}
 
 interface AutocompleteOptions {
-  autoTriggerEnabled: boolean;
-  triggerThreshold: number;
-  triggerDelay: number;
-  completionClass: string;
+  autoTriggerEnabled: boolean
+  triggerThreshold: number
+  triggerDelay: number
+  completionClass: string
+  /** Live email metadata (sender, recipients, subject) provided by the Composer */
+  emailMetadata?: () => AutocompleteEmailMetadata
+  /** AI notes for the current recipients, provided by the Composer */
+  contactNotes?: () => AutocompleteContactNote[]
+  /** The prior/quoted email body, provided by the Composer */
+  priorEmail?: () => string | undefined
 }
 
 interface EmailContext {
   metadata: {
-    sender: string;
-    subject: string;
-    is_reply: boolean;
-    recipients: string[];
-  };
-  prior_email?: string;
-  current_text: string;
-  cursor_position: number;
+    sender: string
+    subject: string
+    is_reply: boolean
+    recipients: string[]
+  }
+  prior_email?: string
+  current_text: string
+  cursor_position: number
+  contact_notes?: AutocompleteContactNote[]
 }
 
 const autocompletePluginKey = new PluginKey('autocomplete')
@@ -46,50 +66,62 @@ export const Autocomplete = Extension.create<AutocompleteOptions>({
 
   addKeyboardShortcuts() {
     return {
-      'Tab': () => this.editor.commands.acceptSuggestion(),
-      'Escape': () => this.editor.commands.clearSuggestion(),
+      Tab: () => this.editor.commands.acceptSuggestion(),
+      Escape: () => this.editor.commands.clearSuggestion(),
     }
   },
 
   addCommands() {
     return {
-      acceptSuggestion: () => ({ editor }) => {
-        const { suggestion } = this.storage
-        if (!suggestion) {
-          return false
-        }
+      acceptSuggestion:
+        () =>
+        ({ editor }) => {
+          const { suggestion } = this.storage
+          if (!suggestion) {
+            return false
+          }
 
-        const { state, view } = editor
-        view.dispatch(state.tr.insertText(suggestion))
-        this.storage.suggestion = ''
+          const { state, view } = editor
+          view.dispatch(state.tr.insertText(suggestion))
+          this.storage.suggestion = ''
 
-        view.dispatch(state.tr.setMeta(autocompletePluginKey, {
-          type: 'setSuggestion',
-          suggestion: ''
-        }))
+          view.dispatch(
+            state.tr.setMeta(autocompletePluginKey, {
+              type: 'setSuggestion',
+              suggestion: '',
+            })
+          )
 
-        return true
-      },
+          return true
+        },
 
-      clearSuggestion: () => ({ editor }) => {
-        this.storage.suggestion = ''
+      clearSuggestion:
+        () =>
+        ({ editor }) => {
+          this.storage.suggestion = ''
 
-        const { state, view } = editor
-        view.dispatch(state.tr.setMeta(autocompletePluginKey, {
-          type: 'setSuggestion',
-          suggestion: ''
-        }))
+          const { state, view } = editor
+          view.dispatch(
+            state.tr.setMeta(autocompletePluginKey, {
+              type: 'setSuggestion',
+              suggestion: '',
+            })
+          )
 
-        return true
-      },
+          return true
+        },
 
-      triggerSuggestion: () => ({ editor }) => {
-        const { state, view } = editor
-        view.dispatch(state.tr.setMeta(autocompletePluginKey, {
-          type: 'requestSuggestion'
-        }))
-        return true
-      }
+      triggerSuggestion:
+        () =>
+        ({ editor }) => {
+          const { state, view } = editor
+          view.dispatch(
+            state.tr.setMeta(autocompletePluginKey, {
+              type: 'requestSuggestion',
+            })
+          )
+          return true
+        },
     }
   },
 
@@ -114,12 +146,16 @@ export const Autocomplete = Extension.create<AutocompleteOptions>({
               if (meta.type === 'setSuggestion') {
                 if (meta.suggestion) {
                   const position = tr.selection.$head.pos
-                  const decoration = Decoration.widget(position, () => {
-                    const span = document.createElement('span')
-                    span.className = pluginOptions.completionClass
-                    span.textContent = meta.suggestion
-                    return span
-                  }, { side: 1, key: 'autocomplete' })
+                  const decoration = Decoration.widget(
+                    position,
+                    () => {
+                      const span = document.createElement('span')
+                      span.className = pluginOptions.completionClass
+                      span.textContent = meta.suggestion
+                      return span
+                    },
+                    { side: 1, key: 'autocomplete' }
+                  )
 
                   return DecorationSet.create(tr.doc, [decoration])
                 } else {
@@ -135,13 +171,13 @@ export const Autocomplete = Extension.create<AutocompleteOptions>({
             }
 
             return mappedDecorations
-          }
+          },
         },
 
         props: {
           decorations(state) {
             return this.getState(state)
-          }
+          },
         },
 
         view() {
@@ -149,7 +185,7 @@ export const Autocomplete = Extension.create<AutocompleteOptions>({
             await requestSuggestion(extension, state)
           }, pluginOptions.triggerDelay)
 
-          console.log("Autocomplete plugin initialized with options:", pluginOptions)
+          console.log('Autocomplete plugin initialized with options:', pluginOptions)
 
           return {
             update(view, prevState) {
@@ -162,22 +198,24 @@ export const Autocomplete = Extension.create<AutocompleteOptions>({
                   debouncedSuggest(state)
                 } else if (extension.storage.suggestion) {
                   extension.storage.suggestion = ''
-                  view.dispatch(state.tr.setMeta(autocompletePluginKey, {
-                    type: 'setSuggestion',
-                    suggestion: ''
-                  }))
+                  view.dispatch(
+                    state.tr.setMeta(autocompletePluginKey, {
+                      type: 'setSuggestion',
+                      suggestion: '',
+                    })
+                  )
                 }
               }
             },
 
             destroy() {
               debouncedSuggest.cancel()
-            }
+            },
           }
-        }
-      })
+        },
+      }),
     ]
-  }
+  },
 })
 
 function getTextUpToCursor(state) {
@@ -208,22 +246,28 @@ async function requestSuggestion(extension, state) {
   try {
     const currentText = getTextUpToCursor(state)
 
+    const opts: AutocompleteOptions = extension.options
+    const liveMetadata = opts.emailMetadata?.()
+    const contactNotes = opts.contactNotes?.()
+    const priorEmail = opts.priorEmail?.()
+
     const emailContext: EmailContext = {
       metadata: {
-        sender: "",
-        subject: "",
-        is_reply: true,
-        recipients: [],
+        sender: liveMetadata?.sender ?? '',
+        subject: liveMetadata?.subject ?? '',
+        is_reply: liveMetadata?.is_reply ?? false,
+        recipients: liveMetadata?.recipients ?? [],
       },
-      prior_email: "",
+      prior_email: priorEmail ?? '',
       current_text: currentText,
       cursor_position: state.selection.from,
+      contact_notes: contactNotes?.length ? contactNotes : undefined,
     }
 
-    console.log("requesting autocomplete with context:", emailContext)
+    console.log('requesting autocomplete with context:', emailContext)
 
     const result = await invoke('generate_email_completion', {
-      context: emailContext
+      context: emailContext,
     })
 
     if (result.error) {
@@ -237,7 +281,7 @@ async function requestSuggestion(extension, state) {
 
       const tr = state.tr.setMeta(autocompletePluginKey, {
         type: 'setSuggestion',
-        suggestion: result.completion
+        suggestion: result.completion,
       })
 
       const view = extension.editor.view

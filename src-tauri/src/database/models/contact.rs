@@ -11,6 +11,7 @@ pub struct Contact {
     pub last_name: Option<String>,
     pub company: Option<String>,
     pub email: String,
+    pub ai_notes: Option<String>,
     pub source: String,      // 'observed', 'imported', 'manual'
     pub avatar_type: String, // 'gravatar', 'unavatar', 'favicon', 'none'
     pub avatar_path: Option<String>,
@@ -36,6 +37,7 @@ impl sqlx::FromRow<'_, sqlx::sqlite::SqliteRow> for Contact {
             last_name: row.try_get("last_name")?,
             company: row.try_get("company")?,
             email: row.try_get("email")?,
+            ai_notes: row.try_get("ai_notes").unwrap_or(None),
             source: row.try_get("source")?,
             avatar_type: row.try_get("avatar_type")?,
             avatar_path: row.try_get("avatar_path")?,

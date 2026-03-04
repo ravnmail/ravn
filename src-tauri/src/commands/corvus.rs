@@ -1,8 +1,11 @@
 use crate::database::models::email::Email;
-use crate::database::repositories::{EmailRepository, RepositoryFactory};
+use crate::database::repositories::{
+    AccountRepository, ContactRepository, EmailRepository, RepositoryFactory,
+};
 use crate::services::corvus::{
-    AskAiRequest, AvailableModel, ChatMessage, CorvusService, EmailAnalysis,
+    AskAiRequest, AvailableModel, ChatMessage, ContactNote, CorvusService, EmailAnalysis,
     EmailCompletionRequest, EmailMetadata, GenerateSearchQueryRequest, GenerateSubjectRequest,
+    UserContext,
 };
 use crate::state::AppState;
 use serde::{Deserialize, Serialize};
@@ -26,6 +29,7 @@ pub struct EmailContextRequest {
     pub prior_email: Option<String>,
     pub current_text: String,
     pub cursor_position: usize,
+    pub contact_notes: Option<Vec<ContactNoteRequest>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -37,12 +41,20 @@ pub struct EmailMetadataRequest {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct ContactNoteRequest {
+    pub email: String,
+    pub display_name: Option<String>,
+    pub notes: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct GenerateSubjectContextRequest {
     pub body_content: String,
     pub sender: String,
     pub recipients: Vec<String>,
     pub is_reply: bool,
     pub current_subject: Option<String>,
+    pub contact_notes: Option<Vec<ContactNoteRequest>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -129,6 +141,17 @@ pub async fn generate_email_completion(
     log::debug!("Received generate_email_completion request");
 
     let ai_service = get_ai_service(&state);
+    let contact_notes: Vec<ContactNote> = context
+        .contact_notes
+        .unwrap_or_default()
+        .into_iter()
+        .map(|cn| ContactNote {
+            email: cn.email,
+            display_name: cn.display_name,
+            notes: cn.notes,
+        })
+        .collect();
+
     let request = EmailCompletionRequest {
         metadata: EmailMetadata {
             sender: context.metadata.sender,
@@ -139,6 +162,7 @@ pub async fn generate_email_completion(
         prior_email: context.prior_email,
         current_text: context.current_text,
         cursor_position: context.cursor_position,
+        contact_notes,
     };
 
     match ai_service.generate_email_completion(request).await {
@@ -164,12 +188,24 @@ pub async fn generate_subject(
     log::debug!("Received generate_subject request");
 
     let ai_service = get_ai_service(&state);
+    let contact_notes: Vec<ContactNote> = context
+        .contact_notes
+        .unwrap_or_default()
+        .into_iter()
+        .map(|cn| ContactNote {
+            email: cn.email,
+            display_name: cn.display_name,
+            notes: cn.notes,
+        })
+        .collect();
+
     let request = GenerateSubjectRequest {
         body_content: context.body_content,
         sender: context.sender,
         recipients: context.recipients,
         is_reply: context.is_reply,
         current_subject: context.current_subject,
+        contact_notes,
     };
 
     match ai_service.generate_subject(request).await {
@@ -220,6 +256,9 @@ pub async fn analyze_email_with_ai(
 
     let repo_factory = RepositoryFactory::new(state.db_pool.clone());
     let email_repo = repo_factory.email_repository();
+    let account_repo = repo_factory.account_repository();
+
+    let contact_repo = repo_factory.contact_repository();
 
     let email: Email = email_repo
         .find_by_id(email_id)
@@ -237,9 +276,61 @@ pub async fn analyze_email_with_ai(
         }
     }
 
+    // Resolve the account that owns this email so we can tell the AI who the user is
+    let user_context = account_repo
+        .find_by_id(email.account_id)
+        .await
+        .ok()
+        .flatten()
+        .map(|account| {
+            log::debug!(
+                "Resolved account for email {}: '{}' <{}>",
+                email_id,
+                account.name,
+                account.email
+            );
+            UserContext::from_account(&account)
+        });
+
+    if user_context.is_none() {
+        log::warn!(
+            "Could not resolve account {} for email {} – analysis will lack user context",
+            email.account_id,
+            email_id
+        );
+    }
+
+    // Gather ai_notes for all contacts involved in this email
+    let all_addresses: Vec<(String, Option<String>)> = {
+        let mut addrs = vec![(email.from().address.clone(), email.from().name.clone())];
+        for addr in email.to() {
+            addrs.push((addr.address.clone(), addr.name.clone()));
+        }
+        for addr in email.cc() {
+            addrs.push((addr.address.clone(), addr.name.clone()));
+        }
+        addrs
+    };
+
+    let mut contact_notes: Vec<ContactNote> = Vec::new();
+    for (addr, name) in all_addresses {
+        if let Ok(Some(contact)) = contact_repo.find_by_email(&addr).await {
+            if let Some(notes) = contact.ai_notes.filter(|n| !n.is_empty()) {
+                contact_notes.push(ContactNote {
+                    email: addr,
+                    display_name: name,
+                    notes,
+                });
+            }
+        }
+    }
+
     let ai_service = get_ai_service(&state);
 
-    match ai_service.analyze_email(&email).await {
+    match ai_service
+        .analyze_email(&email, user_context.as_ref(), &contact_notes)
+        .await
+    {
         Ok(analysis) => {
             let analysis_json = serde_json::to_string(&analysis)
                 .map_err(|e| format!("Failed to serialize analysis: {}", e))?;

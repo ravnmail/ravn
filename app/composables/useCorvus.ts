@@ -25,11 +25,18 @@ interface EmailMetadata {
   recipients: string[]
 }
 
+export interface ContactNote {
+  email: string
+  display_name?: string | null
+  notes: string
+}
+
 interface EmailCompletionContext {
   metadata: EmailMetadata
   prior_email?: string
   current_text: string
   cursor_position: number
+  contact_notes?: ContactNote[]
 }
 
 interface CompletionResult {
@@ -43,6 +50,7 @@ interface GenerateSubjectContext {
   recipients: string[]
   is_reply: boolean
   current_subject?: string
+  contact_notes?: ContactNote[]
 }
 
 interface EmailAnalysis {
@@ -133,7 +141,8 @@ export function useCorvus() {
     metadata: EmailMetadata,
     currentText: string,
     cursorPosition: number,
-    priorEmail?: string
+    priorEmail?: string,
+    contactNotes?: ContactNote[]
   ): Promise<string | null> => {
     try {
       isGeneratingCompletion.value = true
@@ -145,6 +154,7 @@ export function useCorvus() {
         current_text: currentText,
         cursor_position: cursorPosition,
         prior_email: priorEmail,
+        contact_notes: contactNotes,
       }
 
       const result = await invoke<CompletionResult>('generate_email_completion', { context })
@@ -171,7 +181,8 @@ export function useCorvus() {
     sender: string,
     recipients: string[],
     isReply: boolean,
-    currentSubject?: string
+    currentSubject?: string,
+    contactNotes?: ContactNote[]
   ): Promise<string | null> => {
     try {
       isGeneratingSubject.value = true
@@ -184,6 +195,7 @@ export function useCorvus() {
         recipients,
         is_reply: isReply,
         current_subject: currentSubject,
+        contact_notes: contactNotes,
       }
 
       const result = await invoke<CompletionResult>('generate_subject', { context })
@@ -439,7 +451,8 @@ export function useCorvus() {
     metadata: EmailMetadata,
     currentText: string,
     cursorPosition: number,
-    priorEmail?: string
+    priorEmail?: string,
+    contactNotes?: ContactNote[]
   ): Promise<string | null> => {
     try {
       isGeneratingCompletion.value = true
@@ -451,6 +464,7 @@ export function useCorvus() {
         current_text: currentText,
         cursor_position: cursorPosition,
         prior_email: priorEmail,
+        contact_notes: contactNotes,
       }
 
       const requestId = await invoke<string>('generate_email_completion_streaming', { context })
@@ -504,7 +518,8 @@ export function useCorvus() {
     sender: string,
     recipients: string[],
     isReply: boolean,
-    currentSubject?: string
+    currentSubject?: string,
+    contactNotes?: ContactNote[]
   ): Promise<string | null> => {
     try {
       isGeneratingSubject.value = true
@@ -517,6 +532,7 @@ export function useCorvus() {
         recipients,
         is_reply: isReply,
         current_subject: currentSubject,
+        contact_notes: contactNotes,
       }
 
       const requestId = await invoke<string>('generate_subject_streaming', { context })

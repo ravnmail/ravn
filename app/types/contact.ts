@@ -6,6 +6,7 @@ export interface Contact {
   last_name: string | null
   company: string | null
   email: string
+  ai_notes: string | null
   source: 'observed' | 'imported' | 'manual'
   avatar_type: 'gravatar' | 'unavatar' | 'favicon' | 'none' | 'unprocessed'
   avatar_path: string

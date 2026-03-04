@@ -1,23 +1,32 @@
 <script lang="ts" setup>
+import { invoke } from '@tauri-apps/api/core'
 import { Editor, EditorContent } from '@tiptap/vue-3'
-import { MailKit } from '~/lib/editor/extensions/MailKit'
-import BasicBubbleMenu from '~/lib/editor/menus/BasicBubbleMenu.vue'
-import LinkBubbleMenu from '~/lib/editor/menus/LinkBubbleMenu.vue'
-import ContentMenu from '~/lib/editor/menus/ContentMenu.vue'
-import AIMenu from '~/lib/editor/menus/AIMenu.vue'
-import { Button } from '~/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
+import { marked } from 'marked'
+import type { CleanTranslation } from 'nuxt-i18n-micro-types'
 import EmailAutocompleteInput from '~/components/EmailAutocompleteInput.vue'
 import { Badge } from '~/components/ui/badge'
-import { SimpleTooltip } from '~/components/ui/tooltip'
-import type { EmailAddress, EmailDetail } from '~/types/email'
-import type { SaveDraftRequest, SendFromAccountRequest } from '~/composables/useAccountEmail'
-import type { CleanTranslation } from 'nuxt-i18n-micro-types'
+import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
-import { useCorvus } from '~/composables/useCorvus'
-import { getFileIconForMimeType } from '~/lib/utils/fileIcons'
-import { marked } from 'marked'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select'
 import { Separator } from '~/components/ui/separator'
+import { SimpleTooltip } from '~/components/ui/tooltip'
+import type { SaveDraftRequest, SendFromAccountRequest } from '~/composables/useAccountEmail'
+import type { ContactNote } from '~/composables/useCorvus'
+import { useCorvus } from '~/composables/useCorvus'
+import { MailKit } from '~/lib/editor/extensions/MailKit'
+import AIMenu from '~/lib/editor/menus/AIMenu.vue'
+import BasicBubbleMenu from '~/lib/editor/menus/BasicBubbleMenu.vue'
+import ContentMenu from '~/lib/editor/menus/ContentMenu.vue'
+import LinkBubbleMenu from '~/lib/editor/menus/LinkBubbleMenu.vue'
+import { getFileIconForMimeType } from '~/lib/utils/fileIcons'
+import type { Contact } from '~/types/contact'
+import type { EmailAddress, EmailDetail } from '~/types/email'
 
 interface Props {
   draft?: EmailDetail
@@ -52,10 +61,44 @@ const {
 } = useAccountEmail()
 
 const { loadAttachmentsForForward } = useAttachments()
-const {
-  isGeneratingSubject,
-  generateSubjectStreaming,
-} = useCorvus()
+const { isGeneratingSubject, generateSubjectStreaming } = useCorvus()
+
+// Lazily resolved AI notes for the current recipients, fetched via invoke on demand.
+const activeContactNotes = ref<ContactNote[]>([])
+
+const resolveContactNotes = async (emails: string[]): Promise<ContactNote[]> => {
+  const notes: ContactNote[] = []
+  for (const email of emails.slice(0, 5)) {
+    if (!email) continue
+    try {
+      const contact = await invoke<Contact | null>('get_contact_by_email', { email })
+      if (contact?.ai_notes?.trim()) {
+        notes.push({
+          email: contact.email,
+          display_name: contact.display_name,
+          notes: contact.ai_notes,
+        })
+      }
+    } catch (_) {
+      // ignore per-contact errors silently
+    }
+  }
+  return notes
+}
+
+// Re-resolve notes whenever the recipient list changes (debounced to avoid
+// hammering the DB on every keystroke in the To/Cc fields).
+let resolveNotesTimer: ReturnType<typeof setTimeout> | null = null
+const scheduleResolveNotes = () => {
+  if (resolveNotesTimer) clearTimeout(resolveNotesTimer)
+  resolveNotesTimer = setTimeout(async () => {
+    const emails = [
+      ...(draft.value.to ?? []).map((a) => a.address),
+      ...(draft.value.cc ?? []).map((a) => a.address),
+    ]
+    activeContactNotes.value = await resolveContactNotes(emails)
+  }, 400)
+}
 
 const selectedAccountId = ref<string | null>(null)
 const draft = ref<Partial<EmailDetail>>({
@@ -66,6 +109,13 @@ const draft = ref<Partial<EmailDetail>>({
   body_html: props.initialContent || '\n',
   conversation_id: undefined,
 })
+
+// Trigger note resolution whenever recipients change
+watch(
+  () => [draft.value.to, draft.value.cc],
+  () => scheduleResolveNotes(),
+  { deep: true }
+)
 const attachments = ref<File[]>([])
 const forwardedAttachments = ref<AttachmentData[]>([])
 const showCc = ref(false)
@@ -94,15 +144,15 @@ watch(accounts, (newAccounts) => {
 })
 
 const selectedAccount = computed(() => {
-  return accounts.value.find(a => String(a.id) === selectedAccountId.value)
+  return accounts.value.find((a) => String(a.id) === selectedAccountId.value)
 })
 
 const canSend = computed(() => {
   return (
-    selectedAccountId.value !== null
-    && (draft.value.to?.length ?? 0) > 0
-    && !isSending.value
-    && !isSavingDraft.value
+    selectedAccountId.value !== null &&
+    (draft.value.to?.length ?? 0) > 0 &&
+    !isSending.value &&
+    !isSavingDraft.value
   )
 })
 
@@ -110,6 +160,17 @@ const editor = new Editor({
   extensions: [
     MailKit.configure({
       placeholder: t('composer.placeholders.default'),
+      emailContext: {
+        sender: () => selectedAccount.value?.email ?? '',
+        subject: () => draft.value.subject ?? '',
+        isReply: () => !!props.replyTo,
+        recipients: () => [
+          ...(draft.value.to ?? []).map((a) => a.address),
+          ...(draft.value.cc ?? []).map((a) => a.address),
+        ],
+        priorEmail: () => props.replyTo?.body_plain ?? props.replyTo?.body_html ?? undefined,
+        contactNotes: () => activeContactNotes.value,
+      },
     }),
   ],
   content: draft.value.body_html || '\n',
@@ -187,15 +248,14 @@ function initializeReply(email: EmailDetail) {
   }
 
   if (props.isReplyAll) {
-    const originalRecipients = [
-      ...email.to,
-      ...(email.cc || [])
-    ]
+    const originalRecipients = [...email.to, ...(email.cc || [])]
     const senderEmail = selectedAccount.value?.email
-    const ccSet = new Set(originalRecipients.filter(addr =>
-      addr.address !== email.from.address &&
-      (!senderEmail || addr.address !== senderEmail)
-    ))
+    const ccSet = new Set(
+      originalRecipients.filter(
+        (addr) =>
+          addr.address !== email.from.address && (!senderEmail || addr.address !== senderEmail)
+      )
+    )
     const ccList = Array.from(ccSet)
 
     draft.value = {
@@ -238,7 +298,7 @@ async function initializeForward(email: EmailDetail) {
   const originalDate = new Date(email.sent_at || email.received_at).toLocaleString()
   const originalFrom = email.from.name || email.from.address
   const originalSubject = email.subject || ''
-  const originalTo = email.to.map(e => e.name || e.address).join(', ')
+  const originalTo = email.to.map((e) => e.name || e.address).join(', ')
   const quotedBody = email.body_html || email.body_plain || ''
 
   let initialBodyContent = toSimpleHtml(props.initialContent)
@@ -297,8 +357,7 @@ function stopAutoSave() {
 }
 
 async function handleAutoSave() {
-  if (!selectedAccountId.value)
-    return
+  if (!selectedAccountId.value) return
 
   try {
     const request: SaveDraftRequest = {
@@ -344,7 +403,7 @@ const validateForm = (): boolean => {
   const bccEmails = draft.value.bcc ?? []
 
   const allEmails = [...toEmails, ...ccEmails, ...bccEmails]
-  const invalidEmails = allEmails.filter(email => !isValidEmail(email))
+  const invalidEmails = allEmails.filter((email) => !isValidEmail(email))
 
   if (invalidEmails.length > 0) {
     validationErrors.value.push(`${t('composer.invalidEmail')}: ${invalidEmails.join(', ')}`)
@@ -354,26 +413,20 @@ const validateForm = (): boolean => {
   return true
 }
 
-
 const emailsToAddresses = (emails: string[]): EmailAddress[] => {
-  return emails.map(email => ({
+  return emails.map((email) => ({
     address: email.trim(),
     name: undefined,
   }))
 }
 
-
 async function handleSend() {
-  if (!validateForm())
-    return
+  if (!validateForm()) return
 
   try {
     const userAttachmentData = await filesToAttachmentData(attachments.value)
 
-    const allAttachments = [
-      ...userAttachmentData,
-      ...forwardedAttachments.value
-    ]
+    const allAttachments = [...userAttachmentData, ...forwardedAttachments.value]
 
     const request: SendFromAccountRequest = {
       account_id: selectedAccountId.value!,
@@ -408,9 +461,9 @@ async function handleSaveDraft() {
     const request: SaveDraftRequest = {
       account_id: selectedAccountId.value,
       draft_id: currentDraftId.value || undefined,
-      to: emailsToAddresses(draft.value.to?.map(e => e.address) || []),
-      cc: emailsToAddresses(draft.value.cc?.map(e => e.address) || []),
-      bcc: emailsToAddresses(draft.value.bcc?.map(e => e.address) || []),
+      to: emailsToAddresses(draft.value.to?.map((e) => e.address) || []),
+      cc: emailsToAddresses(draft.value.cc?.map((e) => e.address) || []),
+      bcc: emailsToAddresses(draft.value.bcc?.map((e) => e.address) || []),
       subject: draft.value.subject || '',
       body: editor.getHTML(),
       conversation_id: draft.value.conversation_id,
@@ -466,14 +519,12 @@ function removeForwardedAttachment(index: number) {
 }
 
 function formatFileSize(bytes: number): string {
-  if (bytes === 0)
-    return '0 Bytes'
+  if (bytes === 0) return '0 Bytes'
   const k = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return `${Math.round(bytes / Math.pow(k, i) * 100) / 100} ${sizes[i]}`
+  return `${Math.round((bytes / Math.pow(k, i)) * 100) / 100} ${sizes[i]}`
 }
-
 
 const handleDragEnter = (event: DragEvent) => {
   event.preventDefault()
@@ -523,9 +574,9 @@ async function handleGenerateSubject() {
   }
 
   try {
-    const toAddresses = draft.value.to?.map(e => e.address) || []
-    const ccAddresses = draft.value.cc?.map(e => e.address) || []
-    const bccAddresses = draft.value.bcc?.map(e => e.address) || []
+    const toAddresses = draft.value.to?.map((e) => e.address) || []
+    const ccAddresses = draft.value.cc?.map((e) => e.address) || []
+    const bccAddresses = draft.value.bcc?.map((e) => e.address) || []
     const recipientsList = [...toAddresses, ...ccAddresses, ...bccAddresses]
     const senderEmail = selectedAccount.value?.email || ''
     const isReply = !!props.replyTo
@@ -535,7 +586,8 @@ async function handleGenerateSubject() {
       senderEmail,
       recipientsList,
       isReply,
-      draft.value.subject || undefined
+      draft.value.subject || undefined,
+      activeContactNotes.value.length > 0 ? activeContactNotes.value : undefined
     )
 
     if (generatedText) {
@@ -546,19 +598,18 @@ async function handleGenerateSubject() {
     console.error('Failed to generate subject:', error)
   }
 }
-
 </script>
 
 <template>
   <div
-    class="flex flex-col h-full bg-background w-full relative"
+    class="relative flex h-full w-full flex-col bg-background"
     @dragenter="handleDragEnter"
     @dragleave="handleDragLeave"
     @dragover="handleDragOver"
     @drop="handleDrop"
   >
     <div class="flex items-center justify-between pb-2">
-      <div class="flex items-center gap-1 ml-auto">
+      <div class="ml-auto flex items-center gap-1">
         <SimpleTooltip
           :tooltip="`${$t('composer.saveDraft')}`"
           shortcut="mod + S"
@@ -589,13 +640,11 @@ async function handleGenerateSubject() {
             variant="ghost"
             @click="handleDiscard"
           >
-            <Icon name="lucide:trash-2"/>
+            <Icon name="lucide:trash-2" />
           </Button>
         </SimpleTooltip>
 
-        <Separator
-          orientation="vertical"
-        />
+        <Separator orientation="vertical" />
 
         <SimpleTooltip
           :tooltip="$t('composer.send')"
@@ -623,15 +672,15 @@ async function handleGenerateSubject() {
 
     <div
       v-if="validationErrors.length > 0"
-      class="py-2 bg-destructive-background/10 border-b border-destructive"
+      class="border-b border-destructive bg-destructive-background/10 py-2"
     >
       <div
         v-for="(error, index) in validationErrors"
         :key="index"
-        class="text-sm text-destructive flex items-center gap-2"
+        class="flex items-center gap-2 text-sm text-destructive"
       >
         <Icon
-          class="w-4 h-4"
+          class="h-4 w-4"
           name="lucide:alert-circle"
         />
         {{ error }}
@@ -640,12 +689,12 @@ async function handleGenerateSubject() {
 
     <div>
       <div class="flex items-start py-1">
-        <label class="text-sm font-medium text-muted pt-2 w-16 shrink-0">
+        <label class="w-16 shrink-0 pt-2 text-sm font-medium text-muted">
           {{ $t('composer.from') }}
         </label>
         <Select v-model="selectedAccountId">
           <SelectTrigger>
-            <SelectValue/>
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem
@@ -654,7 +703,8 @@ async function handleGenerateSubject() {
               :value="account.id"
             >
               <div class="flex items-center gap-2">
-                <span>{{ account.name }}</span><span class="opacity-60"> &lt;{{ account.email }}&gt;</span>
+                <span>{{ account.name }}</span
+                ><span class="opacity-60"> &lt;{{ account.email }}&gt;</span>
               </div>
             </SelectItem>
           </SelectContent>
@@ -662,14 +712,19 @@ async function handleGenerateSubject() {
       </div>
 
       <div class="flex items-start py-1">
-        <label class="text-sm font-medium text-muted pt-2 w-16 shrink-0">
+        <label class="w-16 shrink-0 pt-2 text-sm font-medium text-muted">
           {{ $t('composer.to') }}
         </label>
-        <div class="flex-1 flex items-center gap-2">
+        <div class="flex flex-1 items-center gap-2">
           <EmailAutocompleteInput
-            :model-value="draft.to|| []"
+            :model-value="draft.to || []"
             :placeholder="$t('composer.enterRecipient')"
-            @update:model-value="(emails) => { draft.to = emails; hasUnsavedChanges = true }"
+            @update:model-value="
+              (emails) => {
+                draft.to = emails
+                hasUnsavedChanges = true
+              }
+            "
           />
           <div class="flex items-center gap-1">
             <Button
@@ -697,14 +752,19 @@ async function handleGenerateSubject() {
         v-if="showCc"
         class="flex items-start py-1"
       >
-        <label class="text-sm font-medium text-muted pt-2 w-16 shrink-0">
+        <label class="w-16 shrink-0 pt-2 text-sm font-medium text-muted">
           {{ $t('composer.cc') }}
         </label>
-        <div class="flex-1 flex items-center gap-2">
+        <div class="flex flex-1 items-center gap-2">
           <EmailAutocompleteInput
             :model-value="draft.cc || []"
             :placeholder="$t('composer.enterRecipient')"
-            @update:model-value="(emails) => { draft.cc = emails; hasUnsavedChanges = true }"
+            @update:model-value="
+              (emails) => {
+                draft.cc = emails
+                hasUnsavedChanges = true
+              }
+            "
           />
           <Button
             size="xs"
@@ -713,7 +773,7 @@ async function handleGenerateSubject() {
             @click="showCc = false"
           >
             <Icon
-              class="w-3 h-3"
+              class="h-3 w-3"
               name="lucide:x"
             />
           </Button>
@@ -723,14 +783,19 @@ async function handleGenerateSubject() {
         v-if="showBcc"
         class="flex items-start py-1"
       >
-        <label class="text-sm font-medium text-muted pt-2 w-16 shrink-0">
+        <label class="w-16 shrink-0 pt-2 text-sm font-medium text-muted">
           {{ $t('composer.bcc') }}
         </label>
-        <div class="flex-1 flex items-center gap-2">
+        <div class="flex flex-1 items-center gap-2">
           <EmailAutocompleteInput
             :model-value="draft.bcc || []"
             :placeholder="$t('composer.enterRecipient')"
-            @update:model-value="(emails) => { draft.bcc = emails; hasUnsavedChanges = true }"
+            @update:model-value="
+              (emails) => {
+                draft.bcc = emails
+                hasUnsavedChanges = true
+              }
+            "
           />
           <Button
             size="xs"
@@ -739,17 +804,17 @@ async function handleGenerateSubject() {
             @click="showBcc = false"
           >
             <Icon
-              class="w-3 h-3"
+              class="h-3 w-3"
               name="lucide:x"
             />
           </Button>
         </div>
       </div>
       <div class="flex items-center py-1">
-        <label class="text-sm font-medium text-muted w-16 shrink-0">
+        <label class="w-16 shrink-0 text-sm font-medium text-muted">
           {{ $t('composer.subject') }}
         </label>
-        <div class="flex-1 flex relative">
+        <div class="relative flex flex-1">
           <Input
             v-model="draft.subject"
             :placeholder="$t('composer.subject')"
@@ -760,17 +825,17 @@ async function handleGenerateSubject() {
           <SimpleTooltip tooltip="Generate subject with AI">
             <button
               :disabled="isGeneratingSubject || !draft.body_html || !selectedAccountId"
-              class="absolute right-2 top-2 text-ai hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              class="absolute top-2 right-2 text-ai hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
               @click="handleGenerateSubject"
             >
               <Icon
                 v-if="isGeneratingSubject"
-                class="w-4 h-4 animate-spin"
+                class="h-4 w-4 animate-spin"
                 name="lucide:loader-2"
               />
               <Icon
                 v-else
-                class="w-4 h-4"
+                class="h-4 w-4"
                 name="ravn:raven"
               />
             </button>
@@ -781,11 +846,11 @@ async function handleGenerateSubject() {
 
     <div
       v-if="attachments.length > 0 || forwardedAttachments.length > 0"
-      class="my-1 p-2 bg-surface rounded"
+      class="my-1 rounded bg-surface p-2"
     >
-      <div class="flex items-center gap-2 mb-2">
+      <div class="mb-2 flex items-center gap-2">
         <Icon
-          class="w-4 h-4 text-muted"
+          class="h-4 w-4 text-muted"
           name="lucide:paperclip"
         />
         <span class="text-sm font-medium text-muted">{{ $t('composer.attachments') }}</span>
@@ -803,7 +868,7 @@ async function handleGenerateSubject() {
             mode="ib"
           />
           <div class="flex-1">
-            <span class="text-sm font-medium max-w-64 truncate">{{ file.name }}</span>
+            <span class="max-w-64 truncate text-sm font-medium">{{ file.name }}</span>
             <div class="text-xs opacity-60">{{ formatFileSize(file.size) }}</div>
           </div>
           <button
@@ -812,7 +877,7 @@ async function handleGenerateSubject() {
             @click="removeAttachment(index)"
           >
             <Icon
-              class="w-3 h-3"
+              class="h-3 w-3"
               name="lucide:x"
             />
           </button>
@@ -824,17 +889,17 @@ async function handleGenerateSubject() {
           variant="outline"
         >
           <Icon
-            class="w-3 h-3"
+            class="h-3 w-3"
             name="lucide:forward"
           />
           <span class="text-xs">{{ att.filename }} ({{ formatFileSize(att.content.length) }})</span>
           <button
             :title="$t('composer.removeAttachment')"
-            class="hover:bg-destructive/20 rounded p-0.5 transition-colors"
+            class="rounded p-0.5 transition-colors hover:bg-destructive/20"
             @click="removeForwardedAttachment(index)"
           >
             <Icon
-              class="w-3 h-3"
+              class="h-3 w-3"
               name="lucide:x"
             />
           </button>
@@ -842,10 +907,10 @@ async function handleGenerateSubject() {
       </div>
     </div>
 
-    <div class="py-1 min-h-10">
-      <div class="flex items-center justify-between w-full">
+    <div class="min-h-10 py-1">
+      <div class="flex w-full items-center justify-between">
         <div class="flex-1">
-          <Toolbar :editor="editor"/>
+          <Toolbar :editor="editor" />
         </div>
         <SimpleTooltip :tooltip="$t('composer.addAttachment')">
           <Button
@@ -853,17 +918,17 @@ async function handleGenerateSubject() {
             variant="ghost"
             @click="handleAttachmentClick"
           >
-            <Icon name="lucide:paperclip"/>
+            <Icon name="lucide:paperclip" />
           </Button>
         </SimpleTooltip>
       </div>
     </div>
 
-    <div class="flex-1 overflow-auto bg-surface rounded">
-      <div class="w-full h-full max-w-none">
+    <div class="flex-1 overflow-auto rounded bg-surface">
+      <div class="h-full w-full max-w-none">
         <editor-content
           :editor="editor"
-          class="w-full h-full p-3 prose prose-sm max-w-none"
+          class="prose prose-sm h-full w-full max-w-none p-3"
         />
       </div>
     </div>
@@ -875,19 +940,19 @@ async function handleGenerateSubject() {
       multiple
       type="file"
       @change="handleFileSelect"
-    >
+    />
 
-    <ContentMenu :editor="editor"/>
-    <AIMenu :editor="editor"/>
-    <BasicBubbleMenu :editor="editor"/>
-    <LinkBubbleMenu :editor="editor"/>
+    <ContentMenu :editor="editor" />
+    <AIMenu :editor="editor" />
+    <BasicBubbleMenu :editor="editor" />
+    <LinkBubbleMenu :editor="editor" />
     <div
       v-if="isDraggingOver"
-      class="absolute inset-0 bg-dialog-overlay/30 backdrop-blur-xs z-50 flex items-center justify-center pointer-events-none"
+      class="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-dialog-overlay/30 backdrop-blur-xs"
     >
-      <div class="bg-background rounded-lg p-8 text-center">
+      <div class="rounded-lg bg-background p-8 text-center">
         <Icon
-          class="w-16 h-16 mx-auto text-primary"
+          class="mx-auto h-16 w-16 text-primary"
           name="lucide:upload-cloud"
         />
         <p class="text-lg font-semibold text-primary">

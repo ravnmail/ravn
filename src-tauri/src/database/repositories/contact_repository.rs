@@ -74,6 +74,7 @@ impl SqliteContactRepository {
             first_name: None,
             last_name: None,
             company: None,
+            ai_notes: None,
             source: "observed".to_string(),
             avatar_type: "unprocessed".to_string(),
             avatar_path: None,
@@ -122,28 +123,29 @@ impl ContactRepository for SqliteContactRepository {
         let id = contact.id.to_string();
         let email_lowercase = contact.email.to_lowercase();
 
-        sqlx::query!(
+        sqlx::query(
             r#"
             INSERT INTO contacts (
                 id, email, display_name, first_name, last_name, company,
-                source, avatar_type, avatar_path, send_count, receive_count,
+                ai_notes, source, avatar_type, avatar_path, send_count, receive_count,
                 last_used_at, first_seen_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
-            id,
-            email_lowercase,
-            contact.display_name,
-            contact.first_name,
-            contact.last_name,
-            contact.company,
-            contact.source,
-            contact.avatar_type,
-            contact.avatar_path,
-            contact.send_count,
-            contact.receive_count,
-            contact.last_used_at,
-            contact.first_seen_at
         )
+        .bind(&id)
+        .bind(&email_lowercase)
+        .bind(&contact.display_name)
+        .bind(&contact.first_name)
+        .bind(&contact.last_name)
+        .bind(&contact.company)
+        .bind(&contact.ai_notes)
+        .bind(&contact.source)
+        .bind(&contact.avatar_type)
+        .bind(&contact.avatar_path)
+        .bind(contact.send_count)
+        .bind(contact.receive_count)
+        .bind(contact.last_used_at)
+        .bind(contact.first_seen_at)
         .execute(&self.pool)
         .await
         .map_err(DatabaseError::ConnectionError)?;
@@ -154,26 +156,27 @@ impl ContactRepository for SqliteContactRepository {
     async fn update(&self, contact: &Contact) -> Result<(), DatabaseError> {
         let id = contact.id.to_string();
 
-        sqlx::query!(
+        sqlx::query(
             r#"
             UPDATE contacts
             SET display_name = ?, first_name = ?, last_name = ?, company = ?,
-                source = ?, avatar_type = ?, avatar_path = ?, send_count = ?,
+                ai_notes = ?, source = ?, avatar_type = ?, avatar_path = ?, send_count = ?,
                 receive_count = ?, last_used_at = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             "#,
-            contact.display_name,
-            contact.first_name,
-            contact.last_name,
-            contact.company,
-            contact.source,
-            contact.avatar_type,
-            contact.avatar_path,
-            contact.send_count,
-            contact.receive_count,
-            contact.last_used_at,
-            id
         )
+        .bind(&contact.display_name)
+        .bind(&contact.first_name)
+        .bind(&contact.last_name)
+        .bind(&contact.company)
+        .bind(&contact.ai_notes)
+        .bind(&contact.source)
+        .bind(&contact.avatar_type)
+        .bind(&contact.avatar_path)
+        .bind(contact.send_count)
+        .bind(contact.receive_count)
+        .bind(contact.last_used_at)
+        .bind(&id)
         .execute(&self.pool)
         .await
         .map_err(DatabaseError::ConnectionError)?;

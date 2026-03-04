@@ -1,13 +1,14 @@
 <script lang="ts" setup>
-import type { EmailAddress } from '~/types/email'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuLabel, DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu'
 import DropdownMenuItemRich from '~/components/ui/dropdown-menu/DropdownMenuItemRich.vue'
+import type { EmailAddress } from '~/types/email'
 
 const { copy } = useClipboard()
 
@@ -18,16 +19,17 @@ interface Props extends EmailAddress {
 
 withDefaults(defineProps<Props>(), {
   isLast: false,
-  showAvatar: false
+  showAvatar: false,
 })
 
+const aiNotesOpen = ref(false)
 </script>
 
 <template>
   <DropdownMenu v-slot="{ open }">
     <DropdownMenuTrigger
       as="button"
-      class="select-text relative inline-flex items-center space-x-2 group text-foreground data-[state=open]:bg-selection hover:bg-selection hover:text-selection-foreground data-[state=open]:text-selection-foreground hover:z-10 pl-1 py-0.5 -mx-1 -my-0.5 rounded pr-3"
+      class="group relative -mx-1 -my-0.5 inline-flex items-center space-x-2 rounded py-0.5 pr-3 pl-1 text-foreground select-text hover:z-10 hover:bg-selection hover:text-selection-foreground data-[state=open]:bg-selection data-[state=open]:text-selection-foreground"
     >
       <RavnAvatar
         v-if="showAvatar"
@@ -35,10 +37,15 @@ withDefaults(defineProps<Props>(), {
         :name="name"
         size="xs"
       />
-      <p>{{ name || address }}<span
-        v-if="name"
-        class="sr-only"
-      > &lt;{{ address }}&gt;</span></p>
+      <p>
+        {{ name || address
+        }}<span
+          v-if="name"
+          class="sr-only"
+        >
+          &lt;{{ address }}&gt;</span
+        >
+      </p>
       <Icon
         :class="['absolute right-1 opacity-0 group-hover:opacity-100', open ? 'opacity-100' : '']"
         name="lucide:chevron-down"
@@ -56,7 +63,14 @@ withDefaults(defineProps<Props>(), {
           icon="lucide:search"
           @click="() => $router.push({ name: 'search', query: { q: `from:${address}` } })"
         />
-        <DropdownMenuSeparator/>
+        <DropdownMenuSeparator />
+        <DropdownMenuItemRich
+          label="Edit AI Notes"
+          icon="ravn:raven"
+          class="text-ai"
+          @click="aiNotesOpen = true"
+        />
+        <DropdownMenuSeparator />
         <DropdownMenuLabel>Copy</DropdownMenuLabel>
         <DropdownMenuItemRich
           :label="`${address}`"
@@ -78,4 +92,10 @@ withDefaults(defineProps<Props>(), {
       </DropdownMenuGroup>
     </DropdownMenuContent>
   </DropdownMenu>
+
+  <RavnContactAINotesDialog
+    v-model:open="aiNotesOpen"
+    :email="address"
+    :name="name"
+  />
 </template>

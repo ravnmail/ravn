@@ -8,8 +8,11 @@ use tokio::time::sleep;
 use uuid::Uuid;
 
 use super::error::{SyncError, SyncResult};
-use crate::database::repositories::{EmailRepository, SqliteEmailRepository};
-use crate::services::corvus::CorvusService;
+use crate::database::repositories::{
+    AccountRepository, ContactRepository, EmailRepository, SqliteAccountRepository,
+    SqliteContactRepository, SqliteEmailRepository,
+};
+use crate::services::corvus::{ContactNote, CorvusService, UserContext};
 
 const ANALYSIS_BATCH_SIZE: i64 = 5;
 const ANALYSIS_INTERVAL_SECS: u64 = 10;
@@ -161,8 +164,57 @@ impl BackgroundAiAnalyzer {
             .map_err(|e| SyncError::DatabaseError(e.to_string()))?
             .ok_or_else(|| SyncError::Other("Email not found".to_string()))?;
 
+        // Resolve the account that owns this email to provide user context to the AI
+        let account_repo = SqliteAccountRepository::new(pool.clone());
+        let user_context = account_repo
+            .find_by_id(email.account_id)
+            .await
+            .ok()
+            .flatten()
+            .map(|account| {
+                log::debug!(
+                    "[BackgroundAiAnalyzer] Resolved account for email {}: '{}' <{}>",
+                    email_id,
+                    account.name,
+                    account.email
+                );
+                UserContext::from_account(&account)
+            });
+
+        if user_context.is_none() {
+            log::warn!(
+                "[BackgroundAiAnalyzer] Could not resolve account {} for email {} – analysis will lack user context",
+                email.account_id,
+                email_id
+            );
+        }
+
+        // Gather ai_notes for all contacts involved in this email
+        let contact_repo = SqliteContactRepository::new(pool.clone());
+        let mut all_addresses: Vec<(String, Option<String>)> =
+            vec![(email.from().address.clone(), email.from().name.clone())];
+        for addr in email.to() {
+            all_addresses.push((addr.address.clone(), addr.name.clone()));
+        }
+        for addr in email.cc() {
+            all_addresses.push((addr.address.clone(), addr.name.clone()));
+        }
+
+        let mut contact_notes: Vec<ContactNote> = Vec::new();
+        for (addr, name) in all_addresses {
+            if let Ok(Some(contact)) = contact_repo.find_by_email(&addr).await {
+                if let Some(notes) = contact.ai_notes.filter(|n| !n.is_empty()) {
+                    contact_notes.push(ContactNote {
+                        email: addr,
+                        display_name: name,
+                        notes,
+                    });
+                }
+            }
+        }
+
         let analysis = ai_service
-            .analyze_email(&email)
+            .analyze_email(&email, user_context.as_ref(), &contact_notes)
             .await
             .map_err(|e| SyncError::Other(e))?;
 
