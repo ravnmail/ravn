@@ -56,8 +56,15 @@ const showFullContent = ref(false)
 const renderMode = ref<'simple' | 'normal'>('simple')
 const temporaryRenderMode = ref<'simple' | 'normal' | null>(null)
 
-const { isAnalyzing, analysisError, currentAnalysis, analyzeEmail, parseAnalysisFromCache } =
-  useCorvus()
+const {
+  isAnalyzing,
+  analysisError,
+  currentAnalysis,
+  analyzeEmail,
+  reanalyzeEmail,
+  clearAnalysisState,
+  parseAnalysisFromCache,
+} = useCorvus()
 const { updateRead } = useEmails()
 const showAnalyzeButton = ref(false)
 
@@ -76,6 +83,9 @@ onMounted(async () => {
   }
   if (!props.showAI) return
 
+  // Always start clean so a previously-viewed email's result never bleeds in.
+  clearAnalysisState()
+
   markAsReadTimout.value = setTimeout(async () => {
     try {
       if (props.is_read) return
@@ -87,9 +97,11 @@ onMounted(async () => {
   const cached = parseAnalysisFromCache(props as EmailDetail)
   if (cached) {
     currentAnalysis.value = cached
+    showAnalyzeButton.value = false
   } else if (props.autoAnalyze && shouldAnalyze) {
     try {
       await analyzeEmail(props as EmailDetail)
+      showAnalyzeButton.value = false
     } catch (_: unknown) {
       showAnalyzeButton.value = true
     }
@@ -108,6 +120,15 @@ onUnmounted(() => {
 const handleAnalyze = async () => {
   try {
     await analyzeEmail(props as EmailDetail)
+    showAnalyzeButton.value = false
+  } catch (_: unknown) {
+    // Error will be shown in analysis component
+  }
+}
+
+const handleReanalyze = async () => {
+  try {
+    await reanalyzeEmail(props as EmailDetail)
     showAnalyzeButton.value = false
   } catch (_: unknown) {
     // Error will be shown in analysis component
@@ -393,13 +414,14 @@ const toggleReduced = () => {
     </div>
     <template v-if="showAI">
       <EmailAIAnalysis
-        v-if="currentAnalysis || isAnalyzing"
+        v-if="currentAnalysis || isAnalyzing || analysisError"
         :analysis="currentAnalysis"
         :email="props"
         :error="analysisError"
         :is-analyzing="isAnalyzing"
         :reduced="reduced"
         @quick-reply="handleQuickReply"
+        @regenerate="handleReanalyze"
       />
       <div v-else-if="showAnalyzeButton && !reduced">
         <Button

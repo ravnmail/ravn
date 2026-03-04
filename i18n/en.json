@@ -463,9 +463,11 @@
       }
     },
     "aiAnalysis": {
+      "label": "AI",
       "analyzing": "Analyzing email...",
       "failed": "Analysis failed",
-      "quickReply": "Quick Reply"
+      "quickReply": "Quick Reply",
+      "regenerate": "Regenerate"
     },
     "conversationViewer": {
       "errors": {

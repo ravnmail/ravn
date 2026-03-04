@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import type { EmailDetail, EmailAnalysis } from '~/types/email'
 import { Button } from '~/components/ui/button'
+import type { EmailAnalysis, EmailDetail } from '~/types/email'
 
 defineProps<{
   email: EmailDetail
@@ -12,50 +12,63 @@ defineProps<{
 
 const emit = defineEmits<{
   quickReply: [content: string]
+  regenerate: []
 }>()
 
 const { t } = useI18n()
 
-const handleResponseClick = (response: { title: string, content: string }) => {
+const handleResponseClick = (response: { title: string; content: string }) => {
   emit('quickReply', response.content)
 }
 </script>
 
 <template>
-  <div class="bg-surface rounded-lg overflow-hidden border-l-3 border-ai">
+  <div class="relative overflow-hidden rounded-lg border-l-3 border-ai bg-surface pr-5">
+    <Button
+      v-if="!isAnalyzing"
+      class="absolute top-2.5 right-3 h-5 w-5 text-muted hover:text-foreground"
+      size="icon"
+      variant="ghost"
+      :title="t('components.aiAnalysis.regenerate')"
+      @click="emit('regenerate')"
+    >
+      <Icon name="lucide:refresh-cw" />
+    </Button>
     <div
       v-if="isAnalyzing"
-      class="flex items-center space-x-2 text-sm p-3"
+      class="flex items-center space-x-2 px-3 py-2.5 text-sm"
     >
       <span class="ai-animate-text font-medium">{{ t('components.aiAnalysis.analyzing') }}</span>
     </div>
+
+    <!-- Error state -->
     <div
-      v-if="error && !isAnalyzing"
-      class="p-3"
+      v-else-if="error"
+      class="px-3 py-2.5"
     >
       <div class="flex items-start space-x-3 text-red-400">
         <Icon
-          class="w-5 h-5 shrink-0 mt-0.5"
+          class="mt-0.5 h-5 w-5 shrink-0"
           name="lucide:alert-circle"
         />
         <div>
           <p class="font-medium">
             {{ t('components.aiAnalysis.failed') }}
           </p>
-          <p class="text-sm text-gray-400 mt-1">
+          <p class="mt-1 text-sm text-gray-400">
             {{ error }}
           </p>
         </div>
       </div>
     </div>
+
+    <!-- Analysis result -->
     <div
-      v-else-if="analysis && !isAnalyzing"
-      class="p-3 space-y-4"
+      v-else-if="analysis"
+      class="space-y-3 px-3 pt-1.5 pb-3"
     >
       <div class="gap-3 text-foreground select-auto">{{ analysis.gist }}</div>
-      <div
-        v-if="!reduced && analysis.responses && analysis.responses.length > 0"
-      >
+      <div v-if="!reduced && analysis.responses && analysis.responses.length > 0">
         <div class="flex flex-wrap gap-2">
           <Button
             v-for="(response, index) in analysis.responses"

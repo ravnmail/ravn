@@ -1,7 +1,8 @@
+import { useQuery } from '@tanstack/vue-query'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+
 import type { EmailDetail } from '~/types/email'
-import { useQuery } from '@tanstack/vue-query'
 
 interface ChatMessage {
   role: string
@@ -61,7 +62,6 @@ interface AvailableModel {
   id: string
   name: string
 }
-
 
 const QUERY_KEYS = {
   all: ['corvus'] as const,
@@ -217,10 +217,25 @@ export function useCorvus() {
       return cached
     }
 
+    return _runAnalysis(email)
+  }
+
+  /** Force a fresh analysis from the backend, ignoring any cached result. */
+  const reanalyzeEmail = async (email: EmailDetail): Promise<EmailAnalysis | null> => {
+    if (!email || !email.id) {
+      analysisError.value = 'Invalid email'
+      return null
+    }
+
+    return _runAnalysis(email)
+  }
+
+  const _runAnalysis = async (email: EmailDetail): Promise<EmailAnalysis | null> => {
     try {
       isAnalyzing.value = true
       analyzingEmailId.value = email.id
       analysisError.value = null
+      currentAnalysis.value = null
 
       const result = await invoke<EmailAnalysisResult>('analyze_email_with_ai', {
         emailId: email.id,
@@ -244,19 +259,32 @@ export function useCorvus() {
     }
   }
 
-  const useGetModels = () => useQuery({
-    queryKey: QUERY_KEYS.models(),
-    queryFn: async() => {
-      const { models } = await invoke<{models: AvailableModel[], error: string | null}>('get_available_models')
-      return models
-    }
-  })
+  const useGetModels = () =>
+    useQuery({
+      queryKey: QUERY_KEYS.models(),
+      queryFn: async () => {
+        const { models } = await invoke<{ models: AvailableModel[]; error: string | null }>(
+          'get_available_models'
+        )
+        return models
+      },
+    })
 
   const parseAnalysisFromCache = (email: EmailDetail): EmailAnalysis | null => {
     if (!email.ai_cache) return null
 
     try {
-      return JSON.parse(email.ai_cache) as EmailAnalysis
+      // ai_cache may arrive as an already-deserialized object (Tauri deserialises
+      // JSON columns automatically) or as a raw JSON string from older code paths.
+      const raw = email.ai_cache
+      const parsed: EmailAnalysis =
+        typeof raw === 'string' ? JSON.parse(raw) : (raw as unknown as EmailAnalysis)
+
+      // Basic shape guard – make sure it really looks like an EmailAnalysis
+      if (parsed && typeof parsed.gist === 'string') {
+        return parsed
+      }
+      return null
     } catch (error) {
       console.error('Failed to parse ai_cache:', error)
       return null
@@ -371,32 +399,23 @@ export function useCorvus() {
         let errorUnlisten: (() => void) | null = null
 
         const setupListeners = async () => {
-          chunkUnlisten = await listen<string>(
-            `corvus:ask-ai-chunk-${requestId}`,
-            (event) => {
-              fullResponse += event.payload
-              askAiResponse.value = fullResponse
-            }
-          )
+          chunkUnlisten = await listen<string>(`corvus:ask-ai-chunk-${requestId}`, (event) => {
+            fullResponse += event.payload
+            askAiResponse.value = fullResponse
+          })
 
-          completeUnlisten = await listen<string>(
-            `corvus:ask-ai-complete-${requestId}`,
-            () => {
-              cleanup()
-              isAskingAi.value = false
-              resolve(fullResponse)
-            }
-          )
+          completeUnlisten = await listen<string>(`corvus:ask-ai-complete-${requestId}`, () => {
+            cleanup()
+            isAskingAi.value = false
+            resolve(fullResponse)
+          })
 
-          errorUnlisten = await listen<string>(
-            `corvus:ask-ai-error-${requestId}`,
-            (event) => {
-              cleanup()
-              askAiError.value = event.payload
-              isAskingAi.value = false
-              reject(new Error(event.payload))
-            }
-          )
+          errorUnlisten = await listen<string>(`corvus:ask-ai-error-${requestId}`, (event) => {
+            cleanup()
+            askAiError.value = event.payload
+            isAskingAi.value = false
+            reject(new Error(event.payload))
+          })
         }
 
         const cleanup = () => {
@@ -444,32 +463,23 @@ export function useCorvus() {
         let errorUnlisten: (() => void) | null = null
 
         const setupListeners = async () => {
-          chunkUnlisten = await listen<string>(
-            `corvus:completion-chunk-${requestId}`,
-            (event) => {
-              fullCompletion += event.payload
-              completionSuggestion.value = fullCompletion
-            }
-          )
+          chunkUnlisten = await listen<string>(`corvus:completion-chunk-${requestId}`, (event) => {
+            fullCompletion += event.payload
+            completionSuggestion.value = fullCompletion
+          })
 
-          completeUnlisten = await listen<string>(
-            `corvus:completion-complete-${requestId}`,
-            () => {
-              cleanup()
-              isGeneratingCompletion.value = false
-              resolve(fullCompletion)
-            }
-          )
+          completeUnlisten = await listen<string>(`corvus:completion-complete-${requestId}`, () => {
+            cleanup()
+            isGeneratingCompletion.value = false
+            resolve(fullCompletion)
+          })
 
-          errorUnlisten = await listen<string>(
-            `corvus:completion-error-${requestId}`,
-            (event) => {
-              cleanup()
-              completionError.value = event.payload
-              isGeneratingCompletion.value = false
-              reject(new Error(event.payload))
-            }
-          )
+          errorUnlisten = await listen<string>(`corvus:completion-error-${requestId}`, (event) => {
+            cleanup()
+            completionError.value = event.payload
+            isGeneratingCompletion.value = false
+            reject(new Error(event.payload))
+          })
         }
 
         const cleanup = () => {
@@ -519,32 +529,23 @@ export function useCorvus() {
         let errorUnlisten: (() => void) | null = null
 
         const setupListeners = async () => {
-          chunkUnlisten = await listen<string>(
-            `corvus:subject-chunk-${requestId}`,
-            (event) => {
-              fullSubject += event.payload
-              generatedSubject.value = fullSubject
-            }
-          )
+          chunkUnlisten = await listen<string>(`corvus:subject-chunk-${requestId}`, (event) => {
+            fullSubject += event.payload
+            generatedSubject.value = fullSubject
+          })
 
-          completeUnlisten = await listen<string>(
-            `corvus:subject-complete-${requestId}`,
-            () => {
-              cleanup()
-              isGeneratingSubject.value = false
-              resolve(fullSubject)
-            }
-          )
+          completeUnlisten = await listen<string>(`corvus:subject-complete-${requestId}`, () => {
+            cleanup()
+            isGeneratingSubject.value = false
+            resolve(fullSubject)
+          })
 
-          errorUnlisten = await listen<string>(
-            `corvus:subject-error-${requestId}`,
-            (event) => {
-              cleanup()
-              subjectError.value = event.payload
-              isGeneratingSubject.value = false
-              reject(new Error(event.payload))
-            }
-          )
+          errorUnlisten = await listen<string>(`corvus:subject-error-${requestId}`, (event) => {
+            cleanup()
+            subjectError.value = event.payload
+            isGeneratingSubject.value = false
+            reject(new Error(event.payload))
+          })
         }
 
         const cleanup = () => {
@@ -614,6 +615,7 @@ export function useCorvus() {
     currentAnalysis,
     analyzingEmailId,
     analyzeEmail,
+    reanalyzeEmail,
     clearAnalysisState,
 
     isLoadingModels,
