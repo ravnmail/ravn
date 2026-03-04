@@ -1,34 +1,43 @@
 <script lang="ts" setup>
-
-import { invoke } from '@tauri-apps/api/core'
-import type { EmailDetail } from '~/types/email'
-import EmailAddress from '~/components/Ravn/EmailAddress.vue'
+import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import AttachmentList from '~/components/Ravn/AttachmentList.vue'
-import EmailLabel from '~/components/ui/EmailLabel.vue'
 import EmailActionButtons from '~/components/Ravn/EmailActionButtons.vue'
+import EmailAddress from '~/components/Ravn/EmailAddress.vue'
 import EmailAIAnalysis from '~/components/Ravn/EmailAIAnalysis.vue'
 import EmailMarkdown from '~/components/Ravn/EmailMarkdown.vue'
 import { Button } from '~/components/ui/button'
+import EmailLabel from '~/components/ui/EmailLabel.vue'
 import { SimpleTooltip } from '~/components/ui/tooltip'
+import type { EmailDetail } from '~/types/email'
 
 const { allowImages } = useEmails()
-const { attachments, loadAttachments, isLoading: isLoadingAttachments, error: attachmentError } = useAttachments()
+const {
+  attachments,
+  loadAttachments,
+  isLoading: isLoadingAttachments,
+  error: attachmentError,
+} = useAttachments()
 const { formatEmailDate } = useFormatting()
 const { getSetting } = useSettings()
 
-const props = withDefaults(defineProps<EmailDetail & {
-  showActions?: boolean
-  showAI?: boolean
-  autoAnalyze?: boolean
-  initialReduced?: boolean
-  isFirst?: boolean
-}>(), {
-  showActions: true,
-  showAI: true,
-  autoAnalyze: false,
-  initialReduced: true,
-  isFirst: false,
-})
+const props = withDefaults(
+  defineProps<
+    EmailDetail & {
+      showActions?: boolean
+      showAI?: boolean
+      autoAnalyze?: boolean
+      initialReduced?: boolean
+      isFirst?: boolean
+    }
+  >(),
+  {
+    showActions: true,
+    showAI: true,
+    autoAnalyze: false,
+    initialReduced: true,
+    isFirst: false,
+  }
+)
 
 const emit = defineEmits<{
   (e: 'reply' | 'reply-all' | 'forward' | 'archive' | 'delete', email: EmailDetail): void
@@ -47,13 +56,8 @@ const showFullContent = ref(false)
 const renderMode = ref<'simple' | 'normal'>('simple')
 const temporaryRenderMode = ref<'simple' | 'normal' | null>(null)
 
-const {
-  isAnalyzing,
-  analysisError,
-  currentAnalysis,
-  analyzeEmail,
-  parseAnalysisFromCache
-} = useCorvus()
+const { isAnalyzing, analysisError, currentAnalysis, analyzeEmail, parseAnalysisFromCache } =
+  useCorvus()
 const { updateRead } = useEmails()
 const showAnalyzeButton = ref(false)
 
@@ -76,8 +80,7 @@ onMounted(async () => {
     try {
       if (props.is_read) return
       await updateRead(props.id, true)
-    } catch (_: any) {
-    }
+    } catch (_: any) {}
   }, 2000)
 
   const shouldAnalyze = props.category !== 'promotions'
@@ -111,12 +114,55 @@ const handleAnalyze = async () => {
   }
 }
 
+const resolveCidImages = (html: string): string => {
+  if (!html) return html
+  // Use attachments from useAttachments() — these have content_id + full_path (absolute)
+  const inlineAttachments = attachments.value.filter((a) => a.is_inline && a.full_path)
+  if (inlineAttachments.length === 0) return html
+
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const images = doc.querySelectorAll('img')
+  images.forEach((img) => {
+    const src = img.getAttribute('src') || ''
+    if (!src || src.startsWith('data:') || src.startsWith('asset:') || src.startsWith('http'))
+      return
+
+    let attachment = undefined
+
+    if (src.startsWith('cid:')) {
+      const contentId = src.slice(4).replace(/^<|>$/g, '')
+      attachment = inlineAttachments.find(
+        (a) => a.content_id === contentId || a.content_id === `<${contentId}>`
+      )
+    }
+
+    // Fallback: some clients reference inline images by bare filename instead of cid:
+    if (!attachment) {
+      // Strip any path components — match only on the final filename segment
+      const srcFilename = src.split('/').pop()?.split('?')[0] ?? ''
+      if (srcFilename) {
+        attachment = inlineAttachments.find(
+          (a) => a.filename.toLowerCase() === srcFilename.toLowerCase()
+        )
+      }
+    }
+
+    if (attachment?.full_path) {
+      img.setAttribute('src', convertFileSrc(attachment.full_path))
+      img.setAttribute('data-cid-resolved', 'true')
+    }
+  })
+  return doc.documentElement.innerHTML
+}
+
 const stripImageSources = (html: string): string => {
   const doc = new DOMParser().parseFromString(html, 'text/html')
 
   const images = doc.querySelectorAll('img')
   images.forEach((img) => {
     const src = img.getAttribute('src') || ''
+    const isCidResolved = img.getAttribute('data-cid-resolved') === 'true'
+    if (isCidResolved) return
     if (src && !src.startsWith('data:') && !src.startsWith('/')) {
       img.removeAttribute('src')
     }
@@ -156,7 +202,8 @@ const hasQuotedContentAvailable = computed(() => !!props.other_mails)
 
 const getDisplayHtml = computed(() => {
   const html = props.body_html || ''
-  return imagesBlocked.value ? stripImageSources(html) : html
+  const resolved = resolveCidImages(html)
+  return imagesBlocked.value ? stripImageSources(resolved) : resolved
 })
 
 const hasQuotedContent = computed(() => {
@@ -175,11 +222,16 @@ const getQuotedHtml = computed(() => {
   if (!showFullContent.value || !props.other_mails) return ''
 
   const html = props.other_mails
-  return imagesBlocked.value ? stripImageSources(html) : html
+  const resolved = resolveCidImages(html)
+  return imagesBlocked.value ? stripImageSources(resolved) : resolved
 })
 
+const hasAnyAttachments = computed(
+  () => props.has_attachments || props.attachments?.some((a) => a.is_inline)
+)
+
 onMounted(() => {
-  if (props.has_attachments) {
+  if (hasAnyAttachments.value) {
     loadAttachments(props.id)
   }
 })
@@ -187,7 +239,7 @@ onMounted(() => {
 watch(
   () => props.id,
   (newId) => {
-    if (props.has_attachments) {
+    if (hasAnyAttachments.value) {
       loadAttachments(newId)
     }
   }
@@ -240,13 +292,12 @@ const toggleReduced = () => {
   }
   reduced.value = !reduced.value
 }
-
 </script>
 
 <template>
   <div class="flex flex-col gap-3">
     <div
-      class="flex flex-1 items-top"
+      class="items-top flex flex-1"
       @click="toggleReduced()"
     >
       <div class="flex flex-1">
@@ -254,16 +305,17 @@ const toggleReduced = () => {
           v-if="from"
           :email="from.address"
           :name="from.name"
-          class="shrink-0 mr-4"
+          class="mr-4 shrink-0"
           size="lg"
         />
         <div class="grow">
           <div class="flex items-center">
-            <div class="flex gap-1 items-center">
-          <span
-            v-if="headerExpanded"
-            class="text-muted"
-          >{{ $t('components.messageView.labels.from') }}: </span>
+            <div class="flex items-center gap-1">
+              <span
+                v-if="headerExpanded"
+                class="text-muted"
+                >{{ $t('components.messageView.labels.from') }}:
+              </span>
               <EmailAddress
                 :show-avatar="headerExpanded"
                 class="font-bold"
@@ -272,17 +324,17 @@ const toggleReduced = () => {
               />
               <Icon
                 v-if="has_attachments"
-                class="shrink-0 text-muted ml-1"
+                class="ml-1 shrink-0 text-muted"
                 name="lucide:paperclip"
               />
             </div>
           </div>
-          <div :class="['gap-x-2 items-center', headerExpanded ? '' : 'flex flex-wrap']">
+          <div :class="['items-center gap-x-2', headerExpanded ? '' : 'flex flex-wrap']">
             <div
               v-if="to?.length"
-              class="text-sm flex"
+              class="flex text-sm"
             >
-              <span class="text-muted mr-1">{{ $t('components.messageView.labels.to') }}: </span>
+              <span class="mr-1 text-muted">{{ $t('components.messageView.labels.to') }}: </span>
               <div class="flex flex-wrap">
                 <EmailAddress
                   v-for="(a, i) in to"
@@ -295,9 +347,9 @@ const toggleReduced = () => {
             </div>
             <div
               v-if="cc?.length"
-              class="text-sm flex"
+              class="flex text-sm"
             >
-              <span class="text-muted mr-1">{{ $t('components.messageView.labels.cc') }}: </span>
+              <span class="mr-1 text-muted">{{ $t('components.messageView.labels.cc') }}: </span>
               <div class="flex flex-wrap">
                 <EmailAddress
                   v-for="(a, i) in cc"
@@ -318,10 +370,8 @@ const toggleReduced = () => {
               v-if="headerExpanded"
               class="flex space-x-1 text-sm"
             >
-              <span
-                class="text-muted"
-              >{{ $t('components.messageView.labels.subject') }}: </span>
-              <span class="select-auto text-primary">{{ subject }}</span>
+              <span class="text-muted">{{ $t('components.messageView.labels.subject') }}: </span>
+              <span class="text-primary select-auto">{{ subject }}</span>
             </div>
           </div>
         </div>
@@ -336,7 +386,7 @@ const toggleReduced = () => {
           @reply="emit('reply', $event)"
           @reply-all="emit('reply-all', $event)"
         />
-        <div class="ml-auto text-sm ">
+        <div class="ml-auto text-sm">
           {{ formatEmailDate($props, 1, { dateFormat: 'lll' }) }}
         </div>
       </div>
@@ -351,22 +401,20 @@ const toggleReduced = () => {
         :reduced="reduced"
         @quick-reply="handleQuickReply"
       />
-      <div
-        v-else-if="showAnalyzeButton && !reduced"
-      >
+      <div v-else-if="showAnalyzeButton && !reduced">
         <Button
           size="sm"
           variant="outline"
           @click="handleAnalyze"
         >
-          <Icon name="ravn:raven"/>
+          <Icon name="ravn:raven" />
           <span>{{ $t('components.messageView.actions.analyzeWithAI') }}</span>
         </Button>
       </div>
     </template>
     <div
       v-if="labels?.length > 0"
-      class="flex gap-1 flex-wrap"
+      class="flex flex-wrap gap-1"
     >
       <EmailLabel
         v-for="l in labels"
@@ -377,7 +425,7 @@ const toggleReduced = () => {
     <template v-if="!reduced">
       <div
         v-if="has_attachments && isLoadingAttachments"
-        class="flex items-center gap-2 text-sm text-muted-foreground p-2 bg-muted/50 rounded"
+        class="text-muted-foreground flex items-center gap-2 rounded bg-muted/50 p-2 text-sm"
       >
         <Icon
           class="animate-spin"
@@ -387,18 +435,18 @@ const toggleReduced = () => {
       </div>
       <div
         v-else-if="has_attachments && attachmentError"
-        class="flex items-center gap-2 text-sm text-destructive p-2 bg-destructive/10 rounded"
+        class="flex items-center gap-2 rounded bg-destructive/10 p-2 text-sm text-destructive"
       >
-        <Icon name="lucide:alert-circle"/>
+        <Icon name="lucide:alert-circle" />
         <span>{{ $t('components.messageView.attachmentError') }}</span>
       </div>
       <AttachmentList
         v-else-if="has_attachments && attachments.length > 0"
-        :attachments="attachments.filter(a => !a.is_inline)"
+        :attachments="attachments.filter((a) => !a.is_inline)"
       />
       <div
         v-if="imagesBlocked && hasExternalImages"
-        class="flex items-center justify-between bg-surface p-1 border-border rounded text-xs"
+        class="flex items-center justify-between rounded border-border bg-surface p-1 text-xs"
       >
         <div class="flex items-center gap-2 pl-1">
           <Icon
@@ -411,22 +459,23 @@ const toggleReduced = () => {
           size="xs"
           variant="ghost"
           @click="handleAllowImages"
-        >{{ $t('components.messageView.actions.showImages') }}
+          >{{ $t('components.messageView.actions.showImages') }}
         </Button>
       </div>
-      <div class="flex flex-col relative">
+      <div class="relative flex flex-col">
         <div
           v-if="effectiveRenderMode === 'simple' && body_plain"
-          class="bg-surface rounded-xl p-3"
+          class="rounded-xl bg-surface p-3"
         >
           <EmailMarkdown
             :content="body_plain"
             :images-blocked="imagesBlocked"
+            :inline-attachments="attachments.filter((a) => a.is_inline && !!a.full_path)"
           />
         </div>
         <div
           v-else
-          class="bg-gray-50 text-gray-950 rounded-xl overflow-clip p-2"
+          class="overflow-clip rounded-xl bg-gray-50 p-2 text-gray-950"
         >
           <iframe
             ref="iframeRef"
@@ -439,7 +488,7 @@ const toggleReduced = () => {
         </div>
         <div
           v-if="showFullContent && getQuotedHtml"
-          class="bg-gray-50 rounded overflow-clip p-2 border-l-4 border-accent ml-12 mt-2"
+          class="mt-2 ml-12 overflow-clip rounded border-l-4 border-accent bg-gray-50 p-2"
         >
           <iframe
             :srcdoc="getQuotedHtml"
@@ -449,9 +498,13 @@ const toggleReduced = () => {
             @load="handleIframeLoad"
           />
         </div>
-        <div class="absolute right-2 top-2 flex flex-col justify-center gap-1">
+        <div class="absolute top-2 right-2 flex flex-col justify-center gap-1">
           <SimpleTooltip
-            :tooltip-markdown="effectiveRenderMode === 'simple' ? $t('components.messageView.actions.showHTML') : $t('components.messageView.actions.showSimple')"
+            :tooltip-markdown="
+              effectiveRenderMode === 'simple'
+                ? $t('components.messageView.actions.showHTML')
+                : $t('components.messageView.actions.showSimple')
+            "
           >
             <Button
               v-if="body_plain"
@@ -459,13 +512,15 @@ const toggleReduced = () => {
               variant="ghost"
               @click="toggleRenderMode"
             >
-              <Icon
-                :name="effectiveRenderMode === 'simple' ? 'lucide:code' : 'lucide:file-text'"
-              />
+              <Icon :name="effectiveRenderMode === 'simple' ? 'lucide:code' : 'lucide:file-text'" />
             </Button>
           </SimpleTooltip>
           <SimpleTooltip
-            :tooltip-markdown="showFullContent ? $t('components.messageView.actions.showLess') :  $t('components.messageView.actions.showMore')"
+            :tooltip-markdown="
+              showFullContent
+                ? $t('components.messageView.actions.showLess')
+                : $t('components.messageView.actions.showMore')
+            "
           >
             <Button
               v-if="hasQuotedContent"
@@ -473,9 +528,7 @@ const toggleReduced = () => {
               variant="ghost"
               @click="showFullContent = !showFullContent"
             >
-              <Icon
-                :name="showFullContent ? 'lucide:fold-vertical' : 'lucide:unfold-vertical'"
-              />
+              <Icon :name="showFullContent ? 'lucide:fold-vertical' : 'lucide:unfold-vertical'" />
             </Button>
           </SimpleTooltip>
         </div>

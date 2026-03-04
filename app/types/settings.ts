@@ -39,12 +39,21 @@ export interface EmailSettings {
   renderMode: 'simple' | 'normal';
 }
 
+export interface KanbanViewSettings {
+  showLabelsSection: boolean;
+}
+
+export interface ViewsSettings {
+  kanban: KanbanViewSettings;
+}
+
 // Root settings interface
 export interface Settings {
   ai: AISettings;
   signatures: SignaturesSettings;
   keyboard: KeyboardSettings;
   email: EmailSettings;
+  views: ViewsSettings;
 }
 
 // Navigation item for settings sidebar

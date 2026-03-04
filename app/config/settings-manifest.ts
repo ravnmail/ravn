@@ -297,6 +297,24 @@ export const settingsManifest: SettingsManifest = [
     ],
   },
   {
+    id: 'views',
+    name: 'settings.groups.views.name',
+    sections: [
+      {
+        id: 'kanban',
+        name: 'settings.views.kanban.section',
+        items: [
+          {
+            id: 'views.kanban.showLabelsSection',
+            name: 'settings.views.kanban.showLabelsSection.name',
+            description: 'settings.views.kanban.showLabelsSection.description',
+            is: 'Toggle',
+          },
+        ],
+      },
+    ],
+  },
+  {
     id: 'notifications',
     name: 'settings.groups.notifications.name',
     sections: [

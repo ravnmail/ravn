@@ -72,6 +72,10 @@
   // ["uuid1", "uuid2"] = specific folders only
   "notifications.badgeFolders": [],
 
+  // Views Settings
+  // Show the labels management section in the View Editor
+  "views.kanban.showLabelsSection": true,
+
   // Keyboard Shortcuts
   "keyboard.enabled": true,
   "keyboard.bindings.nextEmail": ["j", "ArrowDown"],

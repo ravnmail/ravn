@@ -1,6 +1,10 @@
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import type { CleanupFn } from '@atlaskit/pragmatic-drag-and-drop/types'
 
+export type GenerateDragPreviewArgs = {
+  nativeSetDragImage: ((image: Element, x: number, y: number) => void) | null
+}
+
 export interface DragData {
   type: 'email' | 'conversation' | 'folder'
   id: string
@@ -29,6 +33,7 @@ export function useDraggable(
   getData: () => DragData,
   options?: {
     canDrag?: () => boolean
+    onGenerateDragPreview?: (args: GenerateDragPreviewArgs) => void
   }
 ) {
   let cleanup: CleanupFn | null = null
@@ -41,6 +46,9 @@ export function useDraggable(
       element: element.value,
       getInitialData: getData,
       canDrag: options?.canDrag,
+      onGenerateDragPreview: options?.onGenerateDragPreview
+        ? (args) => options.onGenerateDragPreview!(args as unknown as GenerateDragPreviewArgs)
+        : undefined,
       onDragStart: () => {
         isDragging.value = true
       },

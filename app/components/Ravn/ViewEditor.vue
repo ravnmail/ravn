@@ -3,7 +3,9 @@ import type {
   View,
   CreateViewRequest,
   UpdateViewRequest,
-  KanbanSwimlane
+  KanbanSwimlane,
+  Label,
+  CreateLabelRequest,
 } from '~/types/view'
 import { Button } from '~/components/ui/button'
 import IconNameField from '~/components/ui/IconNameField.vue'
@@ -19,6 +21,7 @@ import FolderSelection from '~/components/Ravn/FolderSelection.vue'
 import IconName from '~/components/ui/IconName.vue'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import LabelSelection from '~/components/Ravn/LabelSelection.vue'
+import EmailLabel from '~/components/ui/EmailLabel.vue'
 
 const props = defineProps<{
   viewId?: string | null
@@ -31,12 +34,24 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { createView, updateView, useGetView } = useViews()
-const { data: currentView, refetch } = useGetView(props.viewId)
-const { labels } = useLabels()
+const { data: currentView, refetch } = useGetView(computed(() => props.viewId ?? ''))
+const { labels, createLabel, useUpdateLabelMutation, useDeleteLabelMutation } = useLabels()
+const { settings } = useSettings()
+
+const { isPending: isDeletingLabel, mutate: deleteLabel } = useDeleteLabelMutation()
+const { isPending: isUpdatingLabel, mutate: updateLabel } = useUpdateLabelMutation()
 
 const isDialogOpen = defineModel<boolean>('open', { default: false })
 const isLoading = ref(false)
 const allFolders = ref<any[]>([])
+
+// Labels section
+const showLabelsSection = computed(() => {
+  return settings.value?.views?.kanban?.showLabelsSection !== false
+})
+const editingLabel = ref<Label | null>(null)
+const labelForm = ref<CreateLabelRequest>({ name: '', color: undefined, icon: undefined })
+const isLabelFormLoading = computed(() => isDeletingLabel.value || isUpdatingLabel.value)
 
 const formData = ref<CreateViewRequest | UpdateViewRequest>({
   name: '',
@@ -56,6 +71,7 @@ const newSwimlane = ref({
   label_ids: [] as string[],
   folder_ids: [] as string[]
 })
+const editingSwimlaneIndex = ref<number | null>(null)
 
 watch(currentView, (view) => {
   if (view) {
@@ -65,8 +81,10 @@ watch(currentView, (view) => {
 
 // Watch for dialog open
 watch(() => isDialogOpen.value, async (open) => {
-    await refetch()
   if (open) {
+    if (props.viewId) {
+      await refetch()
+    }
     if (currentView.value) {
       formData.value = JSON.parse(JSON.stringify(currentView.value)) as CreateViewRequest | UpdateViewRequest
     }
@@ -87,32 +105,55 @@ const resetForm = () => {
       swimlanes: []
     }
   }
-  currentView.value = null
+  resetSwimlaneForm()
+}
+
+const resetSwimlaneForm = () => {
+  newSwimlane.value = { title: '', color: '#3B82F6', icon: undefined, label_ids: [], folder_ids: [] }
+  editingSwimlaneIndex.value = null
+}
+
+const startEditSwimlane = (index: number) => {
+  const s = formData.value.config.swimlanes[index]
+  newSwimlane.value = {
+    title: s.title,
+    icon: s.icon,
+    color: s.color,
+    label_ids: [...(s.label_ids ?? [])],
+    folder_ids: [...(s.folder_ids ?? [])],
+  }
+  editingSwimlaneIndex.value = index
 }
 
 const addSwimlaneToForm = () => {
   if (!newSwimlane.value.title.trim()) return
 
-  const swimlane: KanbanSwimlane = {
-    id: crypto.randomUUID(),
-    title: newSwimlane.value.title.trim(),
-    icon: newSwimlane.value.icon,
-    color: newSwimlane.value.color,
-    label_ids: newSwimlane.value.label_ids,
-    folder_ids: newSwimlane.value.folder_ids.length > 0 ? newSwimlane.value.folder_ids : undefined,
-    state: 'open',
-    sort_order: formData.value.config.swimlanes.length
+  if (editingSwimlaneIndex.value !== null) {
+    // Update existing swimlane in place
+    const existing = formData.value.config.swimlanes[editingSwimlaneIndex.value]
+    formData.value.config.swimlanes[editingSwimlaneIndex.value] = {
+      ...existing,
+      title: newSwimlane.value.title.trim(),
+      icon: newSwimlane.value.icon,
+      color: newSwimlane.value.color,
+      label_ids: newSwimlane.value.label_ids,
+      folder_ids: newSwimlane.value.folder_ids.length > 0 ? newSwimlane.value.folder_ids : undefined,
+    }
+  } else {
+    const swimlane: KanbanSwimlane = {
+      id: crypto.randomUUID(),
+      title: newSwimlane.value.title.trim(),
+      icon: newSwimlane.value.icon,
+      color: newSwimlane.value.color,
+      label_ids: newSwimlane.value.label_ids,
+      folder_ids: newSwimlane.value.folder_ids.length > 0 ? newSwimlane.value.folder_ids : undefined,
+      state: 'open',
+      sort_order: formData.value.config.swimlanes.length,
+    }
+    formData.value.config.swimlanes.push(swimlane)
   }
 
-  formData.value.config.swimlanes.push(swimlane)
-
-  newSwimlane.value = {
-    title: '',
-    color: '#3B82F6',
-    icon: undefined,
-    label_ids: [],
-    folder_ids: []
-  }
+  resetSwimlaneForm()
 }
 
 const removeSwimlane = (index: number) => {
@@ -165,6 +206,42 @@ const getLabelName = (labelId: string) => {
 const getFolderName = (folderId: string) => {
   return allFolders.value.find(f => String(f.id) === folderId)?.name || 'Unknown'
 }
+
+// --- Label management ---
+const resetLabelForm = () => {
+  labelForm.value = { name: '', color: undefined, icon: undefined }
+  editingLabel.value = null
+}
+
+const startEditLabel = (label: Label) => {
+  editingLabel.value = label
+  labelForm.value = { name: label.name, color: label.color, icon: label.icon }
+}
+
+const handleLabelSubmit = async () => {
+  if (!labelForm.value.name.trim()) return
+  if (editingLabel.value) {
+    await updateLabel({ id: editingLabel.value.id, ...labelForm.value })
+  } else {
+    await createLabel(labelForm.value as CreateLabelRequest)
+  }
+  resetLabelForm()
+}
+
+const { alert } = useAlertDialog()
+
+const handleDeleteLabel = async (label: Label) => {
+  const confirmed = await alert.confirm(
+    t('dialogs.confirmDelete.message', label),
+    {
+      title: t('dialogs.confirmDelete.title'),
+      confirmLabel: t('actions.delete'),
+      variant: 'destructive'
+    }
+  )
+  if (!confirmed) return
+  deleteLabel(label.id)
+}
 </script>
 
 <template>
@@ -192,7 +269,13 @@ const getFolderName = (folderId: string) => {
         />
 
         <div class="bg-surface rounded-xl p-4">
-          <label class="text-sm font-medium">{{ t('components.viewEditor.swimlanes.title') }}</label>
+          <label class="text-sm font-medium">
+            {{
+              editingSwimlaneIndex !== null
+                ? t('components.viewEditor.actions.editSwimlane')
+                : t('components.viewEditor.swimlanes.title')
+            }}
+          </label>
           <div class="space-y-2">
             <IconNameField
               :model-value="{ ...newSwimlane, name: newSwimlane.title }"
@@ -207,24 +290,43 @@ const getFolderName = (folderId: string) => {
               :model-value="newSwimlane.folder_ids"
               @update:model-value="(v) => newSwimlane.folder_ids = v"
             />
-            <Button
-              :disabled="!newSwimlane.title.trim()"
-              size="sm"
-              @click="addSwimlaneToForm"
-            >
-              <Icon
-                class="mr-2 h-4 w-4"
-                name="lucide:plus"
-              />
-              {{ t('components.viewEditor.actions.addSwimlane') }}
-            </Button>
+            <div class="flex gap-2">
+              <Button
+                :disabled="!newSwimlane.title.trim()"
+                size="sm"
+                @click="addSwimlaneToForm"
+              >
+                <Icon
+                  class="mr-2 h-4 w-4"
+                  :name="editingSwimlaneIndex !== null ? 'lucide:check' : 'lucide:plus'"
+                />
+                {{
+                  editingSwimlaneIndex !== null
+                    ? t('components.viewEditor.actions.updateSwimlane')
+                    : t('components.viewEditor.actions.addSwimlane')
+                }}
+              </Button>
+              <Button
+                v-if="editingSwimlaneIndex !== null"
+                size="sm"
+                variant="outline"
+                @click="resetSwimlaneForm"
+              >
+                {{ t('common.actions.cancel') }}
+              </Button>
+            </div>
           </div>
         </div>
         <div class="bg-surface rounded-xl space-y-1 p-2">
           <div
             v-for="(swimlane, index) in formData.config.swimlanes"
             :key="swimlane.id"
-            class="flex items-center gap-3 p-1 border border-border rounded-lg bg-background"
+            :class="[
+              'flex items-center gap-3 p-1 border rounded-lg bg-background',
+              editingSwimlaneIndex === index
+                ? 'border-primary/50 bg-primary/5'
+                : 'border-border'
+            ]"
           >
             <div class="flex flex-col">
               <Button
@@ -266,22 +368,113 @@ const getFolderName = (folderId: string) => {
                 }}
               </div>
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              @click="removeSwimlane(index)"
-            >
-              <Icon
-                class="text-destructive"
-                name="lucide:trash-2"
-              />
-            </Button>
+            <div class="flex gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                @click="startEditSwimlane(index)"
+              >
+                <Icon name="lucide:edit-2"/>
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                @click="removeSwimlane(index)"
+              >
+                <Icon
+                  class="text-destructive"
+                  name="lucide:trash-2"
+                />
+              </Button>
+            </div>
           </div>
 
           <EmptyState
             v-if="formData.config.swimlanes.length === 0"
             :description="t('components.viewEditor.swimlanes.emptyState')"
           />
+        </div>
+
+        <!-- Labels section -->
+        <div
+          v-if="showLabelsSection"
+          class="bg-surface rounded-xl p-4 space-y-3"
+        >
+          <label class="text-sm font-medium">{{ t('components.viewEditor.labels.title') }}</label>
+
+          <!-- Add / Edit label form -->
+          <div class="space-y-2">
+            <IconNameField
+              :model-value="{ ...labelForm, name: labelForm.name }"
+              name="name"
+              @update:model-value="(e) => labelForm = { ...labelForm, ...e }"
+            />
+            <div class="flex gap-2">
+              <Button
+                :disabled="!labelForm.name.trim() || isLabelFormLoading"
+                size="sm"
+                @click="handleLabelSubmit"
+              >
+                <Icon
+                  v-if="isLabelFormLoading"
+                  class="mr-2 h-4 w-4 animate-spin"
+                  name="lucide:loader-2"
+                />
+                {{
+                  editingLabel
+                    ? t('components.labelManager.actions.update')
+                    : t('components.labelManager.actions.create')
+                }} {{ t('common.labels.name') }}
+              </Button>
+              <Button
+                v-if="editingLabel"
+                size="sm"
+                variant="outline"
+                @click="resetLabelForm"
+              >
+                {{ t('common.actions.cancel') }}
+              </Button>
+            </div>
+          </div>
+
+          <!-- Labels list -->
+          <div class="bg-background rounded-lg divide-y divide-border max-h-64 overflow-y-auto">
+            <div
+              v-for="label in labels"
+              :key="label.id"
+              class="flex items-center justify-between px-2 py-1.5"
+            >
+              <EmailLabel v-bind="label"/>
+              <div class="flex gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  @click="startEditLabel(label)"
+                >
+                  <Icon
+                    class="h-4 w-4"
+                    name="lucide:edit-2"
+                  />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  @click="handleDeleteLabel(label)"
+                >
+                  <Icon
+                    class="h-4 w-4 text-destructive"
+                    name="lucide:trash-2"
+                  />
+                </Button>
+              </div>
+            </div>
+            <div
+              v-if="labels.length === 0"
+              class="p-6 text-center text-sm text-muted-foreground"
+            >
+              {{ t('components.labelManager.emptyState') }}
+            </div>
+          </div>
         </div>
       </div>
 

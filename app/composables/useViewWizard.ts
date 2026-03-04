@@ -2,11 +2,11 @@ import type { ViewType, CreateViewRequest, KanbanSwimlane } from '~/types/view'
 import type { ViewTemplate, ProcessedTemplate } from '~/types/viewTemplate'
 import { VIEW_TEMPLATES } from '~/data/viewTemplates'
 
-export type WizardStep = 'type' | 'template' | 'preview' | 'customize'
+export type WizardStep = 'type' | 'template' | 'customize'
 
 export const useViewWizard = () => {
   const { createLabel } = useLabels()
-  const { createView } = useViews(ref(null))
+  const { createView } = useViews()
 
   const currentStep = useState<WizardStep>('wizardStep', () => 'type')
   const selectedViewType = useState<ViewType | null>('wizardViewType', () => null)
@@ -30,23 +30,6 @@ export const useViewWizard = () => {
   const selectViewType = (viewType: ViewType) => {
     selectedViewType.value = viewType
     currentStep.value = 'template'
-  }
-
-  const selectTemplate = (template: ViewTemplate | null) => {
-    selectedTemplate.value = template
-    if (template) {
-      currentStep.value = 'preview'
-    } else {
-      // Skip to customize with blank template
-      processedTemplate.value = {
-        title: 'New View',
-        description: '',
-        viewType: selectedViewType.value!,
-        labels: [],
-        swimlanes: [],
-      }
-      currentStep.value = 'customize'
-    }
   }
 
   const processTemplate = async (template: ViewTemplate): Promise<ProcessedTemplate> => {
@@ -85,20 +68,30 @@ export const useViewWizard = () => {
     }
   }
 
-  const confirmTemplate = async () => {
-    if (!selectedTemplate.value) return
-
-    isProcessing.value = true
-    try {
-      const processed = await processTemplate(selectedTemplate.value)
-      processedTemplate.value = processed
-      currentStep.value = 'customize'
-    } catch (error) {
-      console.error('Failed to process template:', error)
-      throw error
-    } finally {
-      isProcessing.value = false
+  const selectTemplate = async (template: ViewTemplate | null) => {
+    selectedTemplate.value = template
+    if (template) {
+      isProcessing.value = true
+      try {
+        const processed = await processTemplate(template)
+        processedTemplate.value = processed
+      } catch (error) {
+        console.error('Failed to process template:', error)
+        throw error
+      } finally {
+        isProcessing.value = false
+      }
+    } else {
+      // Start from scratch with blank template
+      processedTemplate.value = {
+        title: 'New View',
+        description: '',
+        viewType: selectedViewType.value!,
+        labels: [],
+        swimlanes: [],
+      }
     }
+    currentStep.value = 'customize'
   }
 
   const createViewFromTemplate = async (
@@ -168,17 +161,10 @@ export const useViewWizard = () => {
         currentStep.value = 'type'
         selectedViewType.value = null
         break
-      case 'preview':
+      case 'customize':
         currentStep.value = 'template'
         selectedTemplate.value = null
-        break
-      case 'customize':
-        if (selectedTemplate.value) {
-          currentStep.value = 'preview'
-          processedTemplate.value = null
-        } else {
-          currentStep.value = 'template'
-        }
+        processedTemplate.value = null
         break
     }
   }
@@ -193,7 +179,6 @@ export const useViewWizard = () => {
     reset,
     selectViewType,
     selectTemplate,
-    confirmTemplate,
     createViewFromTemplate,
     goBack,
   }

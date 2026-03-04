@@ -24,7 +24,7 @@ import type { ConversationListItem } from '~/types/conversation'
 
 const { t } = useI18n()
 const router = useRouter()
-const { addContext, removeContext } = useActions()
+const { addContext, removeContext, register, unregister, executeAction } = useActions()
 
 const mailListRef = useTemplateRef<HTMLElement>('mailListRef')
 const scrollerRef = useTemplateRef<HTMLElement>('scrollerRef')
@@ -42,9 +42,19 @@ const { folders, useUpdateSettingsMutation, useInitSyncMutation } = useFolders()
 const { mutateAsync: updateSettings } = useUpdateSettingsMutation()
 const { mutateAsync: initSync } = useInitSyncMutation()
 
-const { archive, trash } = useEmails()
+const { archive, trash, updateRead, move, addLabelToEmail } = useEmails()
 
 const multiSelect = useMultiSelect<ConversationListItem>()
+
+// Tracks which conversation was right-clicked to target context menu actions
+const contextMenuConvId = ref<string | null>(null)
+
+const getContextMenuFirstMessageId = (): string | null => {
+  if (!contextMenuConvId.value) return null
+  const conv = conversations.value.find(c => c.id === contextMenuConvId.value)
+  if (!conv) return null
+  return conv.messages.filter(m => m.folder_id === props.folderId)[0]?.id ?? conv.messages[0]?.id ?? null
+}
 
 const sortBy = ref<string>('received_at')
 const sortOrder = ref<string>('desc')
@@ -131,10 +141,35 @@ const saveFolderSettings = () => {
 onMounted(async () => {
   await initSync({ folderId: props.folderId, full: false })
   addContext('mailList', focused)
+
+  const ns = 'mailList'
+  register({ namespace: ns, id: 'archiveEmail', icon: 'lucide:archive', handler: () => {
+    const id = getContextMenuFirstMessageId(); if (id) archive(id)
+  }})
+  register({ namespace: ns, id: 'deleteEmail', icon: 'lucide:trash-2', handler: () => {
+    const id = getContextMenuFirstMessageId(); if (id) trash(id)
+  }})
+  register({ namespace: ns, id: 'markRead', icon: 'lucide:mail-open', handler: () => {
+    const id = getContextMenuFirstMessageId(); if (id) updateRead(id, true)
+  }})
+  register({ namespace: ns, id: 'markUnread', icon: 'lucide:mail', handler: () => {
+    const id = getContextMenuFirstMessageId(); if (id) updateRead(id, false)
+  }})
+  register({ namespace: ns, id: 'moveEmail', icon: 'lucide:folder-input', handler: (arg) => {
+    const id = getContextMenuFirstMessageId(); if (id && arg) move(id, arg as string)
+  }})
+  register({ namespace: ns, id: 'assignLabel', icon: 'lucide:tag', handler: (arg) => {
+    const id = getContextMenuFirstMessageId()
+    if (id && arg) addLabelToEmail({ email_id: id, label_id: arg as string })
+  }})
 })
 
 onBeforeUnmount(() => {
   removeContext('mailList')
+  const ns = 'mailList'
+  for (const id of ['archiveEmail', 'deleteEmail', 'markRead', 'markUnread', 'moveEmail', 'assignLabel']) {
+    unregister(ns, id)
+  }
 })
 
 watch([sortBy, sortOrder, filterRead, filterHasAttachments], async () => {
@@ -593,7 +628,10 @@ const route = useRoute()
       ref="scrollerRef"
       class="flex-1 overflow-y-auto p-2"
     >
-      <MailContextMenu :selected-email-ids="selectedMessageIds">
+      <MailContextMenu
+        :selected-email-ids="selectedMessageIds"
+        :on-execute-action="(id, arg) => executeAction('mailList', id, arg)"
+      >
         <!-- Virtualizer padding container -->
         <div
           class="relative w-full"
@@ -634,6 +672,7 @@ const route = useRoute()
             <!-- Conversation item -->
             <template v-else-if="virtualRows[virtualItem.index]?.type === 'conversation'">
               <ConversationItem
+                @contextmenu.capture="contextMenuConvId = (virtualRows[virtualItem.index] as any).conversation.id"
                 :conversation="(virtualRows[virtualItem.index] as any).conversation"
                 :folder-id="folderId"
                 :is-multi-selected="

@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview'
+import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview'
 import { Badge } from '~/components/ui/badge'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
 import { useDraggable } from '~/composables/useDragAndDrop'
@@ -45,25 +47,73 @@ const messageIdsInFolder = computed(() =>
   props.conversation.messages.filter((m) => m.folder_id === props.folderId).map((m) => m.id)
 )
 
-// Make conversation draggable with multi-select support
-const { isDragging } = useDraggable(itemRef, () => {
+const getDragData = () => {
   const isMultiDrag =
     props.selectedIds &&
     props.selectedIds.length > 0 &&
     props.selectedIds.includes(props.conversation.id)
 
   return {
-    type: 'conversation',
+    type: 'conversation' as const,
     id: props.conversation.id,
     accountId: firstMessage.value?.account_id,
     folderId: props.folderId,
-    // For single drag: use this conversation's message IDs
-    // For multi-drag: use all selected message IDs from parent
     messageIds: isMultiDrag ? props.selectedMessageIds : messageIdsInFolder.value,
-    // Include selected IDs for multi-drag (conversation IDs for tracking)
     selectedIds: isMultiDrag ? props.selectedIds : undefined,
     isMultiDrag,
   }
+}
+
+// Make conversation draggable with multi-select support
+const { isDragging } = useDraggable(itemRef, getDragData, {
+  onGenerateDragPreview: ({ nativeSetDragImage }) => {
+    setCustomNativeDragPreview({
+      nativeSetDragImage,
+      // Anchor preview to the right of the cursor so the drop target stays visible
+      getOffset: pointerOutsideOfPreview({ x: '16px', y: '8px' }),
+      render({ container }) {
+        const data = getDragData()
+        const isMulti = data.isMultiDrag && props.selectedIds && props.selectedIds.length > 1
+        const label = isMulti
+          ? `${props.selectedIds!.length} conversations`
+          : (firstMessage.value?.subject?.trim() || firstMessage.value?.from?.name || 'Email')
+
+        const el = document.createElement('div')
+        el.style.cssText = [
+          'display:flex',
+          'align-items:center',
+          'gap:6px',
+          'padding:6px 10px',
+          'border-radius:8px',
+          'font-size:13px',
+          'font-weight:500',
+          'max-width:220px',
+          'white-space:nowrap',
+          'overflow:hidden',
+          'text-overflow:ellipsis',
+          'box-shadow:0 4px 16px rgba(0,0,0,0.18)',
+          'background:var(--color-background,#fff)',
+          'color:var(--color-foreground,#111)',
+          'border:1px solid var(--color-border,#e5e7eb)',
+          'pointer-events:none',
+        ].join(';')
+
+        if (isMulti) {
+          const badge = document.createElement('span')
+          badge.style.cssText = 'background:var(--color-accent,#6366f1);color:#fff;border-radius:999px;padding:1px 7px;font-size:11px;font-weight:700;flex-shrink:0'
+          badge.textContent = String(props.selectedIds!.length)
+          el.appendChild(badge)
+        }
+
+        const text = document.createElement('span')
+        text.style.cssText = 'overflow:hidden;text-overflow:ellipsis'
+        text.textContent = label
+        el.appendChild(text)
+
+        container.appendChild(el)
+      },
+    })
+  },
 })
 
 const mappedLeftActions = computed(() =>

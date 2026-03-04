@@ -7,6 +7,7 @@ const props = defineProps<{
   email: EmailListItem
   swimlaneId: string
   excludeLabels?: string[]
+  isSelected?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -32,6 +33,7 @@ const { isDragging } = useDraggable(emailRef, () => ({
   >
     <EmailItem
       :exclude-labels="excludeLabels"
+      :is-selected="isSelected"
       v-bind="email"
     />
   </div>

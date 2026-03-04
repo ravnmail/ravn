@@ -33,7 +33,6 @@ const {
   reset,
   selectViewType,
   selectTemplate,
-  confirmTemplate,
   createViewFromTemplate,
   goBack,
 } = useViewWizard()
@@ -96,8 +95,6 @@ const handleViewTypeSelect = (type: 'kanban' | 'calendar' | 'list') => {
 }
 
 const handleTemplateSelect = async (template: ViewTemplate | null) => {
-  selectTemplate(template)
-
   if (template) {
     customizations.value.name = template.title
     customizations.value.icon = undefined
@@ -105,10 +102,7 @@ const handleTemplateSelect = async (template: ViewTemplate | null) => {
   } else {
     customizations.value.name = t('components.viewNav.newView')
   }
-}
-
-const handleConfirmTemplate = async () => {
-  await confirmTemplate()
+  await selectTemplate(template)
 }
 
 const handleCreateView = async () => {
@@ -130,19 +124,12 @@ const toggleFolder = (folderId: string) => {
   }
 }
 
-const getLabelById = (labelId: string) => {
-  if (!processedTemplate.value) return null
-  return processedTemplate.value.labels.find(l => l.realId === labelId)
-}
-
 const dialogTitle = computed(() => {
   switch (currentStep.value) {
     case 'type':
       return t('components.viewWizard.steps.type.title')
     case 'template':
       return t('components.viewWizard.steps.template.title')
-    case 'preview':
-      return t('components.viewWizard.steps.preview.title')
     case 'customize':
       return t('components.viewWizard.steps.customize.title')
     default:
@@ -156,8 +143,6 @@ const dialogDescription = computed(() => {
       return t('components.viewWizard.steps.type.description')
     case 'template':
       return t('components.viewWizard.steps.template.description')
-    case 'preview':
-      return t('components.viewWizard.steps.preview.description')
     case 'customize':
       return t('components.viewWizard.steps.customize.description')
     default:
@@ -175,6 +160,7 @@ const dialogDescription = computed(() => {
       />
 
       <div>
+        <!-- Step: Type selection -->
         <RadioGroup
           v-if="currentStep === 'type'"
           class="grid grid-cols-1 gap-1"
@@ -218,12 +204,15 @@ const dialogDescription = computed(() => {
             </div>
           </RadioGroupItem>
         </RadioGroup>
+
+        <!-- Step: Template selection -->
         <RadioGroup
           v-else-if="currentStep === 'template'"
           class="grid grid-cols-1 gap-1"
         >
           <RadioGroupItem
             class="w-full p-3 border border-border rounded-lg text-left hover:border-b-selection-border hover:bg-selection-background transition-all"
+            :disabled="isProcessing"
             @select="handleTemplateSelect(null)"
           >
             <div class="flex items-start gap-4">
@@ -245,6 +234,7 @@ const dialogDescription = computed(() => {
             v-for="template in availableTemplates"
             :key="template.id"
             class="p-3 border border-border rounded-lg text-left hover:border-b-selection-border hover:bg-selection-background transition-all"
+            :disabled="isProcessing"
             @click="handleTemplateSelect(template)"
           >
             <div class="flex items-start gap-4">
@@ -270,100 +260,71 @@ const dialogDescription = computed(() => {
             </div>
           </RadioGroupItem>
         </RadioGroup>
-        <div
-          v-else-if="currentStep === 'preview'"
-          class="space-y-4"
-        >
-          <div
-            v-if="selectedTemplate"
-            class="space-y-4"
-          >
-            <div class="space-y-2">
-              <h3 class="font-semibold text-primary">{{ selectedTemplate.title }}</h3>
-              <p class="text-muted">{{ selectedTemplate.description }}</p>
-            </div>
-            <div class="space-y-2">
-              <h4 class="font-medium">{{ t('components.viewWizard.preview.labelsTitle') }}</h4>
-              <div class="flex flex-wrap gap-1">
-                <EmailLabel
-                  v-for="label in selectedTemplate.labels"
-                  :key="label.id"
-                  v-bind="label"
-                />
-              </div>
-            </div>
-            <div class="space-y-2">
-              <h4 class="font-medium">{{ t('components.viewWizard.preview.swimlanesTitle') }}</h4>
-              <div class="space-y-1">
-                <div
-                  v-for="(swimlane, index) in selectedTemplate.swimlanes"
-                  :key="index"
-                  class="p-3 rounded-lg border border-border"
-                >
-                  <div class="flex flex-col gap-1">
-                    <IconName
-                      :color="swimlane.color"
-                      :icon="swimlane.icon"
-                      :name="swimlane.name"
-                      class="text-primary"
-                    />
-                    <p class="text-sm text-muted-foreground">{{ swimlane.description }}</p>
-                    <div
-                      v-if="swimlane.labels.length > 0"
-                      class="flex flex-wrap gap-1"
-                    >
-                      <EmailLabel
-                        v-for="labelId in swimlane.labels"
-                        :key="labelId"
-                        v-bind=" selectedTemplate.labels.find(l => l.id === labelId)"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+
+        <!-- Step: Customize (merged preview + customize) -->
         <div
           v-else-if="currentStep === 'customize'"
-          class="space-y-3"
+          class="space-y-4"
         >
+          <!-- Name / Icon / Color -->
           <IconNameField
             :model-value="customizations"
             @update:model-value="Object.assign(customizations, $event)"
           />
-          <div class="space-y-2"/>
-          <div
-            v-if="processedTemplate"
-            class="space-y-2"
-          >
-            <label class="text-sm font-medium">{{ t('components.viewWizard.customize.viewConfig') }}</label>
-            <div class="border rounded-lg p-4 bg-muted/50 space-y-3">
-              <div class="text-sm">
-                <span class="font-medium">{{ processedTemplate.swimlanes.length }}</span> swimlanes
-                <span class="mx-2">•</span>
-                <span class="font-medium">{{ processedTemplate.labels.length }}</span> labels
-              </div>
 
-              <div class="flex flex-wrap gap-2">
+          <!-- Template overview (shown when a template was selected) -->
+          <div
+            v-if="selectedTemplate && processedTemplate"
+            class="border rounded-lg p-4 bg-muted/30 space-y-3"
+          >
+            <div>
+              <h4 class="font-medium text-sm">{{ t('components.viewWizard.preview.swimlanesTitle') }}</h4>
+              <div class="mt-2 space-y-1">
                 <div
-                  v-for="swimlane in processedTemplate.swimlanes"
-                  :key="swimlane.name"
-                  class="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-card text-sm"
+                  v-for="(swimlane, index) in processedTemplate.swimlanes"
+                  :key="index"
+                  class="flex items-start gap-2 px-3 py-1.5 rounded-md border bg-card text-sm"
                 >
-                  <Icon
-                    :name="`lucide:${swimlane.icon}`"
-                    :style="{ color: swimlane.color }"
-                    class="h-4 w-4"
+                  <IconName
+                    :color="swimlane.color"
+                    :icon="swimlane.icon"
+                    :name="swimlane.name"
+                    class="flex-shrink-0"
                   />
-                  <span>{{ swimlane.name }}</span>
                   <div
-                    :style="{ backgroundColor: swimlane.color }"
-                    class="h-2 w-2 rounded-full"
-                  />
+                    v-if="swimlane.labelIds?.length > 0"
+                    class="flex flex-wrap gap-1 ml-auto"
+                  >
+                    <EmailLabel
+                      v-for="labelId in swimlane.labelIds"
+                      :key="labelId"
+                      v-bind="processedTemplate.labels.find(l => l.realId === labelId)"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
+            <div v-if="processedTemplate.labels.length > 0">
+              <h4 class="font-medium text-sm">{{ t('components.viewWizard.preview.labelsTitle') }}</h4>
+              <div class="mt-2 flex flex-wrap gap-1">
+                <EmailLabel
+                  v-for="label in processedTemplate.labels"
+                  :key="label.realId"
+                  v-bind="label"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Loading indicator while processing template -->
+          <div
+            v-else-if="isProcessing"
+            class="flex items-center gap-2 text-muted-foreground text-sm py-2"
+          >
+            <Icon
+              class="h-4 w-4 animate-spin"
+              name="lucide:loader-2"
+            />
           </div>
         </div>
       </div>
@@ -394,21 +355,7 @@ const dialogDescription = computed(() => {
             </Button>
 
             <Button
-              v-if="currentStep === 'preview'"
-              :disabled="isProcessing"
-              size="sm"
-              @click="handleConfirmTemplate"
-            >
-              <Icon
-                v-if="isProcessing"
-                class="mr-2 h-4 w-4 animate-spin"
-                name="lucide:loader-2"
-              />
-              {{ t('common.actions.continue') }}
-            </Button>
-
-            <Button
-              v-else-if="currentStep === 'customize'"
+              v-if="currentStep === 'customize'"
               :disabled="!customizations.name.trim() || isProcessing"
               size="sm"
               @click="handleCreateView"

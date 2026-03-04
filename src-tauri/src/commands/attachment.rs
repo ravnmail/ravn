@@ -17,6 +17,7 @@ pub struct AttachmentInfo {
     pub size: i64,
     pub is_inline: bool,
     pub is_cached: bool,
+    pub content_id: Option<String>,
     pub full_path: Option<String>,
 }
 
@@ -59,6 +60,7 @@ pub async fn get_email_attachments(
                 size: a.size,
                 is_inline: a.is_inline,
                 is_cached: a.is_cached,
+                content_id: a.content_id,
                 full_path,
             }
         })

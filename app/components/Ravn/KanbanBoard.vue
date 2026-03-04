@@ -220,10 +220,12 @@ const onSheetClose = () => {
           v-for="swimlane in swimlanes"
           :key="swimlane.id"
           :emails="swimlaneEmails[swimlane.id] || []"
+          :selected-conversation-id="selectedConversationId"
           :swimlane="swimlane"
           @drop="handleEmailDrop"
           @update="handleSwimlaneUpdate"
           @email-click="select"
+          @refresh="loadEmails"
         />
         <EmptyState
           v-if="swimlanes.length === 0"

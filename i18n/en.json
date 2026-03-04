@@ -48,6 +48,14 @@
       "name": "Move Email",
       "tooltip": "Move selected email to another folder"
     },
+    "markRead": {
+      "name": "Mark as Read",
+      "tooltip": "Mark selected email as read"
+    },
+    "markUnread": {
+      "name": "Mark as Unread",
+      "tooltip": "Mark selected email as unread"
+    },
     "home": {
       "name": "Home",
       "tooltip": "Go to Home"
@@ -524,6 +532,13 @@
           "title": "No swimlanes configured",
           "message": "Edit this view to add swimlanes"
         }
+      },
+      "swimlane": {
+        "actions": {
+          "rename": "Rename",
+          "collapse": "Collapse",
+          "expand": "Expand"
+        }
       }
     },
     "viewEditor": {
@@ -540,8 +555,13 @@
         "folders": "Folders",
         "emptyState": "No swimlanes configured. Add labels or folders to create swimlanes."
       },
+      "labels": {
+        "title": "Labels"
+      },
       "actions": {
         "addSwimlane": "Add Swimlane",
+        "editSwimlane": "Edit Swimlane",
+        "updateSwimlane": "Update Swimlane",
         "createView": "Create View",
         "updateView": "Update View"
       }
@@ -951,6 +971,9 @@
       },
       "notifications": {
         "name": "Notifications"
+      },
+      "views": {
+        "name": "Views"
       }
     },
     "appearance": {
@@ -1117,6 +1140,15 @@
       "outgoingSound": {
         "name": "Outgoing Email Sound",
         "description": "Sound to play when sending emails"
+      }
+    },
+    "views": {
+      "kanban": {
+        "section": "Kanban",
+        "showLabelsSection": {
+          "name": "Show Labels Section in View Editor",
+          "description": "Show the labels management panel at the bottom of the View Editor"
+        }
       }
     },
     "actions": {
