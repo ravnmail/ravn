@@ -410,7 +410,10 @@
         "cancel": "Cancel",
         "edit": "Edit",
         "sync": "Sync Now",
-        "hide": "Hide"
+        "hide": "Hide",
+        "emptyFolder": "Empty Folder",
+        "emptyFolderConfirm": "Are you sure you want to permanently delete all emails in this folder? This cannot be undone.",
+        "emptyFolderSuccess": "Folder emptied successfully"
       }
     },
     "labelManager": {

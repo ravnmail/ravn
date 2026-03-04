@@ -2,6 +2,7 @@
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu'
 import IconNameField from '~/components/ui/IconNameField.vue'
@@ -14,6 +15,7 @@ import { SimpleTooltip } from '~/components/ui/tooltip'
 import type { SidebarNavigationItem, SidebarSectionItem } from '~/composables/useSidebarNavigation'
 import DropdownMenuItemRich from '~/components/ui/dropdown-menu/DropdownMenuItemRich.vue'
 import IconName from '~/components/ui/IconName.vue'
+import { toast } from 'vue-sonner'
 
 const emits = defineEmits<{
   (e: 'expanded', isExpanded: boolean): void
@@ -23,7 +25,8 @@ const props = withDefaults(defineProps<(SidebarNavigationItem | SidebarSectionIt
 
 const { t } = useI18n()
 const { updateHidden, updateFolderProperties, initSync } = useFolders()
-const { move } = useEmails()
+const { move, emptyFolder } = useEmails()
+const { alert } = useAlertDialog()
 const isEditing = ref(false)
 const editValue = ref({ icon: props.icon, color: props.color, name: props.name })
 
@@ -152,6 +155,27 @@ const cancelEdit = () => {
   isEditing.value = false
   editValue.value = { icon: props.icon, color: props.color, name: props.name }
 }
+
+const canEmpty = computed(() => props.folder_type === 'trash' || props.folder_type === 'spam')
+
+const handleEmpty = async () => {
+  const confirmed = await alert.confirm(
+    t('components.verticalNavItem.actions.emptyFolderConfirm'),
+    {
+      title: t('components.verticalNavItem.actions.emptyFolder'),
+      variant: 'destructive',
+    },
+  )
+  if (!confirmed) return
+
+  try {
+    await emptyFolder(props.id)
+    toast(t('components.verticalNavItem.actions.emptyFolderSuccess'))
+  }
+  catch (err) {
+    console.error('Failed to empty folder:', err)
+  }
+}
 </script>
 
 <template>
@@ -263,6 +287,14 @@ const cancelEdit = () => {
           :label="t('components.verticalNavItem.actions.sync')"
           icon="lucide:refresh-cw"
           @click="handleSync"
+        />
+        <DropdownMenuSeparator v-if="canEmpty" />
+        <DropdownMenuItemRich
+          v-if="canEmpty"
+          :label="t('components.verticalNavItem.actions.emptyFolder')"
+          class="text-destructive"
+          icon="lucide:trash-2"
+          @click="handleEmpty"
         />
       </DropdownMenuContent>
     </DropdownMenu>

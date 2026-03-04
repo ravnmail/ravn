@@ -524,6 +524,7 @@ fn main() {
             emails::delete,
             emails::fetch_body,
             emails::update_blocking,
+            emails::empty_folder,
             folders::get_folder_navigation,
             folders::get_folder,
             folders::get_folders,

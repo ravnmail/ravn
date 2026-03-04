@@ -712,7 +712,7 @@ pub async fn get_emails(state: State<'_, AppState>, id: Uuid) -> Result<EmailDet
         .map(LabelInfo::from)
         .collect();
 
-    let attachments = attachment_repo
+    let attachments: Vec<AttachmentInfo> = attachment_repo
         .find_by_email(email.id)
         .await
         .map_err(|e| format!("Failed to fetch attachments: {}", e))?
@@ -720,7 +720,45 @@ pub async fn get_emails(state: State<'_, AppState>, id: Uuid) -> Result<EmailDet
         .map(AttachmentInfo::from)
         .collect();
 
-    Ok(EmailDetail::from_email(&email, labels, attachments))
+    let mut detail = EmailDetail::from_email(&email, labels, attachments);
+
+    // Replace cid: references in body_html with Tauri asset:// URLs so inline
+    // images (logos, signatures, etc.) render correctly in the email view.
+    // These are local cached files and should always be shown regardless of the
+    // images_blocked flag (which applies to remote tracking images only).
+    if let Some(body_html) = detail.body_html.as_ref() {
+        if body_html.contains("cid:") {
+            let cid_to_url = build_cid_asset_url_map(&detail.attachments, &state.app_data_dir);
+            if !cid_to_url.is_empty() {
+                detail.body_html = Some(crate::sync::cid_utils::replace_cid_references(
+                    body_html,
+                    &cid_to_url,
+                ));
+            }
+        }
+    }
+
+    Ok(detail)
+}
+
+/// Build a map from content_id → Tauri asset:// URL for all cached inline attachments.
+fn build_cid_asset_url_map(
+    attachments: &[AttachmentInfo],
+    app_data_dir: &std::path::Path,
+) -> std::collections::HashMap<String, String> {
+    let mut map = std::collections::HashMap::new();
+    for att in attachments {
+        if att.is_inline && att.is_cached {
+            if let (Some(content_id), Some(cache_path)) = (&att.content_id, &att.cache_path) {
+                let abs_path = app_data_dir.join(cache_path);
+                // Encode path for asset:// protocol (at minimum handle spaces)
+                let encoded = abs_path.to_string_lossy().replace(' ', "%20");
+                let asset_url = format!("asset://localhost/{}", encoded);
+                map.insert(content_id.clone(), asset_url);
+            }
+        }
+    }
+    map
 }
 
 #[tauri::command]
@@ -1036,6 +1074,55 @@ pub async fn fetch_body(state: State<'_, AppState>, email_id: Uuid) -> Result<St
     );
 
     Ok("Email queued for body fetch".to_string())
+}
+
+#[tauri::command]
+pub async fn empty_folder(state: State<'_, AppState>, folder_id: Uuid) -> Result<u64, String> {
+    log::info!("Emptying folder {}", folder_id);
+
+    let folder_repo = SqliteFolderRepository::new(state.db_pool.clone());
+    let email_repo = SqliteEmailRepository::new(state.db_pool.clone());
+
+    let folder = folder_repo
+        .find_by_id(folder_id)
+        .await
+        .map_err(|e| format!("Failed to find folder: {}", e))?
+        .ok_or_else(|| format!("Folder {} not found", folder_id))?;
+
+    if folder.folder_type != FolderType::Trash && folder.folder_type != FolderType::Spam {
+        return Err("Can only empty trash or spam folders".to_string());
+    }
+
+    let emails = email_repo
+        .find_by_folder(folder_id, 10000, 0)
+        .await
+        .map_err(|e| format!("Failed to fetch emails in folder: {}", e))?;
+
+    let count = emails.len() as u64;
+
+    for email in &emails {
+        if let Err(e) = state
+            .sync_coordinator
+            .delete_email(email.account_id, email.id, true)
+            .await
+        {
+            log::error!("Failed to delete email {}: {}", email.id, e);
+        }
+    }
+
+    emit_email_event(
+        &state.app_handle,
+        "folder:emptied",
+        serde_json::json!({
+            "id": folder_id.to_string(),
+            "account_id": folder.account_id.to_string(),
+            "deleted_count": count
+        }),
+    );
+
+    log::info!("Emptied folder {}: {} emails deleted", folder_id, count);
+
+    Ok(count)
 }
 
 #[tauri::command]

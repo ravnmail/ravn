@@ -182,6 +182,20 @@ export function useEmails() {
     }
   }
 
+  const emptyFolder = async (folderId: string): Promise<number> => {
+    error.value = null
+
+    try {
+      return await invoke<number>('empty_folder', { folderId })
+    }
+    catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      error.value = errorMessage
+      console.error('Failed to empty folder:', errorMessage)
+      throw new Error(errorMessage)
+    }
+  }
+
   const updateImageBlocking = async (
     emailId: string,
     imagesBlocked: boolean,
@@ -277,6 +291,7 @@ export function useEmails() {
     junk,
     trash,
     deleteEmail,
+    emptyFolder,
     updateImageBlocking,
     addLabelToEmail,
     removeLabelFromEmail,
