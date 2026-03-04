@@ -1,7 +1,7 @@
 <script lang="ts" setup>
+import SettingItemHeader from '~/components/Settings/SettingItemHeader.vue'
 import type { SettingGroup, SettingItem as SettingItemType } from '~/types/settings-manifest'
 import { resolveSettingComponent } from '~/utils/settings/component-mapper'
-import SettingItemHeader from '~/components/Settings/SettingItemHeader.vue'
 
 const props = defineProps<{
   item: SettingItemType
@@ -26,9 +26,13 @@ const currentValue = computed(() => {
 
 const localValue = ref(currentValue.value)
 
-watch(currentValue, (newValue) => {
-  localValue.value = newValue
-}, { immediate: true })
+watch(
+  currentValue,
+  (newValue) => {
+    localValue.value = newValue
+  },
+  { immediate: true }
+)
 
 let saveTimeout: ReturnType<typeof setTimeout> | null = null
 
@@ -62,7 +66,6 @@ onUnmounted(() => {
 })
 
 const settingComponent = computed(() => resolveSettingComponent(props.item.is))
-
 </script>
 
 <template>
@@ -84,6 +87,7 @@ const settingComponent = computed(() => resolveSettingComponent(props.item.is))
         :is="settingComponent"
         v-model="localValue"
         :disabled="item.disabled"
+        :name="item.id"
         v-bind="item.props"
         @update:model-value="handleChange"
       />

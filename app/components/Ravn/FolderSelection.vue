@@ -1,36 +1,45 @@
 <script lang="ts" setup>
-
 import {
-  ListboxRoot,
+  ListboxContent,
   ListboxFilter,
+  ListboxGroup,
+  ListboxRoot,
   PopoverAnchor,
   useFilter,
-  ListboxContent,
-  ListboxGroup
 } from 'reka-ui'
-import { ListboxItem, ListboxGroupLabel } from '~/components/ui/listbox'
-import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
 import { Button } from '~/components/ui/button'
-import { TagsInput, TagsInputInput, TagsInputItem, TagsInputItemDelete } from '~/components/ui/tags-input'
 import IconName from '~/components/ui/IconName.vue'
+import { ListboxGroupLabel, ListboxItem } from '~/components/ui/listbox'
+import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
+import {
+  TagsInput,
+  TagsInputInput,
+  TagsInputItem,
+  TagsInputItemDelete,
+} from '~/components/ui/tags-input'
 
 const { accounts } = useAccounts()
 const { folders, flattenAccountFolders, mapFolderTree } = useFolders()
 
-const props = withDefaults(defineProps<{
-  modelValue?: string[] | undefined
-  placeholder?: string
-}>(), {
-  modelValue: () => [],
-  placeholder: undefined
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue?: string[] | undefined
+    placeholder?: string
+  }>(),
+  {
+    modelValue: () => [],
+    placeholder: undefined,
+  }
+)
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string[]): void
 }>()
 
 const selectedFolders = computed(() => {
-  return props.modelValue.map(id => folders.value?.find(f => f.id === id))
+  return props.modelValue
+    .map((id) => folders.value?.find((f) => f.id === id))
+    .filter((folder) => folder !== undefined)
 })
 
 const searchTerm = ref('')
@@ -43,12 +52,14 @@ const filteredFolders = computed(() => {
     return accountFolders
   }
 
-  return accountFolders.map(account => {
-    return {
-      ...account,
-      children: account.children?.filter(({ name }) => contains(name, searchTerm.value)) || []
-    }
-  }).filter(account => account.children.length > 0)
+  return accountFolders
+    .map((account) => {
+      return {
+        ...account,
+        children: account.children?.filter(({ name }) => contains(name, searchTerm.value)) || [],
+      }
+    })
+    .filter((account) => account.children.length > 0)
 })
 
 watch(searchTerm, (f) => {
@@ -76,14 +87,14 @@ watch(searchTerm, (f) => {
             v-for="folder in selectedFolders"
             :key="folder.id"
             :value="folder.id"
-            class="pl-1 py-0.5 flex items-center gap-1"
+            class="flex items-center gap-1 py-0.5 pl-1"
           >
             <IconName
               :color="folder.color"
               :icon="folder.icon"
               :name="folder.name"
             />
-            <TagsInputItemDelete/>
+            <TagsInputItemDelete />
           </TagsInputItem>
           <ListboxFilter
             v-model="searchTerm"
@@ -97,16 +108,14 @@ watch(searchTerm, (f) => {
           </ListboxFilter>
           <PopoverTrigger as-child>
             <Button variant="ghost">
-              <Icon name="lucide:chevrons-up-down"/>
+              <Icon name="lucide:chevrons-up-down" />
             </Button>
           </PopoverTrigger>
         </TagsInput>
       </PopoverAnchor>
-      <PopoverContent
-        @open-auto-focus.prevent
-      >
+      <PopoverContent @open-auto-focus.prevent>
         <ListboxContent
-          class="max-h-75 scroll-py-1 overflow-x-hidden overflow-y-auto empty:after:content-['No_options'] empty:p-1 empty:after:text-sm empty:after:block"
+          class="max-h-75 scroll-py-1 overflow-x-hidden overflow-y-auto empty:p-1 empty:after:block empty:after:text-sm empty:after:content-['No_options']"
           tabindex="0"
         >
           <ListboxGroup
