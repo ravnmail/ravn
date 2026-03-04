@@ -94,7 +94,7 @@ const handleRename = () => {
 }
 
 // Context menu — one instance per lane, tracks the right-clicked email
-const { archive, trash, move, updateRead, addLabelToEmail } = useEmails()
+const { archive, trash, move, updateRead, addLabelToEmail, setRemindAt } = useEmails()
 const contextEmail = ref<EmailListItem | null>(null)
 
 const executeAction = async (actionId: string, arg?: unknown) => {
@@ -121,6 +121,10 @@ const executeAction = async (actionId: string, arg?: unknown) => {
       break
     case 'assignLabel':
       await addLabelToEmail({ email_id: email.id, label_id: arg as string })
+      break
+    case 'setRemindAt':
+      await setRemindAt(email.id, arg as string | null)
+      emit('refresh')
       break
   }
 }

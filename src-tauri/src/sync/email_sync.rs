@@ -121,7 +121,9 @@ impl EmailSync {
             // Allow override if the syncing state is stale (older than 30 minutes).
             // This handles the case where the app crashed while syncing.
             const STALE_THRESHOLD_MINUTES: i64 = 30;
-            let is_stale = self.is_sync_status_stale(folder, STALE_THRESHOLD_MINUTES).await;
+            let is_stale = self
+                .is_sync_status_stale(folder, STALE_THRESHOLD_MINUTES)
+                .await;
             if is_stale {
                 log::warn!(
                     "[EmailSync] Stale 'syncing' state detected for folder {} (account {}): overriding after {}m threshold",
@@ -775,6 +777,7 @@ impl EmailSync {
             received_at: sync_email.received_at,
             sent_at: sync_email.sent_at,
             scheduled_send_at: None,
+            remind_at: None,
             is_read: sync_email.flags.contains(&"\\Seen".to_string()),
             is_flagged: sync_email.flags.contains(&"\\Flagged".to_string()),
             is_draft: sync_email.flags.contains(&"\\Draft".to_string()),
@@ -926,8 +929,7 @@ impl EmailSync {
                         | Some(PendingOperationType::MarkUnread) => {
                             db_email.is_read = existing_email.is_read;
                         }
-                        Some(PendingOperationType::Flag)
-                        | Some(PendingOperationType::Unflag) => {
+                        Some(PendingOperationType::Flag) | Some(PendingOperationType::Unflag) => {
                             db_email.is_flagged = existing_email.is_flagged;
                         }
                         Some(PendingOperationType::Delete)

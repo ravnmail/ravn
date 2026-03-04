@@ -388,6 +388,18 @@
         "noFolders": "No folders available. Add an email account first.",
         "viewConfig": "View Configuration"
       },
+      "calendar": {
+        "configTitle": "Calendar Configuration",
+        "dateFieldLabel": "Date Field",
+        "dateFieldHint": "Emails are placed on the calendar based on this date field.",
+        "dateFields": {
+          "remindAt": "Reminder (remind_at)",
+          "receivedAt": "Received (received_at)",
+          "sentAt": "Sent (sent_at)"
+        },
+        "foldersLabel": "Mailboxes to include",
+        "foldersHint": "Leave all unchecked to include emails from all mailboxes."
+      },
       "actions": {
         "createView": "Create View"
       }
@@ -540,6 +552,32 @@
           "expand": "Expand"
         }
       }
+    },
+    "calendar": {
+      "today": "Today",
+      "noItems": "Nothing scheduled",
+      "itemCount": "items",
+      "mode": {
+        "month": "Month",
+        "week": "Week"
+      },
+      "dateField": {
+        "remindAt": "Reminder date",
+        "receivedAt": "Received date",
+        "sentAt": "Sent date"
+      },
+      "emptyState": {
+        "title": "No emails this month",
+        "message": "There are no emails matching the calendar configuration for this period."
+      }
+    },
+    "remindAt": {
+      "menuLabel": "Set Reminder",
+      "laterToday": "Later today (in 3 hours)",
+      "tomorrow": "Tomorrow morning",
+      "nextWeek": "Next week",
+      "nextMonth": "Next month",
+      "clear": "Clear reminder"
     },
     "viewEditor": {
       "title": {
@@ -947,7 +985,7 @@
     "title": "Settings",
     "searchPlaceholder": "Search settings...",
     "search": {
-      "noResults":{
+      "noResults": {
         "title": "No Results",
         "description": "No settings match '{search}'"
       }
@@ -957,6 +995,9 @@
       "signatures": "Signatures"
     },
     "groups": {
+      "regional": {
+        "name": "Regional"
+      },
       "appearance": {
         "name": "Appearance"
       },
@@ -974,6 +1015,27 @@
       },
       "views": {
         "name": "Views"
+      }
+    },
+    "regional": {
+      "datetime": {
+        "section": "Date & Time"
+      },
+      "dateFormat": {
+        "name": "Date Format",
+        "description": "How dates are displayed across the app (uses dayjs format tokens)"
+      },
+      "timeFormat": {
+        "name": "Time Format",
+        "description": "24-hour or 12-hour clock display"
+      },
+      "weekdayFormat": {
+        "name": "Weekday Label Format",
+        "description": "How weekday column headers appear in the calendar"
+      },
+      "startOfWeek": {
+        "name": "Start of Week",
+        "description": "The first day shown in calendar week and month views"
       }
     },
     "appearance": {

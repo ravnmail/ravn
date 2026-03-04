@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
+
 import type { EmailDetail, EmailListItem } from '~/types/email'
+import type { CalendarDateField } from '~/types/view'
 
 interface EmailUpdatedEvent {
   id: string
@@ -29,14 +31,12 @@ export function useEmails() {
 
     try {
       return await invoke<EmailDetail>('get_emails', { id })
-    }
-    catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       console.error('Failed to fetch email:', errorMessage)
       return null
-    }
-    finally {
+    } finally {
       isLoading.value = false
     }
   }
@@ -44,7 +44,7 @@ export function useEmails() {
   const fetchForFolder = async (
     folderId: string,
     limit?: number,
-    offset?: number,
+    offset?: number
   ): Promise<EmailListItem[]> => {
     isLoading.value = true
     error.value = null
@@ -55,14 +55,12 @@ export function useEmails() {
         limit: limit || 50,
         offset: offset || 0,
       })
-    }
-    catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       console.error('Failed to fetch emails for folder:', errorMessage)
       return []
-    }
-    finally {
+    } finally {
       isLoading.value = false
     }
   }
@@ -71,7 +69,7 @@ export function useEmails() {
     labelIds: string[],
     matchAll: boolean = false,
     limit?: number,
-    offset?: number,
+    offset?: number
   ): Promise<EmailListItem[]> => {
     isLoading.value = true
     error.value = null
@@ -83,14 +81,12 @@ export function useEmails() {
         limit: limit || 50,
         offset: offset || 0,
       })
-    }
-    catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       console.error('Failed to fetch emails by labels:', errorMessage)
       return []
-    }
-    finally {
+    } finally {
       isLoading.value = false
     }
   }
@@ -100,8 +96,7 @@ export function useEmails() {
 
     try {
       await invoke('update_read', { emailId, isRead })
-    }
-    catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       console.error('Failed to update read status:', errorMessage)
@@ -114,8 +109,7 @@ export function useEmails() {
 
     try {
       await invoke('email_parse_body_plain', { emailId })
-    }
-    catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       console.error('Failed to parse email body:', errorMessage)
@@ -128,8 +122,7 @@ export function useEmails() {
 
     try {
       await invoke('move_email', { emailId, folderId })
-    }
-    catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       console.error('Failed to move email:', errorMessage)
@@ -142,8 +135,7 @@ export function useEmails() {
 
     try {
       await invoke('archive', { emailId })
-    }
-    catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       console.error('Failed to archive email:', errorMessage)
@@ -156,8 +148,7 @@ export function useEmails() {
 
     try {
       await invoke('junk', { emailId })
-    }
-    catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       console.error('Failed to move email to junk:', errorMessage)
@@ -170,8 +161,7 @@ export function useEmails() {
 
     try {
       await invoke('trash', { emailId })
-    }
-    catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       console.error('Failed to move email to trash:', errorMessage)
@@ -184,8 +174,7 @@ export function useEmails() {
 
     try {
       await invoke('delete', { emailId })
-    }
-    catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       console.error('Failed to delete email:', errorMessage)
@@ -238,6 +227,43 @@ export function useEmails() {
     }
   }
 
+  const setRemindAt = async (emailId: string, remindAt: string | null): Promise<void> => {
+    error.value = null
+    try {
+      await invoke('set_remind_at', { emailId, remindAt })
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      error.value = errorMessage
+      console.error('Failed to set remind_at:', errorMessage)
+      throw new Error(errorMessage)
+    }
+  }
+
+  const fetchForCalendar = async (
+    folderIds: string[],
+    dateField: CalendarDateField,
+    start: string,
+    end: string
+  ): Promise<EmailListItem[]> => {
+    isLoading.value = true
+    error.value = null
+    try {
+      return await invoke<EmailListItem[]>('get_emails_for_calendar', {
+        folderIds,
+        dateField,
+        start,
+        end,
+      })
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      error.value = errorMessage
+      console.error('Failed to fetch emails for calendar:', errorMessage)
+      return []
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   return {
     isLoading: readonly(isLoading),
     error: readonly(error),
@@ -256,5 +282,7 @@ export function useEmails() {
     removeLabelFromEmail,
     allowImages,
     allowAll,
+    setRemindAt,
+    fetchForCalendar,
   }
 }

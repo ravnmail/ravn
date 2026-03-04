@@ -63,6 +63,18 @@ pub trait EmailRepository {
     async fn update_flagged_status(&self, id: Uuid, is_flagged: bool) -> Result<(), DatabaseError>;
     async fn update_ai_cache(&self, id: Uuid, ai_cache_json: &str) -> Result<(), DatabaseError>;
     async fn find_pending_ai_analysis(&self, limit: i64) -> Result<Vec<Uuid>, DatabaseError>;
+    async fn find_for_calendar(
+        &self,
+        folder_ids: &[Uuid],
+        date_field: &str,
+        start: chrono::DateTime<chrono::Utc>,
+        end: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<Email>, DatabaseError>;
+    async fn update_remind_at(
+        &self,
+        id: Uuid,
+        remind_at: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> Result<(), DatabaseError>;
 }
 
 pub struct SqliteEmailRepository {
@@ -543,10 +555,12 @@ impl EmailRepository for SqliteEmailRepository {
     }
 
     async fn count_unread_all(&self) -> Result<i64, DatabaseError> {
-        let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM emails WHERE is_read = 0 AND is_deleted = 0")
-            .fetch_one(&self.pool)
-            .await
-            .map_err(DatabaseError::ConnectionError)?;
+        let count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM emails WHERE is_read = 0 AND is_deleted = 0",
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(DatabaseError::ConnectionError)?;
 
         Ok(count)
     }
@@ -765,6 +779,75 @@ impl EmailRepository for SqliteEmailRepository {
                     .map_err(|e| DatabaseError::InvalidData(format!("Invalid email ID: {}", e)))
             })
             .collect()
+    }
+
+    async fn find_for_calendar(
+        &self,
+        folder_ids: &[Uuid],
+        date_field: &str,
+        start: chrono::DateTime<chrono::Utc>,
+        end: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<Email>, DatabaseError> {
+        // Build folder filter: if no folders specified, fetch from all folders
+        let folder_filter = if folder_ids.is_empty() {
+            String::new()
+        } else {
+            let placeholders = folder_ids
+                .iter()
+                .map(|_| "?")
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("AND e.folder_id IN ({})", placeholders)
+        };
+
+        // Only allow safe date field names to prevent SQL injection
+        let col = match date_field {
+            "sent_at" => "e.sent_at",
+            "remind_at" => "e.remind_at",
+            _ => "e.received_at",
+        };
+
+        let sql = format!(
+            r#"
+            SELECT e.*
+            FROM emails e
+            WHERE e.is_deleted = 0
+              AND {col} IS NOT NULL
+              AND {col} >= ?
+              AND {col} < ?
+              {folder_filter}
+            ORDER BY {col} ASC
+            "#,
+            col = col,
+            folder_filter = folder_filter
+        );
+
+        let mut query = sqlx::query_as::<_, Email>(&sql).bind(start).bind(end);
+
+        for id in folder_ids {
+            query = query.bind(id.to_string());
+        }
+
+        query
+            .fetch_all(&self.pool)
+            .await
+            .map_err(DatabaseError::ConnectionError)
+    }
+
+    async fn update_remind_at(
+        &self,
+        id: Uuid,
+        remind_at: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> Result<(), DatabaseError> {
+        let id_str = id.to_string();
+        sqlx::query("UPDATE emails SET remind_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+            .bind(remind_at)
+            .bind(id_str)
+            .execute(&self.pool)
+            .await
+            .map_err(DatabaseError::ConnectionError)?;
+
+        Ok(())
     }
 }
 

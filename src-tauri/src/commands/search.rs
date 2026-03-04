@@ -77,6 +77,7 @@ pub async fn search_emails(
                 category: email.category.clone(),
                 received_at: email.received_at.to_rfc3339().parse().unwrap(),
                 sent_at: email.sent_at.map(|dt| dt.to_rfc3339().parse().unwrap()),
+                remind_at: email.remind_at.map(|dt| dt.to_rfc3339().parse().unwrap()),
                 is_read: email.is_read,
                 is_draft: email.is_draft,
                 is_flagged: email.is_flagged,

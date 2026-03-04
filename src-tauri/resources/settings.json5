@@ -1,104 +1,114 @@
 {
   // Enhanced AI Features Settings
-  "ai.enabled": false,
+  'ai.enabled': false,
   // OpenRouter base URL when using BYOK license
-  "ai.api.baseUrl": "https://openrouter.ai/api/v1",
+  'ai.api.baseUrl': 'https://openrouter.ai/api/v1',
   // OpenRouter API key when using BYOK license
-  "ai.api.key": null,
+  'ai.api.key': null,
   // Model used for fast but less accurate responses, like for auto-completion
-  "ai.models.fast": "openai/gpt-oss-safeguard-20b",
+  'ai.models.fast': 'openai/gpt-oss-safeguard-20b',
   // Model used for normal operations
-  "ai.models.normal": "openai/gpt-oss-120b",
+  'ai.models.normal': 'openai/gpt-oss-120b',
   // How to select model providers: "price", "latency", "throughput"
-  "ai.models.sorting": "throughput",
+  'ai.models.sorting': 'throughput',
   // Personal writing style to be included in all AI writing prompts
-  "ai.writingStyle": "",
+  'ai.writingStyle': '',
   // Email composition assistant prompt
-  "ai.prompts.askAi": "You are a professional email writing assistant. Respond with a valid HTML or text only fragment based on the user's context:\n\n1. Maintain a professional, accurate, and objective tone and stick to the language\n2. Ensure responses are clear, coherent, and well-structured\n3. Responses must be in HTML format, preserving all HTML tags, links, and styles suitable for an email body. You must not include anything than the email body, not even the subject\n4. If context includes code, maintain code formatting and provide optimization suggestions\n5. Never wrap responses in a full HTML document structure (<!DOCTYPE html>, <html>, <head>, <body> tags)\n6. Just return the HTML fragment or plain text that can be directly inserted into an email body\n\n## Content Guidelines\n- Ensure clear, coherent structure using HTML headings (h1-h3), paragraphs (<p>)\n- Use b, i, u, and s tags for emphasis\n- Use appropriate HTML elements: `<ul>/<ol>` for lists, `<blockquote>` for quotes, `<code>/<pre>` for code\n- Preserve and enhance any existing HTML tags, links, and inline styles\n- For code content: wrap in `<pre><code>` with syntax highlighting classes where applicable",
+  'ai.prompts.askAi': "You are a professional email writing assistant. Respond with a valid HTML or text only fragment based on the user's context:\n\n1. Maintain a professional, accurate, and objective tone and stick to the language\n2. Ensure responses are clear, coherent, and well-structured\n3. Responses must be in HTML format, preserving all HTML tags, links, and styles suitable for an email body. You must not include anything than the email body, not even the subject\n4. If context includes code, maintain code formatting and provide optimization suggestions\n5. Never wrap responses in a full HTML document structure (<!DOCTYPE html>, <html>, <head>, <body> tags)\n6. Just return the HTML fragment or plain text that can be directly inserted into an email body\n\n## Content Guidelines\n- Ensure clear, coherent structure using HTML headings (h1-h3), paragraphs (<p>)\n- Use b, i, u, and s tags for emphasis\n- Use appropriate HTML elements: `<ul>/<ol>` for lists, `<blockquote>` for quotes, `<code>/<pre>` for code\n- Preserve and enhance any existing HTML tags, links, and inline styles\n- For code content: wrap in `<pre><code>` with syntax highlighting classes where applicable",
   // Email auto-completion prompt
-  "ai.prompts.generateCompletion": "You are an intelligent email auto-completion assistant that predicts and suggests natural continuations of email text. Your goal is to provide instant, contextually relevant completions that match the user's writing style.\n\nYour completions must:\n1. Continue the current sentence or introduce a logical next point\n2. Finish only the current thought or sentence fragment, don't return a full email text\n3. Match the tone, formality, language, and terminology of the existing email\n4. Consider recipient context and prior email content for relevant suggestions\n5. Maintain consistency with any formatting patterns (lists, bullet points)\n6. Stop at a natural breaking point (period, question mark, etc.)\n\nReturn ONLY the suggested completion text without explanations or metadata. Your suggestion must seamlessly continue from the cursor position, but never repeat the existing context. Complete the word if the cursor is in the middle of a word. If no suitable completion is possible, return an empty string.",
+  'ai.prompts.generateCompletion': "You are an intelligent email auto-completion assistant that predicts and suggests natural continuations of email text. Your goal is to provide instant, contextually relevant completions that match the user's writing style.\n\nYour completions must:\n1. Continue the current sentence or introduce a logical next point\n2. Finish only the current thought or sentence fragment, don't return a full email text\n3. Match the tone, formality, language, and terminology of the existing email\n4. Consider recipient context and prior email content for relevant suggestions\n5. Maintain consistency with any formatting patterns (lists, bullet points)\n6. Stop at a natural breaking point (period, question mark, etc.)\n\nReturn ONLY the suggested completion text without explanations or metadata. Your suggestion must seamlessly continue from the cursor position, but never repeat the existing context. Complete the word if the cursor is in the middle of a word. If no suitable completion is possible, return an empty string.",
   // Email subject generation prompt
-  "ai.prompts.generateSubject": "You are an expert at writing clear, concise, and professional email subject lines. Always respond with just the subject line in the language of the email context, no additional text or explanations.",
+  'ai.prompts.generateSubject': 'You are an expert at writing clear, concise, and professional email subject lines. Always respond with just the subject line in the language of the email context, no additional text or explanations.',
   // Email analysis prompt (returns JSON)
-  "ai.prompts.analyzeEmail": "You are a sophisticated email‑analysis assistant. \nYour task: read an incoming email and produce a concise summary and up to four ready‑to‑send response options.  \nOutput **only** valid JSON – no explanatory prose, comments or formatting outside the JSON object.\n\nJSON format  \n{\n  \"gist\": \"<short one‑sentence summary>\",\n  \"responses\": [\n    {\n      \"title\":\"<response title>\",\n      \"content\":\"<full response message as markdown>\"\n},\n…\n]\n}\n\nAnalyze the following email and provide:\n1. One to two sentence summary of the core message or request. Must be actionable – highlight what needs attention.\n2. 1–4 complete, well‑structured messages. Match the tone and language of the source email. Keep them professional, respectful, and ready to be pasted into an email.\n",
+  'ai.prompts.analyzeEmail': 'You are a sophisticated email‑analysis assistant. \nYour task: read an incoming email and produce a concise summary and up to four ready‑to‑send response options.  \nOutput **only** valid JSON – no explanatory prose, comments or formatting outside the JSON object.\n\nJSON format  \n{\n  "gist": "<short one‑sentence summary>",\n  "responses": [\n    {\n      "title":"<response title>",\n      "content":"<full response message as markdown>"\n},\n…\n]\n}\n\nAnalyze the following email and provide:\n1. One to two sentence summary of the core message or request. Must be actionable – highlight what needs attention.\n2. 1–4 complete, well‑structured messages. Match the tone and language of the source email. Keep them professional, respectful, and ready to be pasted into an email.\n',
   // Search query generation prompt
-  "ai.prompts.generateSearchQuery": "You are an expert at converting informal, vague natural language questions into Tantivy search queries.\nYou understand email search fields: subject, to, cc, body, from, received, labels, is_read.\nYou understand Tantivy query syntax: AND, OR, NOT operators, quoted strings for phrases, field:value syntax, date ranges, and ^ for boosting.\n\nMaximize Recall: For vague terms or concepts expand with synonyms, related keywords and plural/singular combinations joined by `OR`.\nWhen asked to search for plural of a word, use the `OR` operator to search for the singular form of the word and vice versa.\n\nWhen converting queries:\n1. Use exact field names: subject, to, cc, body, from, received, labels, is_read\n2. For boolean fields (is_read), use true/false values\n3. For date fields, suggest date ranges like [date1 TO date2] with valid full ISO 8601 format timestamps (like YYYY-MM-DDTHH:MM:SSz)\n4. For text fields with spaces, use quoted strings like subject:\"exact phrase\"\n5. Use AND/OR/NOT operators appropriately\n6. Group complex queries with parentheses\n7. Use ^ for boosting important terms (e.g., subject:urgent^2)\n8. Return ONLY the query, no explanation",
+  'ai.prompts.generateSearchQuery': 'You are an expert at converting informal, vague natural language questions into Tantivy search queries.\nYou understand email search fields: subject, to, cc, body, from, received, labels, is_read.\nYou understand Tantivy query syntax: AND, OR, NOT operators, quoted strings for phrases, field:value syntax, date ranges, and ^ for boosting.\n\nMaximize Recall: For vague terms or concepts expand with synonyms, related keywords and plural/singular combinations joined by `OR`.\nWhen asked to search for plural of a word, use the `OR` operator to search for the singular form of the word and vice versa.\n\nWhen converting queries:\n1. Use exact field names: subject, to, cc, body, from, received, labels, is_read\n2. For boolean fields (is_read), use true/false values\n3. For date fields, suggest date ranges like [date1 TO date2] with valid full ISO 8601 format timestamps (like YYYY-MM-DDTHH:MM:SSz)\n4. For text fields with spaces, use quoted strings like subject:"exact phrase"\n5. Use AND/OR/NOT operators appropriately\n6. Group complex queries with parentheses\n7. Use ^ for boosting important terms (e.g., subject:urgent^2)\n8. Return ONLY the query, no explanation',
 
   // Enable Auto-Completion in Email Composition
-  "ai.autoCompletion.enabled": false,
+  'ai.autoCompletion.enabled': false,
   // Automatically trigger auto-completion suggestions while typing
-  "ai.autoCompletion.autoTriggerEnabled": true,
+  'ai.autoCompletion.autoTriggerEnabled': true,
   // Delay in milliseconds before auto-completion is triggered after user stops typing
-  "ai.autoCompletion.triggerDelay": 300,
+  'ai.autoCompletion.triggerDelay': 300,
   // Minimum number of characters typed before auto-completion is triggered
-  "ai.autoCompletion.triggerThreshold": 15,
+  'ai.autoCompletion.triggerThreshold': 15,
   // Maximum tokens for auto-completion responses
-  "ai.autoCompletion.maxTokens": 50,
+  'ai.autoCompletion.maxTokens': 50,
 
   // Theme selection
-  "appearance.theme": "builtin/dark.css",
+  'appearance.theme': 'builtin/dark.css',
   // UI Scale percentage
-  "appearance.uiScale": 100,
+  'appearance.uiScale': 100,
 
   // Email Settings
-  "email.renderMode": "simple", // "simple" (markdown) or "normal" (iframe),
+  'email.renderMode': 'simple', // "simple" (markdown) or "normal" (iframe)
   // Collapse messages in conversation view
-  "email.conversation.collapseMessages": true,
+  'email.conversation.collapseMessages': true,
   // Inset outgoing messages in conversation view
-  "email.conversation.insetOutgoing": true,
+  'email.conversation.insetOutgoing': true,
 
   // Contacts Settings
-  "contacts.avatar.services": ["unavatar", "favicon"],
+  'contacts.avatar.services': ['unavatar', 'favicon'],
 
   // Signatures
-  "signatures.items": [],
-  "signatures.globalDefault": null,
+  'signatures.items': [],
+  'signatures.globalDefault': null,
 
   // Notifications
   // Sound files (name should match filename without extension in public/sounds/)
-  "notifications.incomingSound": "incoming_01", // Sound for incoming emails (null = disabled)
-  "notifications.outgoingSound": "outgoing_01", // Sound for outgoing emails (null = disabled)
-  "notifications.reminderSound": "incoming_02", // Reserved for future reminder feature
+  'notifications.incomingSound': 'incoming_01', // Sound for incoming emails (null = disabled)
+  'notifications.outgoingSound': 'outgoing_01', // Sound for outgoing emails (null = disabled)
+  'notifications.reminderSound': 'incoming_02', // Reserved for future reminder feature
 
-  "notifications.enabled": true,
+  'notifications.enabled': true,
   // Folder IDs for notification triggers
   // [] = inbox only (default)
   // ["uuid1", "uuid2"] = specific folders
-  "notifications.notificationFolders": [],
+  'notifications.notificationFolders': [],
 
-  "notifications.badgeType": "count",
+  'notifications.badgeType': 'count',
   // Folder IDs for badge count
   // [] = all folders with unread (default)
   // ["uuid1", "uuid2"] = specific folders only
-  "notifications.badgeFolders": [],
+  'notifications.badgeFolders': [],
 
   // Views Settings
   // Show the labels management section in the View Editor
-  "views.kanban.showLabelsSection": true,
+  'views.kanban.showLabelsSection': true,
+
+  // Regional / Date & Time Settings
+  // Date format string (dayjs tokens): "MMM D, YYYY" | "DD.MM.YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD"
+  'regional.dateFormat': 'MMM D, YYYY',
+  // Time format string (dayjs tokens): "HH:mm" (24-hour) | "h:mm A" (12-hour)
+  'regional.timeFormat': 'HH:mm',
+  // Weekday label format (dayjs tokens): "ddd" (Mon) | "dddd" (Monday) | "dd" (Mo)
+  'regional.weekdayFormat': 'ddd',
+  // First day of week: 0 = Sunday, 1 = Monday (ISO default)
+  'regional.startOfWeek': 1,
 
   // Keyboard Shortcuts
-  "keyboard.enabled": true,
-  "keyboard.bindings.nextEmail": ["j", "ArrowDown"],
-  "keyboard.bindings.previousEmail": ["k", "ArrowUp"],
-  "keyboard.bindings.nextConversation": ["j", "ArrowDown"],
-  "keyboard.bindings.previousConversation": ["k", "ArrowUp"],
-  "keyboard.bindings.openConversation": ["Enter"],
-  "keyboard.bindings.goBack": ["Escape", "u"],
-  "keyboard.bindings.archive": ["e"],
-  "keyboard.bindings.delete": ["#", "Delete", "Backspace"],
-  "keyboard.bindings.reply": ["r"],
-  "keyboard.bindings.replyAll": ["a"],
-  "keyboard.bindings.forward": ["f"],
-  "keyboard.bindings.toggleStar": ["s"],
-  "keyboard.bindings.markRead": ["Shift+i"],
-  "keyboard.bindings.markUnread": ["u"],
-  "keyboard.bindings.newEmail": ["c"],
-  "keyboard.bindings.send": ["Meta+Enter", "Ctrl+Enter"],
-  "keyboard.bindings.discardDraft": ["Escape"],
-  "keyboard.bindings.toggleDetailsPane": ["Meta+d", "Ctrl+d"],
-  "keyboard.bindings.toggleSidebar": ["Meta+\\", "Ctrl+\\"],
-  "keyboard.bindings.search": ["Meta+f", "Ctrl+f", "/"],
-  "keyboard.bindings.settings": ["Meta+,", "Ctrl+,"],
-  "keyboard.bindings.help": ["?"],
-  "keyboard.bindings.refresh": ["Meta+r", "Ctrl+r"]
+  'keyboard.enabled': true,
+  'keyboard.bindings.nextEmail': ['j', 'ArrowDown'],
+  'keyboard.bindings.previousEmail': ['k', 'ArrowUp'],
+  'keyboard.bindings.nextConversation': ['j', 'ArrowDown'],
+  'keyboard.bindings.previousConversation': ['k', 'ArrowUp'],
+  'keyboard.bindings.openConversation': ['Enter'],
+  'keyboard.bindings.goBack': ['Escape', 'u'],
+  'keyboard.bindings.archive': ['e'],
+  'keyboard.bindings.delete': ['#', 'Delete', 'Backspace'],
+  'keyboard.bindings.reply': ['r'],
+  'keyboard.bindings.replyAll': ['a'],
+  'keyboard.bindings.forward': ['f'],
+  'keyboard.bindings.toggleStar': ['s'],
+  'keyboard.bindings.markRead': ['Shift+i'],
+  'keyboard.bindings.markUnread': ['u'],
+  'keyboard.bindings.newEmail': ['c'],
+  'keyboard.bindings.send': ['Meta+Enter', 'Ctrl+Enter'],
+  'keyboard.bindings.discardDraft': ['Escape'],
+  'keyboard.bindings.toggleDetailsPane': ['Meta+d', 'Ctrl+d'],
+  'keyboard.bindings.toggleSidebar': ['Meta+\\', 'Ctrl+\\'],
+  'keyboard.bindings.search': ['Meta+f', 'Ctrl+f', '/'],
+  'keyboard.bindings.settings': ['Meta+,', 'Ctrl+,'],
+  'keyboard.bindings.help': ['?'],
+  'keyboard.bindings.refresh': ['Meta+r', 'Ctrl+r'],
 }

@@ -24,8 +24,8 @@ export const settingsManifest: SettingsManifest = [
               min: 50,
               max: 200,
               step: 10,
-            }
-          }
+            },
+          },
         ],
       },
     ],
@@ -99,8 +99,8 @@ export const settingsManifest: SettingsManifest = [
                 { label: 'Throughput', value: 'throughput' },
                 { label: 'Latency', value: 'latency' },
               ],
-            }
-          }
+            },
+          },
         ],
       },
       {
@@ -161,7 +161,7 @@ export const settingsManifest: SettingsManifest = [
               autosize: true,
               rows: 8,
               cols: 64,
-            }
+            },
           },
         ],
       },
@@ -178,7 +178,7 @@ export const settingsManifest: SettingsManifest = [
               autosize: true,
               rows: 8,
               cols: 64,
-            }
+            },
           },
           {
             id: 'ai.prompts.generateCompletion',
@@ -189,7 +189,7 @@ export const settingsManifest: SettingsManifest = [
               autosize: true,
               rows: 8,
               cols: 64,
-            }
+            },
           },
           {
             id: 'ai.prompts.generateSubject',
@@ -200,7 +200,7 @@ export const settingsManifest: SettingsManifest = [
               autosize: true,
               rows: 8,
               cols: 64,
-            }
+            },
           },
           {
             id: 'ai.prompts.analyzeEmail',
@@ -211,7 +211,7 @@ export const settingsManifest: SettingsManifest = [
               autosize: true,
               rows: 8,
               cols: 64,
-            }
+            },
           },
           {
             id: 'ai.prompts.generateSearchQuery',
@@ -222,7 +222,7 @@ export const settingsManifest: SettingsManifest = [
               autosize: true,
               rows: 8,
               cols: 64,
-            }
+            },
           },
         ],
       },
@@ -293,7 +293,70 @@ export const settingsManifest: SettingsManifest = [
             is: 'Toggle',
           },
         ],
-      }
+      },
+    ],
+  },
+  {
+    id: 'regional',
+    name: 'settings.groups.regional.name',
+    sections: [
+      {
+        id: 'datetime',
+        name: 'settings.regional.datetime.section',
+        items: [
+          {
+            id: 'regional.dateFormat',
+            name: 'settings.regional.dateFormat.name',
+            description: 'settings.regional.dateFormat.description',
+            is: 'Select',
+            props: {
+              options: [
+                { label: 'Jan 5, 2025', value: 'MMM D, YYYY' },
+                { label: '05.01.2025', value: 'DD.MM.YYYY' },
+                { label: '01/05/2025', value: 'MM/DD/YYYY' },
+                { label: '2025-01-05', value: 'YYYY-MM-DD' },
+              ],
+            },
+          },
+          {
+            id: 'regional.timeFormat',
+            name: 'settings.regional.timeFormat.name',
+            description: 'settings.regional.timeFormat.description',
+            is: 'Select',
+            props: {
+              options: [
+                { label: '14:30 (24-hour)', value: 'HH:mm' },
+                { label: '2:30 PM (12-hour)', value: 'h:mm A' },
+              ],
+            },
+          },
+          {
+            id: 'regional.weekdayFormat',
+            name: 'settings.regional.weekdayFormat.name',
+            description: 'settings.regional.weekdayFormat.description',
+            is: 'Select',
+            props: {
+              options: [
+                { label: 'Mon (abbreviated)', value: 'ddd' },
+                { label: 'Monday (full)', value: 'dddd' },
+                { label: 'Mo (short)', value: 'dd' },
+              ],
+            },
+          },
+          {
+            id: 'regional.startOfWeek',
+            name: 'settings.regional.startOfWeek.name',
+            description: 'settings.regional.startOfWeek.description',
+            is: 'Select',
+            props: {
+              options: [
+                { label: 'Monday', value: 1 },
+                { label: 'Sunday', value: 0 },
+              ],
+            },
+          },
+        ],
+      },
     ],
   },
   {
@@ -336,7 +399,7 @@ export const settingsManifest: SettingsManifest = [
             props: {
               multiple: true,
             },
-          }
+          },
         ],
       },
       {
@@ -364,7 +427,7 @@ export const settingsManifest: SettingsManifest = [
             props: {
               multiple: true,
             },
-          }
+          },
         ],
       },
       {

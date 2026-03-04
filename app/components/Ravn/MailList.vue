@@ -42,7 +42,7 @@ const { folders, useUpdateSettingsMutation, useInitSyncMutation } = useFolders()
 const { mutateAsync: updateSettings } = useUpdateSettingsMutation()
 const { mutateAsync: initSync } = useInitSyncMutation()
 
-const { archive, trash, updateRead, move, addLabelToEmail } = useEmails()
+const { archive, trash, updateRead, move, addLabelToEmail, setRemindAt } = useEmails()
 
 const multiSelect = useMultiSelect<ConversationListItem>()
 
@@ -51,9 +51,13 @@ const contextMenuConvId = ref<string | null>(null)
 
 const getContextMenuFirstMessageId = (): string | null => {
   if (!contextMenuConvId.value) return null
-  const conv = conversations.value.find(c => c.id === contextMenuConvId.value)
+  const conv = conversations.value.find((c) => c.id === contextMenuConvId.value)
   if (!conv) return null
-  return conv.messages.filter(m => m.folder_id === props.folderId)[0]?.id ?? conv.messages[0]?.id ?? null
+  return (
+    conv.messages.filter((m) => m.folder_id === props.folderId)[0]?.id ??
+    conv.messages[0]?.id ??
+    null
+  )
 }
 
 const sortBy = ref<string>('received_at')
@@ -143,31 +147,83 @@ onMounted(async () => {
   addContext('mailList', focused)
 
   const ns = 'mailList'
-  register({ namespace: ns, id: 'archiveEmail', icon: 'lucide:archive', handler: () => {
-    const id = getContextMenuFirstMessageId(); if (id) archive(id)
-  }})
-  register({ namespace: ns, id: 'deleteEmail', icon: 'lucide:trash-2', handler: () => {
-    const id = getContextMenuFirstMessageId(); if (id) trash(id)
-  }})
-  register({ namespace: ns, id: 'markRead', icon: 'lucide:mail-open', handler: () => {
-    const id = getContextMenuFirstMessageId(); if (id) updateRead(id, true)
-  }})
-  register({ namespace: ns, id: 'markUnread', icon: 'lucide:mail', handler: () => {
-    const id = getContextMenuFirstMessageId(); if (id) updateRead(id, false)
-  }})
-  register({ namespace: ns, id: 'moveEmail', icon: 'lucide:folder-input', handler: (arg) => {
-    const id = getContextMenuFirstMessageId(); if (id && arg) move(id, arg as string)
-  }})
-  register({ namespace: ns, id: 'assignLabel', icon: 'lucide:tag', handler: (arg) => {
-    const id = getContextMenuFirstMessageId()
-    if (id && arg) addLabelToEmail({ email_id: id, label_id: arg as string })
-  }})
+  register({
+    namespace: ns,
+    id: 'archiveEmail',
+    icon: 'lucide:archive',
+    handler: () => {
+      const id = getContextMenuFirstMessageId()
+      if (id) archive(id)
+    },
+  })
+  register({
+    namespace: ns,
+    id: 'deleteEmail',
+    icon: 'lucide:trash-2',
+    handler: () => {
+      const id = getContextMenuFirstMessageId()
+      if (id) trash(id)
+    },
+  })
+  register({
+    namespace: ns,
+    id: 'markRead',
+    icon: 'lucide:mail-open',
+    handler: () => {
+      const id = getContextMenuFirstMessageId()
+      if (id) updateRead(id, true)
+    },
+  })
+  register({
+    namespace: ns,
+    id: 'markUnread',
+    icon: 'lucide:mail',
+    handler: () => {
+      const id = getContextMenuFirstMessageId()
+      if (id) updateRead(id, false)
+    },
+  })
+  register({
+    namespace: ns,
+    id: 'moveEmail',
+    icon: 'lucide:folder-input',
+    handler: (arg) => {
+      const id = getContextMenuFirstMessageId()
+      if (id && arg) move(id, arg as string)
+    },
+  })
+  register({
+    namespace: ns,
+    id: 'assignLabel',
+    icon: 'lucide:tag',
+    handler: (arg) => {
+      const id = getContextMenuFirstMessageId()
+      if (id && arg) addLabelToEmail({ email_id: id, label_id: arg as string })
+    },
+  })
+  register({
+    namespace: ns,
+    id: 'setRemindAt',
+    icon: 'lucide:bell',
+    handler: (arg) => {
+      const id = getContextMenuFirstMessageId()
+      if (id) setRemindAt(id, (arg as string | null) ?? null)
+    },
+  })
 })
 
 onBeforeUnmount(() => {
   removeContext('mailList')
   const ns = 'mailList'
-  for (const id of ['archiveEmail', 'deleteEmail', 'markRead', 'markUnread', 'moveEmail', 'assignLabel']) {
+  for (const id of [
+    'archiveEmail',
+    'deleteEmail',
+    'markRead',
+    'markUnread',
+    'moveEmail',
+    'assignLabel',
+    'setRemindAt',
+  ]) {
     unregister(ns, id)
   }
 })
@@ -672,7 +728,9 @@ const route = useRoute()
             <!-- Conversation item -->
             <template v-else-if="virtualRows[virtualItem.index]?.type === 'conversation'">
               <ConversationItem
-                @contextmenu.capture="contextMenuConvId = (virtualRows[virtualItem.index] as any).conversation.id"
+                @contextmenu.capture="
+                  contextMenuConvId = (virtualRows[virtualItem.index] as any).conversation.id
+                "
                 :conversation="(virtualRows[virtualItem.index] as any).conversation"
                 :folder-id="folderId"
                 :is-multi-selected="

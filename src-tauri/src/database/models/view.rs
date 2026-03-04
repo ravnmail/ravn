@@ -68,7 +68,15 @@ pub enum ViewConfig {
         // Future: list-specific config
     },
     Calendar {
-        // Future: calendar-specific config
+        /// The date field to use for positioning emails on the calendar
+        #[serde(default = "default_calendar_date_field")]
+        date_field: CalendarDateField,
+        /// Optional folder IDs to filter emails shown in this calendar view
+        #[serde(default)]
+        folder_ids: Vec<Uuid>,
+        /// Display mode: month grid or week columns
+        #[serde(default = "default_calendar_mode")]
+        mode: CalendarMode,
     },
     Smart {
         // Future: smart filters config
@@ -84,6 +92,43 @@ impl Default for ViewConfig {
             swimlanes: Vec::new(),
         }
     }
+}
+
+/// Which date field to use for positioning emails on the calendar
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CalendarDateField {
+    ReceivedAt,
+    SentAt,
+    RemindAt,
+}
+
+impl Default for CalendarDateField {
+    fn default() -> Self {
+        CalendarDateField::RemindAt
+    }
+}
+
+fn default_calendar_date_field() -> CalendarDateField {
+    CalendarDateField::default()
+}
+
+/// Display mode for the calendar view
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CalendarMode {
+    Month,
+    Week,
+}
+
+impl Default for CalendarMode {
+    fn default() -> Self {
+        CalendarMode::Month
+    }
+}
+
+fn default_calendar_mode() -> CalendarMode {
+    CalendarMode::default()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

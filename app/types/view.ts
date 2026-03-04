@@ -1,5 +1,9 @@
 export type ViewType = 'kanban' | 'calendar' | 'list' | 'smart' | 'unified'
 
+export type CalendarDateField = 'received_at' | 'sent_at' | 'remind_at'
+
+export type CalendarMode = 'month' | 'week'
+
 export type SwimlaneState = 'open' | 'closed'
 
 export interface KanbanSwimlane {
@@ -18,9 +22,16 @@ export type KanbanViewConfig = {
   swimlanes: KanbanSwimlane[]
 }
 
+export type CalendarViewConfig = {
+  type: 'calendar'
+  date_field: CalendarDateField
+  folder_ids: string[]
+  mode: CalendarMode
+}
+
 export type ViewConfig =
   | KanbanViewConfig
-  | { type: 'calendar' }
+  | CalendarViewConfig
   | { type: 'list' }
   | { type: 'smart' }
   | { type: 'unified' }

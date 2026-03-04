@@ -1,6 +1,6 @@
-import type { ViewType, CreateViewRequest, KanbanSwimlane } from '~/types/view'
-import type { ViewTemplate, ProcessedTemplate } from '~/types/viewTemplate'
 import { VIEW_TEMPLATES } from '~/data/viewTemplates'
+import type { CalendarDateField, CreateViewRequest, KanbanSwimlane, ViewType } from '~/types/view'
+import type { ProcessedTemplate, ViewTemplate } from '~/types/viewTemplate'
 
 export type WizardStep = 'type' | 'template' | 'customize'
 
@@ -11,12 +11,22 @@ export const useViewWizard = () => {
   const currentStep = useState<WizardStep>('wizardStep', () => 'type')
   const selectedViewType = useState<ViewType | null>('wizardViewType', () => null)
   const selectedTemplate = useState<ViewTemplate | null>('wizardTemplate', () => null)
-  const processedTemplate = useState<ProcessedTemplate | null>('wizardProcessedTemplate', () => null)
+  const processedTemplate = useState<ProcessedTemplate | null>(
+    'wizardProcessedTemplate',
+    () => null
+  )
   const isProcessing = useState('wizardProcessing', () => false)
+
+  // Calendar-specific configuration state
+  const calendarDateField = useState<CalendarDateField>(
+    'wizardCalendarDateField',
+    () => 'remind_at'
+  )
+  const calendarFolderIds = useState<string[]>('wizardCalendarFolderIds', () => [])
 
   const availableTemplates = computed(() => {
     if (!selectedViewType.value) return []
-    return VIEW_TEMPLATES.filter(t => t.viewType === selectedViewType.value)
+    return VIEW_TEMPLATES.filter((t) => t.viewType === selectedViewType.value)
   })
 
   const reset = () => {
@@ -25,11 +35,25 @@ export const useViewWizard = () => {
     selectedTemplate.value = null
     processedTemplate.value = null
     isProcessing.value = false
+    calendarDateField.value = 'remind_at'
+    calendarFolderIds.value = []
   }
 
   const selectViewType = (viewType: ViewType) => {
     selectedViewType.value = viewType
-    currentStep.value = 'template'
+    // Calendar view skips the template step — go straight to customize
+    if (viewType === 'calendar') {
+      processedTemplate.value = {
+        title: 'New Calendar',
+        description: '',
+        viewType: 'calendar',
+        labels: [],
+        swimlanes: [],
+      }
+      currentStep.value = 'customize'
+    } else {
+      currentStep.value = 'template'
+    }
   }
 
   const processTemplate = async (template: ViewTemplate): Promise<ProcessedTemplate> => {
@@ -51,12 +75,12 @@ export const useViewWizard = () => {
     }
 
     // Process swimlanes with replaced label IDs
-    const processedSwimlanes = template.swimlanes.map(swimlane => ({
+    const processedSwimlanes = template.swimlanes.map((swimlane) => ({
       name: swimlane.name,
       description: swimlane.description,
       icon: swimlane.icon,
       color: swimlane.color,
-      labelIds: swimlane.labels.map(tempId => labelIdMap.get(tempId) || tempId),
+      labelIds: swimlane.labels.map((tempId) => labelIdMap.get(tempId) || tempId),
     }))
 
     return {
@@ -110,7 +134,27 @@ export const useViewWizard = () => {
     try {
       const template = processedTemplate.value
 
-      // Create labels first
+      // Calendar views have their own config structure
+      if (selectedViewType.value === 'calendar') {
+        const viewRequest: CreateViewRequest = {
+          name: customizations.name || template.title,
+          icon: customizations.icon,
+          color: customizations.color,
+          view_type: 'calendar',
+          config: {
+            type: 'calendar',
+            date_field: calendarDateField.value,
+            folder_ids: calendarFolderIds.value,
+            mode: 'month' as const,
+          },
+          folders: calendarFolderIds.value,
+        }
+        const view = await createView(viewRequest)
+        reset()
+        return view
+      }
+
+      // Create labels first (kanban flow)
       const createdLabelIds = new Map<string, string>()
       for (const label of template.labels) {
         const createdLabel = await createLabel({
@@ -126,7 +170,7 @@ export const useViewWizard = () => {
         id: crypto.randomUUID(),
         title: swimlane.name,
         color: swimlane.color,
-        label_ids: swimlane.labelIds.map(id => createdLabelIds.get(id) || id),
+        label_ids: swimlane.labelIds.map((id) => createdLabelIds.get(id) || id),
         state: 'open' as const,
         sort_order: index,
       }))
@@ -162,9 +206,16 @@ export const useViewWizard = () => {
         selectedViewType.value = null
         break
       case 'customize':
-        currentStep.value = 'template'
-        selectedTemplate.value = null
-        processedTemplate.value = null
+        // Calendar skips template step, go back to type
+        if (selectedViewType.value === 'calendar') {
+          currentStep.value = 'type'
+          selectedViewType.value = null
+          processedTemplate.value = null
+        } else {
+          currentStep.value = 'template'
+          selectedTemplate.value = null
+          processedTemplate.value = null
+        }
         break
     }
   }
@@ -176,6 +227,8 @@ export const useViewWizard = () => {
     processedTemplate: readonly(processedTemplate),
     availableTemplates,
     isProcessing: readonly(isProcessing),
+    calendarDateField,
+    calendarFolderIds,
     reset,
     selectViewType,
     selectTemplate,

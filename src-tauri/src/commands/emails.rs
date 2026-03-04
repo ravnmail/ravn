@@ -391,6 +391,7 @@ pub async fn send_email_from_account(
                 received_at: Utc::now(),
                 sent_at: Some(Utc::now()),
                 scheduled_send_at: None,
+                remind_at: None,
                 size: size as i64,
                 headers: Some("".to_string()),
                 is_read: true,
@@ -568,6 +569,7 @@ pub async fn save_draft(
             headers: Some(headers),
             sent_at: None,
             scheduled_send_at,
+            remind_at: None,
             is_read: false,
             is_flagged: false,
             is_draft: true,
@@ -1034,6 +1036,64 @@ pub async fn fetch_body(state: State<'_, AppState>, email_id: Uuid) -> Result<St
     );
 
     Ok("Email queued for body fetch".to_string())
+}
+
+#[tauri::command]
+pub async fn set_remind_at(
+    state: State<'_, AppState>,
+    email_id: Uuid,
+    remind_at: Option<chrono::DateTime<chrono::Utc>>,
+) -> Result<(), String> {
+    let email_repo = SqliteEmailRepository::new(state.db_pool.clone());
+
+    email_repo
+        .update_remind_at(email_id, remind_at)
+        .await
+        .map_err(|e| format!("Failed to set remind_at: {}", e))?;
+
+    emit_email_event(
+        &state.app_handle,
+        "email:updated",
+        serde_json::json!({ "id": email_id.to_string(), "remind_at": remind_at }),
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_emails_for_calendar(
+    state: State<'_, AppState>,
+    folder_ids: Vec<Uuid>,
+    date_field: String,
+    start: chrono::DateTime<chrono::Utc>,
+    end: chrono::DateTime<chrono::Utc>,
+) -> Result<Vec<EmailListItem>, String> {
+    let email_repo = SqliteEmailRepository::new(state.db_pool.clone());
+    let label_repo = SqliteLabelRepository::new(state.db_pool.clone());
+
+    let emails = email_repo
+        .find_for_calendar(&folder_ids, &date_field, start, end)
+        .await
+        .map_err(|e| format!("Failed to fetch emails for calendar: {}", e))?;
+
+    let email_ids: Vec<Uuid> = emails.iter().map(|e| e.id).collect();
+    let labels_map = label_repo
+        .find_by_emails(&email_ids)
+        .await
+        .map_err(|e| format!("Failed to fetch labels: {}", e))?;
+
+    let list_items = emails
+        .iter()
+        .map(|email| {
+            let labels = labels_map
+                .get(&email.id)
+                .map(|labels| labels.iter().map(LabelInfo::from).collect())
+                .unwrap_or_default();
+            EmailListItem::from_email(email, labels)
+        })
+        .collect();
+
+    Ok(list_items)
 }
 
 #[tauri::command]

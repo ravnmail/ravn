@@ -1,14 +1,21 @@
 <script lang="ts" setup>
+import { RadioGroupItem } from 'reka-ui'
+import { Button } from '~/components/ui/button'
+import { Checkbox } from '~/components/ui/checkbox'
+import { Dialog, DialogContent, DialogHeaderCombined } from '~/components/ui/dialog'
+import EmailLabel from '~/components/ui/EmailLabel.vue'
+import IconName from '~/components/ui/IconName.vue'
+import IconNameField from '~/components/ui/IconNameField.vue'
+import { RadioGroup } from '~/components/ui/radio-group'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select'
 import type { View } from '~/types/view'
 import type { ViewTemplate } from '~/types/viewTemplate'
-import { Button } from '~/components/ui/button'
-import IconNameField from '~/components/ui/IconNameField.vue'
-import IconName from '~/components/ui/IconName.vue'
-import EmailLabel from '~/components/ui/EmailLabel.vue'
-import { RadioGroupItem } from 'reka-ui'
-import { RadioGroup } from '~/components/ui/radio-group'
-import { Dialog, DialogContent, DialogHeader, DialogHeaderCombined } from '~/components/ui/dialog'
-import { Checkbox } from '~/components/ui/checkbox'
 
 const props = defineProps<{
   initialViewType?: 'kanban' | 'calendar' | 'list'
@@ -30,6 +37,8 @@ const {
   processedTemplate,
   availableTemplates,
   isProcessing,
+  calendarDateField,
+  calendarFolderIds,
   reset,
   selectViewType,
   selectTemplate,
@@ -63,7 +72,7 @@ const viewTypes = computed(() => [
     name: t('components.viewWizard.viewTypes.calendar.name'),
     description: t('components.viewWizard.viewTypes.calendar.description'),
     icon: 'lucide:calendar',
-    enabled: false,
+    enabled: true,
   },
   {
     type: 'list' as const,
@@ -74,21 +83,46 @@ const viewTypes = computed(() => [
   },
 ])
 
-watch(() => isDialogOpen.value, async (open, wasOpen) => {
-  if (open && !wasOpen) {
-    if (props.initialViewType && currentStep.value === 'type') {
-      selectViewType(props.initialViewType)
-    }
-  } else if (!open && wasOpen) {
-    reset()
-    customizations.value = {
-      name: '',
-      icon: undefined,
-      color: undefined,
-      folders: [],
+const calendarDateFieldOptions = computed(() => [
+  { value: 'remind_at', label: t('components.viewWizard.calendar.dateFields.remindAt') },
+  { value: 'received_at', label: t('components.viewWizard.calendar.dateFields.receivedAt') },
+  { value: 'sent_at', label: t('components.viewWizard.calendar.dateFields.sentAt') },
+])
+
+const calendarDateFieldModel = computed({
+  get: () => calendarDateField.value,
+  set: (v: string) => {
+    calendarDateField.value = v as 'received_at' | 'sent_at' | 'remind_at'
+  },
+})
+
+const toggleCalendarFolder = (folderId: string) => {
+  const index = calendarFolderIds.value.indexOf(folderId)
+  if (index > -1) {
+    calendarFolderIds.value.splice(index, 1)
+  } else {
+    calendarFolderIds.value.push(folderId)
+  }
+}
+
+watch(
+  () => isDialogOpen.value,
+  async (open, wasOpen) => {
+    if (open && !wasOpen) {
+      if (props.initialViewType && currentStep.value === 'type') {
+        selectViewType(props.initialViewType)
+      }
+    } else if (!open && wasOpen) {
+      reset()
+      customizations.value = {
+        name: '',
+        icon: undefined,
+        color: undefined,
+        folders: [],
+      }
     }
   }
-})
+)
 
 const handleViewTypeSelect = (type: 'kanban' | 'calendar' | 'list') => {
   selectViewType(type)
@@ -153,7 +187,7 @@ const dialogDescription = computed(() => {
 
 <template>
   <Dialog v-model:open="isDialogOpen">
-    <DialogContent class="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <DialogContent class="max-h-[90vh] max-w-4xl overflow-y-auto">
       <DialogHeaderCombined
         :description="dialogDescription"
         :title="dialogTitle"
@@ -169,35 +203,35 @@ const dialogDescription = computed(() => {
             v-for="viewType in viewTypes"
             :key="viewType.type"
             :class="[
-                'p-3 border rounded-lg text-left transition-all',
-                viewType.enabled
-                  ? 'hover:bg-selection-background'
-                  : 'opacity-50 cursor-not-allowed',
-                selectedViewType === viewType.type
-                  ? 'border-selection-border bg-selection-background text-selection-foreground'
-                  : 'border-border'
-              ]"
+              'rounded-lg border p-3 text-left transition-all',
+              viewType.enabled ? 'hover:bg-selection-background' : 'cursor-not-allowed opacity-50',
+              selectedViewType === viewType.type
+                ? 'border-selection-border bg-selection-background text-selection-foreground'
+                : 'border-border',
+            ]"
             :disabled="!viewType.enabled"
             @click="viewType.enabled && handleViewTypeSelect(viewType.type)"
           >
             <div class="flex items-center gap-3">
-              <div class="h-12 w-12 rounded-lg bg-muted/20 flex items-center justify-center flex-shrink-0">
+              <div
+                class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-muted/20"
+              >
                 <Icon
                   :name="viewType.icon"
                   class="h-8 w-8"
                 />
               </div>
               <div>
-                <h3 class="font-semibold flex items-center gap-2">
+                <h3 class="flex items-center gap-2 font-semibold">
                   {{ viewType.name }}
                   <span
                     v-if="!viewType.enabled"
-                    class="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded"
+                    class="text-muted-foreground rounded bg-muted px-2 py-0.5 text-xs"
                   >
-                      {{ t('components.viewWizard.comingSoon') }}
-                    </span>
+                    {{ t('components.viewWizard.comingSoon') }}
+                  </span>
                 </h3>
-                <p class="text-sm text-muted-foreground mt-1">
+                <p class="text-muted-foreground mt-1 text-sm">
                   {{ viewType.description }}
                 </p>
               </div>
@@ -211,19 +245,23 @@ const dialogDescription = computed(() => {
           class="grid grid-cols-1 gap-1"
         >
           <RadioGroupItem
-            class="w-full p-3 border border-border rounded-lg text-left hover:border-b-selection-border hover:bg-selection-background transition-all"
+            class="w-full rounded-lg border border-border p-3 text-left transition-all hover:border-b-selection-border hover:bg-selection-background"
             :disabled="isProcessing"
             @select="handleTemplateSelect(null)"
           >
             <div class="flex items-start gap-4">
-              <div class="h-12 w-12 rounded-lg bg-muted/20 flex items-center justify-center flex-shrink-0">
+              <div
+                class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-muted/20"
+              >
                 <Icon
-                  class="h-6 w-6 text-muted-foreground"
+                  class="text-muted-foreground h-6 w-6"
                   name="lucide:plus"
                 />
               </div>
-              <div class="flex-1 flex flex-col gap-1">
-                <h3 class="font-semibold">{{ t('components.viewWizard.startFromScratch.title') }}</h3>
+              <div class="flex flex-1 flex-col gap-1">
+                <h3 class="font-semibold">
+                  {{ t('components.viewWizard.startFromScratch.title') }}
+                </h3>
                 <p class="text-sm text-muted">
                   {{ t('components.viewWizard.startFromScratch.description') }}
                 </p>
@@ -233,23 +271,25 @@ const dialogDescription = computed(() => {
           <RadioGroupItem
             v-for="template in availableTemplates"
             :key="template.id"
-            class="p-3 border border-border rounded-lg text-left hover:border-b-selection-border hover:bg-selection-background transition-all"
+            class="rounded-lg border border-border p-3 text-left transition-all hover:border-b-selection-border hover:bg-selection-background"
             :disabled="isProcessing"
             @click="handleTemplateSelect(template)"
           >
             <div class="flex items-start gap-4">
-              <div class="h-12 w-12 rounded-lg bg-muted/20 flex items-center justify-center flex-shrink-0">
+              <div
+                class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-muted/20"
+              >
                 <Icon
                   class="h-6 w-6 text-primary"
                   name="lucide:columns-3-cog"
                 />
               </div>
-              <div class="flex-1 flex flex-col gap-1">
+              <div class="flex flex-1 flex-col gap-1">
                 <h3 class="font-semibold">{{ template.title }}</h3>
                 <p class="text-sm text-muted">
                   {{ template.description }}
                 </p>
-                <div class="flex gap-1 flex-wrap">
+                <div class="flex flex-wrap gap-1">
                   <EmailLabel
                     v-for="label in template.labels"
                     :key="label.id"
@@ -272,18 +312,99 @@ const dialogDescription = computed(() => {
             @update:model-value="Object.assign(customizations, $event)"
           />
 
-          <!-- Template overview (shown when a template was selected) -->
+          <!-- Calendar-specific configuration -->
+          <template v-if="selectedViewType === 'calendar'">
+            <div class="space-y-4 rounded-lg border bg-muted/30 p-4">
+              <h4 class="flex items-center gap-2 text-sm font-medium">
+                <Icon
+                  class="text-muted-foreground h-4 w-4"
+                  name="lucide:calendar-clock"
+                />
+                {{ t('components.viewWizard.calendar.configTitle') }}
+              </h4>
+
+              <!-- Date field selector -->
+              <div class="space-y-1.5">
+                <label class="text-sm font-medium">
+                  {{ t('components.viewWizard.calendar.dateFieldLabel') }}
+                </label>
+                <Select v-model="calendarDateFieldModel">
+                  <SelectTrigger class="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem
+                      v-for="opt in calendarDateFieldOptions"
+                      :key="opt.value"
+                      :value="opt.value"
+                    >
+                      {{ opt.label }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p class="text-muted-foreground text-xs">
+                  {{ t('components.viewWizard.calendar.dateFieldHint') }}
+                </p>
+              </div>
+
+              <!-- Mailbox / folder selector -->
+              <div class="space-y-1.5">
+                <label class="text-sm font-medium">
+                  {{ t('components.viewWizard.calendar.foldersLabel') }}
+                </label>
+                <p class="text-muted-foreground text-xs">
+                  {{ t('components.viewWizard.calendar.foldersHint') }}
+                </p>
+                <div
+                  v-if="folders.length > 0"
+                  class="mt-2 max-h-48 space-y-1 overflow-y-auto"
+                >
+                  <div
+                    v-for="folder in folders"
+                    :key="folder.id"
+                    class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50"
+                    @click="toggleCalendarFolder(folder.id)"
+                  >
+                    <Checkbox
+                      :checked="calendarFolderIds.includes(folder.id)"
+                      :id="`cal-folder-${folder.id}`"
+                    />
+                    <label
+                      :for="`cal-folder-${folder.id}`"
+                      class="flex flex-1 cursor-pointer items-center gap-1.5 text-sm"
+                    >
+                      <Icon
+                        :name="folder.icon || 'lucide:folder'"
+                        class="text-muted-foreground h-3.5 w-3.5 flex-shrink-0"
+                      />
+                      {{ folder.name }}
+                    </label>
+                  </div>
+                </div>
+                <p
+                  v-else
+                  class="text-muted-foreground text-sm italic"
+                >
+                  {{ t('components.viewWizard.customize.noFolders') }}
+                </p>
+              </div>
+            </div>
+          </template>
+
+          <!-- Template overview (shown when a template was selected, for non-calendar views) -->
           <div
-            v-if="selectedTemplate && processedTemplate"
-            class="border rounded-lg p-4 bg-muted/30 space-y-3"
+            v-else-if="selectedTemplate && processedTemplate"
+            class="space-y-3 rounded-lg border bg-muted/30 p-4"
           >
             <div>
-              <h4 class="font-medium text-sm">{{ t('components.viewWizard.preview.swimlanesTitle') }}</h4>
+              <h4 class="text-sm font-medium">
+                {{ t('components.viewWizard.preview.swimlanesTitle') }}
+              </h4>
               <div class="mt-2 space-y-1">
                 <div
                   v-for="(swimlane, index) in processedTemplate.swimlanes"
                   :key="index"
-                  class="flex items-start gap-2 px-3 py-1.5 rounded-md border bg-card text-sm"
+                  class="flex items-start gap-2 rounded-md border bg-card px-3 py-1.5 text-sm"
                 >
                   <IconName
                     :color="swimlane.color"
@@ -293,19 +414,21 @@ const dialogDescription = computed(() => {
                   />
                   <div
                     v-if="swimlane.labelIds?.length > 0"
-                    class="flex flex-wrap gap-1 ml-auto"
+                    class="ml-auto flex flex-wrap gap-1"
                   >
                     <EmailLabel
                       v-for="labelId in swimlane.labelIds"
                       :key="labelId"
-                      v-bind="processedTemplate.labels.find(l => l.realId === labelId)"
+                      v-bind="processedTemplate.labels.find((l) => l.realId === labelId)"
                     />
                   </div>
                 </div>
               </div>
             </div>
             <div v-if="processedTemplate.labels.length > 0">
-              <h4 class="font-medium text-sm">{{ t('components.viewWizard.preview.labelsTitle') }}</h4>
+              <h4 class="text-sm font-medium">
+                {{ t('components.viewWizard.preview.labelsTitle') }}
+              </h4>
               <div class="mt-2 flex flex-wrap gap-1">
                 <EmailLabel
                   v-for="label in processedTemplate.labels"
@@ -319,7 +442,7 @@ const dialogDescription = computed(() => {
           <!-- Loading indicator while processing template -->
           <div
             v-else-if="isProcessing"
-            class="flex items-center gap-2 text-muted-foreground text-sm py-2"
+            class="text-muted-foreground flex items-center gap-2 py-2 text-sm"
           >
             <Icon
               class="h-4 w-4 animate-spin"
@@ -330,7 +453,7 @@ const dialogDescription = computed(() => {
       </div>
 
       <UiDialogFooter>
-        <div class="flex justify-between w-full">
+        <div class="flex w-full justify-between">
           <Button
             v-if="currentStep !== 'type'"
             size="sm"
@@ -343,7 +466,7 @@ const dialogDescription = computed(() => {
             />
             {{ t('common.actions.back') }}
           </Button>
-          <div v-else/>
+          <div v-else />
 
           <div class="flex gap-2">
             <Button

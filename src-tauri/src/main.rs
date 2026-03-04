@@ -338,11 +338,9 @@ fn main() {
             );
 
             // Create the operation queue to process pending operations (delete, mark read, flag, move)
-            let op_queue = OperationQueue::new(
-                db.get_pool().clone(),
-                Arc::clone(&credential_store),
-            )
-            .with_app_handle(app_handle.clone());
+            let op_queue =
+                OperationQueue::new(db.get_pool().clone(), Arc::clone(&credential_store))
+                    .with_app_handle(app_handle.clone());
 
             let state = AppState {
                 db_pool: db.get_pool().clone(),
@@ -379,10 +377,9 @@ fn main() {
                 tauri::async_runtime::block_on(async {
                     let repo = SqliteSyncStateRepository::new(pool);
                     match repo.reset_stale_syncing_states().await {
-                        Ok(n) if n > 0 => log::warn!(
-                            "[Boot] Reset {} stale 'syncing' folder states to 'idle'",
-                            n
-                        ),
+                        Ok(n) if n > 0 => {
+                            log::warn!("[Boot] Reset {} stale 'syncing' folder states to 'idle'", n)
+                        }
                         Ok(_) => log::debug!("[Boot] No stale syncing states found"),
                         Err(e) => log::error!("[Boot] Failed to reset stale sync states: {}", e),
                     }
@@ -516,6 +513,8 @@ fn main() {
             emails::get_emails,
             emails::get_emails_for_folders,
             emails::get_emails_for_labels,
+            emails::set_remind_at,
+            emails::get_emails_for_calendar,
             emails::update_read,
             emails::email_parse_body_plain,
             emails::move_email,

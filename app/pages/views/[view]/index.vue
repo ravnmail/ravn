@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-
-import EmptyState from '~/components/ui/empty/EmptyState.vue'
+import CalendarBoard from '~/components/Ravn/CalendarBoard.vue'
 import KanbanBoard from '~/components/Ravn/KanbanBoard.vue'
+import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import IconName from '~/components/ui/IconName.vue'
 
 const { t } = useI18n()
@@ -11,7 +11,7 @@ const viewId = computed(() => route.params.view as string)
 const { views } = useViews()
 
 const currentView = computed(() => {
-  return views.value.find(view => view.id === viewId.value) || null
+  return views.value.find((view) => view.id === viewId.value) || null
 })
 
 const component = computed(() => {
@@ -20,15 +20,16 @@ const component = computed(() => {
   switch (currentView.value.view_type) {
     case 'kanban':
       return KanbanBoard
+    case 'calendar':
+      return CalendarBoard
     default:
       return null
   }
 })
-
 </script>
 
 <template>
-  <div class="flex flex-col h-full w-full">
+  <div class="flex h-full w-full flex-col">
     <component
       :is="component"
       v-if="currentView"
@@ -42,13 +43,13 @@ const component = computed(() => {
           class="text-primary"
         />
       </div>
-      <RavnViewSwitcher class="ml-auto"/>
+      <RavnViewSwitcher class="ml-auto" />
     </component>
     <EmptyState
       v-else
       :description="t('pages.view.emptyState.getStarted')"
       :title="t('pages.view.emptyState.description')"
-      class="flex items-center justify-center h-full"
+      class="flex h-full items-center justify-center"
       icon-name="lucide:layout-dashboard"
     />
   </div>

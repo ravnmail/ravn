@@ -47,6 +47,7 @@ export interface EmailListItem {
 
   received_at: string // ISO date string
   sent_at?: string // ISO date string
+  remind_at?: string // ISO date string
 
   is_read: boolean
   is_draft: boolean
@@ -76,6 +77,7 @@ export interface EmailDetail extends EmailListItem {
   size: number
 
   scheduled_send_at?: string // ISO date string
+  remind_at?: string // ISO date string
 
   body_fetch_attempts: number
   last_body_fetch_attempt?: string // ISO date string
