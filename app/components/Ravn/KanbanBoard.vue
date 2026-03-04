@@ -1,13 +1,13 @@
 <script lang="ts" setup>
-import type { KanbanViewConfig, View } from '~/types/view'
-import type { EmailListItem } from '~/types/email'
-import { Button } from '~/components/ui/button'
-import { UnobstrusiveSheetContent } from '~/components/ui/sheet'
 import ConversationViewer from '~/components/Ravn/ConversationViewer.vue'
-import { ScrollArea } from '~/components/ui/scroll-area'
 import KanbanSwimlane from '~/components/Ravn/KanbanSwimlane.vue'
-import type { DragData } from '~/composables/useDragAndDrop'
+import { Button } from '~/components/ui/button'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
+import { ScrollArea } from '~/components/ui/scroll-area'
+import { UnobstrusiveSheetContent } from '~/components/ui/sheet'
+import type { DragData } from '~/composables/useDragAndDrop'
+import type { EmailListItem } from '~/types/email'
+import type { KanbanSwimlane as KanbanSwimlaneType, KanbanViewConfig, View } from '~/types/view'
 
 const props = defineProps<{
   view: View
@@ -21,12 +21,12 @@ const {
   fetchForFolder,
   fetchForLabels,
   isLoading: isLoadingEmails,
-  move
+  move,
 } = useEmails()
 
 const swimlaneEmails = ref<Record<string, EmailListItem[]>>({})
 const swimlanes = computed(() => (props.view.config as KanbanViewConfig).swimlanes || [])
-const usedLabelIds = computed(() => swimlanes.value.flatMap(s => s.label_ids || []))
+const usedLabelIds = computed(() => swimlanes.value.flatMap((s) => s.label_ids || []))
 
 const REFRESH_INTERVAL = 30000
 const swimlaneRefreshIntervals = new Map<string, NodeJS.Timeout>()
@@ -76,10 +76,16 @@ const loadEmails = async () => {
     if (swimlane.folder_ids && swimlane.folder_ids.length > 0) {
       for (const folderId of swimlane.folder_ids) {
         const folderEmails = await fetchForFolder(folderId, 100, 0)
-        emails.push(...(folderEmails.filter(e => {
-          const emailLabelIds = e.labels.map(l => l.id)
-          return !emailLabelIds.some(labelId => usedLabelIds.value.includes(labelId) && !(swimlane.label_ids || []).includes(labelId))
-        })))
+        emails.push(
+          ...folderEmails.filter((e) => {
+            const emailLabelIds = e.labels.map((l) => l.id)
+            return !emailLabelIds.some(
+              (labelId) =>
+                usedLabelIds.value.includes(labelId) &&
+                !(swimlane.label_ids || []).includes(labelId)
+            )
+          })
+        )
       }
     }
     if (swimlane.label_ids && swimlane.label_ids.length > 0) {
@@ -97,11 +103,13 @@ const loadEmailsForSwimlane = async (swimlaneId: string) => {
 const handleEmailDrop = async (dragData: DragData, targetSwimlaneId: string) => {
   if (dragData.type !== 'email') return
 
-  const email = swimlaneEmails.value[dragData.fromSwimlaneId]?.find(e => e.id === dragData.id) as EmailListItem
+  const email = swimlaneEmails.value[dragData.fromSwimlaneId]?.find(
+    (e) => e.id === dragData.id
+  ) as EmailListItem
   if (!email) return
 
-  const fromSwimlane = swimlanes.value.find(s => s.id === dragData.fromSwimlaneId)
-  const toSwimlane = swimlanes.value.find(s => s.id === targetSwimlaneId)
+  const fromSwimlane = swimlanes.value.find((s) => s.id === dragData.fromSwimlaneId)
+  const toSwimlane = swimlanes.value.find((s) => s.id === targetSwimlaneId)
 
   if (!toSwimlane || dragData.fromSwimlaneId === targetSwimlaneId) {
     return
@@ -168,20 +176,20 @@ const selectedConversationId = computed({
       delete query.conversation
     }
     router.replace({ query })
-  }
+  },
 })
 
-const handleSwimlaneUpdate = async (updatedSwimlane: typeof swimlanes.value[0]) => {
+const handleSwimlaneUpdate = async (updatedSwimlane: KanbanSwimlaneType) => {
   console.log('Updating swimlane:', updatedSwimlane)
 
   const config = JSON.parse(JSON.stringify(props.view.config)) as KanbanViewConfig
-  const index = config.swimlanes.findIndex(s => s.id === updatedSwimlane.id)
+  const index = config.swimlanes.findIndex((s) => s.id === updatedSwimlane.id)
   if (index !== -1) {
     config.swimlanes[index] = updatedSwimlane
     try {
       await updateView({
         ...props.view,
-        config
+        config,
       })
     } catch (error) {
       console.error('Failed to update swimlane:', error)
@@ -199,9 +207,9 @@ const onSheetClose = () => {
 </script>
 
 <template>
-  <div class="h-full w-full flex flex-col">
-    <div class="flex items-center p-3 gap-1">
-      <slot/>
+  <div class="flex h-full w-full flex-col">
+    <div class="flex items-center gap-1 p-3">
+      <slot />
       <Button
         size="sm"
         variant="ghost"
@@ -215,7 +223,7 @@ const onSheetClose = () => {
       </Button>
     </div>
     <ScrollArea class="h-full flex-1">
-      <div class="flex flex-1 w-full h-full gap-4 p-4">
+      <div class="flex h-full w-full flex-1 gap-4 p-4">
         <KanbanSwimlane
           v-for="swimlane in swimlanes"
           :key="swimlane.id"

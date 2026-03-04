@@ -1,11 +1,9 @@
 <script lang="ts" setup>
-
 defineProps<{
-  icon?: string;
-  color?: string;
-  name?: string;
+  icon?: string
+  color?: string
+  name?: string
 }>()
-
 </script>
 
 <template>
@@ -15,8 +13,9 @@ defineProps<{
       :name="`lucide:${icon}`"
       :size="18"
       :style="{ color }"
+      class="shrink-0"
     />
     <span class="grow font-medium">{{ name }}</span>
-    <slot/>
+    <slot />
   </div>
 </template>

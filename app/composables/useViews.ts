@@ -1,10 +1,7 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { invoke } from '@tauri-apps/api/core'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
-import type {
-  View,
-  CreateViewRequest,
-  UpdateViewRequest,
-} from '~/types/view'
+
+import type { CreateViewRequest, UpdateViewRequest, View } from '~/types/view'
 
 const QUERY_KEYS = {
   all: ['views'] as const,
@@ -72,7 +69,7 @@ export const useViews = () => {
     },
     onSuccess: (newView) => {
       queryClient.setQueryData(QUERY_KEYS.lists(), (old: View[] | undefined) => {
-        const updated = (old || []).filter(v => !v.id.startsWith('temp-'))
+        const updated = (old || []).filter((v) => !v.id.startsWith('temp-'))
         updated.push(newView)
         return updated.sort((a, b) => a.sort_order - b.sort_order)
       })
@@ -84,58 +81,51 @@ export const useViews = () => {
     },
   })
 
-  const useUpdateViewMutation = () => useMutation({
-    mutationFn: async (request: UpdateViewRequest) => {
-      return await invoke<View>('update_view', { request })
-    },
-    onMutate: async (request) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.lists() })
-      const previousViews = queryClient.getQueryData<View[]>(QUERY_KEYS.lists())
+  const useUpdateViewMutation = () =>
+    useMutation({
+      mutationFn: async (request: UpdateViewRequest) => {
+        await invoke<void>('update_view', { request })
+      },
+      onMutate: async (request) => {
+        await queryClient.cancelQueries({ queryKey: QUERY_KEYS.lists() })
+        const previousViews = queryClient.getQueryData<View[]>(QUERY_KEYS.lists())
 
-      queryClient.setQueryData(QUERY_KEYS.lists(), (old: View[] | undefined) => {
-        return (old || []).map(v =>
-          v.id === request.id
-            ? { ...v, ...request, updated_at: new Date().toISOString() }
-            : v
-        )//.sort((a, b) => a.sort_order - b.sort_order)
-      })
+        queryClient.setQueryData(QUERY_KEYS.lists(), (old: View[] | undefined) => {
+          return (old || []).map((v) =>
+            v.id === request.id ? { ...v, ...request, updated_at: new Date().toISOString() } : v
+          )
+        })
 
-      return { previousViews }
-    },
-    onSuccess: (updatedView, variables) => {
-      queryClient.setQueryData(QUERY_KEYS.lists(), (old: View[] | undefined) => {
-        return (old || []).map(v =>
-          v.id === variables.id ? updatedView : v
-        )//.sort((a, b) => a.sort_order - b.sort_order)
-      })
-    },
-    onError: (_error, _variables, context) => {
-      if (context?.previousViews) {
-        queryClient.setQueryData(QUERY_KEYS.lists(), context.previousViews)
-      }
-    },
-  })
+        return { previousViews }
+      },
+      onError: (_error, _variables, context) => {
+        if (context?.previousViews) {
+          queryClient.setQueryData(QUERY_KEYS.lists(), context.previousViews)
+        }
+      },
+    })
 
-  const useDeleteViewMutation = () => useMutation({
-    mutationFn: async (viewId: string) => {
-      await invoke('delete_view', { viewId })
-    },
-    onMutate: async (viewId) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.lists() })
-      const previousViews = queryClient.getQueryData<View[]>(QUERY_KEYS.lists())
+  const useDeleteViewMutation = () =>
+    useMutation({
+      mutationFn: async (viewId: string) => {
+        await invoke('delete_view', { viewId })
+      },
+      onMutate: async (viewId) => {
+        await queryClient.cancelQueries({ queryKey: QUERY_KEYS.lists() })
+        const previousViews = queryClient.getQueryData<View[]>(QUERY_KEYS.lists())
 
-      queryClient.setQueryData(QUERY_KEYS.lists(), (old: View[] | undefined) => {
-        return (old || []).filter(v => v.id !== viewId)
-      })
+        queryClient.setQueryData(QUERY_KEYS.lists(), (old: View[] | undefined) => {
+          return (old || []).filter((v) => v.id !== viewId)
+        })
 
-      return { previousViews }
-    },
-    onError: (_error, _viewId, context) => {
-      if (context?.previousViews) {
-        queryClient.setQueryData(QUERY_KEYS.lists(), context.previousViews)
-      }
-    },
-  })
+        return { previousViews }
+      },
+      onError: (_error, _viewId, context) => {
+        if (context?.previousViews) {
+          queryClient.setQueryData(QUERY_KEYS.lists(), context.previousViews)
+        }
+      },
+    })
 
   return {
     views: computed(() => views.value || []),

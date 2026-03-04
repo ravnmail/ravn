@@ -81,11 +81,14 @@ export function useDropTarget(
   const isOver = ref(false)
   const canDrop = ref(false)
 
-  onMounted(() => {
-    if (!element.value) return
+  const register = (el: HTMLElement) => {
+    if (cleanup) {
+      cleanup()
+      cleanup = null
+    }
 
     cleanup = dropTargetForElements({
-      element: element.value,
+      element: el,
       getData: options.getData,
       canDrop: (args) => {
         const dragData = args.source.data as DragData
@@ -110,12 +113,22 @@ export function useDropTarget(
         await options.onDrop(dragData)
       },
     })
-  })
+  }
 
-  onUnmounted(() => {
-    if (cleanup) {
-      cleanup()
+  // Use watchEffect so the drop target is re-registered whenever the element
+  // ref changes — this handles v-if swaps where the DOM node is replaced.
+  watchEffect((onCleanup) => {
+    if (element.value) {
+      register(element.value)
     }
+    onCleanup(() => {
+      if (cleanup) {
+        cleanup()
+        cleanup = null
+      }
+      isOver.value = false
+      canDrop.value = false
+    })
   })
 
   return {
@@ -161,11 +174,11 @@ export function useMultiSelect<T extends { id: string }>() {
   }
 
   const selectAll = (items: T[]) => {
-    items.forEach(item => selectedIds.value.add(item.id))
+    items.forEach((item) => selectedIds.value.add(item.id))
   }
 
   const getSelectedItems = <U extends T>(items: U[]): U[] => {
-    return items.filter(item => selectedIds.value.has(item.id))
+    return items.filter((item) => selectedIds.value.has(item.id))
   }
 
   const hasSelection = computed(() => selectedIds.value.size > 0)

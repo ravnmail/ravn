@@ -1,36 +1,27 @@
 <script lang="ts" setup>
-import type { EmailListItem } from '~/types/email'
-import type { DragData } from '~/composables/useDragAndDrop'
-import { useDropTarget } from '~/composables/useDragAndDrop'
 import KanbanEmailItem from '~/components/Ravn/KanbanEmailItem.vue'
-import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import MailContextMenu from '~/components/Ravn/MailContextMenu.vue'
 import { Badge } from '~/components/ui/badge'
+import { Button } from '~/components/ui/button'
+import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import IconName from '~/components/ui/IconName.vue'
 import { Popover, PopoverAnchor, PopoverContent } from '~/components/ui/popover'
 import { SimpleTooltip } from '~/components/ui/tooltip'
-import IconNameField from '~/components/ui/IconNameField.vue'
-import { Button } from '~/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '~/components/ui/dropdown-menu'
-import DropdownMenuItemRich from '~/components/ui/dropdown-menu/DropdownMenuItemRich.vue'
+import type { DragData } from '~/composables/useDragAndDrop'
+import { useDropTarget } from '~/composables/useDragAndDrop'
+import type { EmailListItem } from '~/types/email'
+import type { KanbanSwimlane } from '~/types/view'
 
 const props = defineProps<{
-  swimlane: {
-    id: string
-    title: string
-    icon?: string
-    color?: string
-    label_ids?: string[]
-    folder_ids?: string[]
-  }
+  swimlane: KanbanSwimlane
   emails: EmailListItem[]
   selectedConversationId?: string
 }>()
 
-const editValue = ref<{ icon?: string | null, name: string, color?: string | null } | null>(null)
+const editValue = ref<{ icon?: string | null; name: string; color?: string | null } | null>(null)
 
 const emit = defineEmits<{
-  (e: 'update', value: { icon?: string; color?: string; title: string }): void
+  (e: 'update', value: KanbanSwimlane): void
   (e: 'drop', dragData: DragData, targetSwimlaneId: string): void
   (e: 'emailClick', email: EmailListItem): void
   (e: 'refresh'): void
@@ -59,10 +50,21 @@ const backgroundColor = computed(() => {
   return props.swimlane.color ? `${props.swimlane.color}20` : 'transparent'
 })
 
-const collapsed = ref(false)
+const collapsed = computed(() => props.swimlane.state === 'closed')
+
+const setCollapsed = (value: boolean) => {
+  emit('update', {
+    ...props.swimlane,
+    state: value ? 'closed' : 'open',
+  })
+}
 
 const startEdit = () => {
-  editValue.value = { icon: props.swimlane.icon, color: props.swimlane.color, name: props.swimlane.title }
+  editValue.value = {
+    icon: props.swimlane.icon,
+    color: props.swimlane.color,
+    name: props.swimlane.title,
+  }
 }
 const cancelEdit = () => {
   editValue.value = null
@@ -76,15 +78,15 @@ const isEditing = computed({
     } else {
       startEdit()
     }
-  }
+  },
 })
 
 const handleRename = () => {
   if (editValue.value) {
     emit('update', {
       ...props.swimlane,
-      icon: editValue.value.icon,
-      color: editValue.value.color,
+      icon: editValue.value.icon ?? undefined,
+      color: editValue.value.color ?? undefined,
       title: editValue.value.name,
     })
     cancelEdit()
@@ -125,17 +127,70 @@ const executeAction = async (actionId: string, arg?: unknown) => {
 </script>
 
 <template>
+  <!-- Collapsed state: narrow vertical strip, full height -->
   <div
+    v-if="collapsed"
     ref="swimlaneRef"
-    class="flex-shrink-0 w-80 flex flex-col group/swimlane"
+    class="group/swimlane w-12 shrink-0 self-stretch"
+  >
+    <div
+      class="relative flex h-full w-full cursor-pointer flex-col items-center justify-start rounded-lg py-3 transition-colors duration-200 hover:bg-white/5"
+      :style="{
+        backgroundColor: isOver
+          ? canDrop
+            ? `${swimlane.color}40`
+            : '#FF000040'
+          : swimlane.color
+            ? `${swimlane.color}15`
+            : 'transparent',
+        outline: isOver
+          ? `2px solid ${canDrop ? (swimlane.color ?? '#ffffff') : '#FF0000'}`
+          : 'none',
+        outlineOffset: '-2px',
+      }"
+      @click="setCollapsed(false)"
+    >
+      <div class="flex flex-1 -rotate-90 items-center gap-2">
+        <IconName
+          :color="swimlane.color"
+          :icon="swimlane.icon || 'folder-open'"
+          :name="swimlane.title"
+          class="w-fit whitespace-nowrap"
+        />
+        <Badge
+          size="sm"
+          variant="background"
+          class="shrink-0"
+        >
+          {{ emails.length > 99 ? '+99' : emails.length }}
+        </Badge>
+      </div>
+      <div class="mt-3 shrink-0">
+        <Icon
+          name="lucide:chevron-right"
+          class="text-foreground/40 transition-colors group-hover/swimlane:text-foreground/70"
+        />
+      </div>
+    </div>
+  </div>
+
+  <!-- Expanded state -->
+  <div
+    v-else
+    ref="swimlaneRef"
+    class="group/swimlane flex w-80 flex-shrink-0 flex-col"
   >
     <!-- Header -->
-    <div class="flex flex-col gap-2 mb-3">
+    <div class="mb-3 flex flex-col gap-2">
       <Popover
         :open="isEditing"
-        @update:open="(v: boolean) => { isEditing = v }"
+        @update:open="
+          (v: boolean) => {
+            isEditing = v
+          }
+        "
       >
-        <PopoverAnchor/>
+        <PopoverAnchor />
         <PopoverContent
           :align-offset="8"
           :side-offset="28"
@@ -174,58 +229,43 @@ const executeAction = async (actionId: string, arg?: unknown) => {
         </PopoverContent>
       </Popover>
 
-      <div class="flex items-center gap-2">
-        <IconName
-          :color="swimlane.color"
-          :icon="swimlane.icon || 'folder-open'"
-          :name="swimlane.title"
-          class="flex-1 min-w-0"
-          @dblclick="isEditing = true"
-        />
+      <div class="flex items-center">
+        <div class="flex flex-1 items-center gap-2">
+          <IconName
+            :color="swimlane.color"
+            :icon="swimlane.icon || 'folder-open'"
+            :name="swimlane.title"
+            @dblclick="isEditing = true"
+          />
+          <SimpleTooltip :tooltip-markdown="t('components.kanban.swimlane.actions.collapse')">
+            <Button
+              class="opacity-0 transition-opacity group-hover/swimlane:opacity-100"
+              size="xs"
+              variant="ghost"
+              @click="setCollapsed(true)"
+            >
+              <Icon name="lucide:chevron-left" />
+            </Button>
+          </SimpleTooltip>
+        </div>
         <Badge
           size="sm"
           variant="background"
         >
           {{ emails.length > 99 ? '+99' : emails.length }}
         </Badge>
-
-        <!-- Swimlane actions dropdown -->
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <Button
-              class="opacity-0 group-hover/swimlane:opacity-100 transition-opacity"
-              size="xs"
-              variant="ghost"
-            >
-              <Icon name="lucide:more-horizontal"/>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItemRich
-              :label="t('components.kanban.swimlane.actions.rename')"
-              icon="lucide:edit-2"
-              @select="isEditing = true"
-            />
-            <DropdownMenuItemRich
-              :icon="collapsed ? 'lucide:chevron-down' : 'lucide:chevron-up'"
-              :label="collapsed ? t('components.kanban.swimlane.actions.expand') : t('components.kanban.swimlane.actions.collapse')"
-              @select="collapsed = !collapsed"
-            />
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
 
       <div
         :style="{ backgroundColor: swimlane.color }"
-        class="h-1 rounded-full w-full"
+        class="h-1 w-full rounded-full"
       />
     </div>
 
-    <!-- Email list (collapsible) -->
+    <!-- Email list -->
     <div
-      v-show="!collapsed"
       :style="{ backgroundColor }"
-      class="flex-1 min-h-0 rounded-lg p-2 transition-all duration-200"
+      class="min-h-0 flex-1 rounded-lg p-2 transition-all duration-200"
     >
       <MailContextMenu
         :selected-email-ids="contextEmail ? [contextEmail.id] : []"
