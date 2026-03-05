@@ -34,9 +34,11 @@ use app_lib::{
 };
 
 use std::sync::Arc;
+#[cfg(target_os = "macos")]
+use tauri::TitleBarStyle;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
-    Emitter, Manager,
+    Emitter, Manager, WindowEvent,
 };
 
 fn create_menu(app: &tauri::App) -> Result<Menu<tauri::Wry>, tauri::Error> {
@@ -104,10 +106,24 @@ fn create_menu(app: &tauri::App) -> Result<Menu<tauri::Wry>, tauri::Error> {
         file_menu.append(&PredefinedMenuItem::separator(app)?)?;
     }
 
-    file_menu.append(&PredefinedMenuItem::close_window(app, None)?)?;
+    #[cfg(target_os = "macos")]
+    {
+        // On macOS Cmd+W hides the window instead of destroying it (standard macOS
+        // behaviour for document-based or persistent apps).  A plain MenuItem lets
+        // us intercept the event in on_menu_event and call window.hide() ourselves.
+        let close_window_item = MenuItem::with_id(
+            app,
+            "hide_main_window",
+            "Close Window",
+            true,
+            Some("CmdOrCtrl+W"),
+        )?;
+        file_menu.append(&close_window_item)?;
+    }
 
     #[cfg(not(target_os = "macos"))]
     {
+        file_menu.append(&PredefinedMenuItem::close_window(app, None)?)?;
         file_menu.append(&PredefinedMenuItem::quit(app, None)?)?;
     }
 
@@ -169,6 +185,33 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        // ── macOS window-lifecycle ────────────────────────────────────────────
+        // Intercept the red traffic-light button (and any other OS-level "close
+        // window" signal) so the window is merely *hidden* rather than destroyed.
+        // This keeps the app running in the dock, matching standard macOS app
+        // behaviour (Mail, Messages, etc.).
+        // Cmd+W is handled separately via the custom "hide_main_window" menu item
+        // below, but the OS can also send CloseRequested directly (e.g. via
+        // AppleScript or window server), so we catch it here as well.
+        // NOTE: #[cfg] cannot annotate individual method-chain calls in Rust, so
+        // we always register the handler and gate the macOS-specific logic inside.
+        .on_window_event(|window, event| {
+            #[cfg(target_os = "macos")]
+            {
+                if window.label() != "main" {
+                    return;
+                }
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    // Prevent the default behaviour (which would quit the app when
+                    // this is the last window) and hide instead.
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+            // Suppress unused-variable warnings on non-macOS targets.
+            #[cfg(not(target_os = "macos"))]
+            let _ = (window, event);
+        })
         .setup(|app| {
             let app_handle = app.handle().clone();
 
@@ -457,6 +500,13 @@ fn main() {
                 }
 
                 match menu_id {
+                    // ── macOS: Cmd+W hides the window instead of closing it ──
+                    #[cfg(target_os = "macos")]
+                    "hide_main_window" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.hide();
+                        }
+                    }
                     #[cfg(debug_assertions)]
                     "toggle_devtools" => {
                         if let Some(window) = app.get_webview_window("main") {
@@ -593,6 +643,52 @@ fn main() {
             themes::switch_theme,
             themes::get_current_theme,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        // ── macOS run-loop events ─────────────────────────────────────────────
+        // RunEvent::Reopen fires when the user clicks the dock icon while the app
+        // is already running (NSApplicationDelegate applicationShouldHandleReopen).
+        // If no window is visible we show (or recreate) the main window so the
+        // app feels like a normal macOS citizen.
+        .run(|app_handle, event| {
+            // ── macOS: dock-icon click ────────────────────────────────────────
+            // RunEvent::Reopen fires when the user clicks the dock icon while
+            // the app is already running (NSApplicationDelegate
+            // applicationShouldHandleReopen).  If no window is visible we show
+            // (or recreate) the main window so the app behaves like a standard
+            // macOS citizen (Mail, Messages, etc.).
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen {
+                has_visible_windows,
+                ..
+            } = &event
+            {
+                if !has_visible_windows {
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        // Window exists but is hidden — just bring it back.
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    } else {
+                        // Window was fully destroyed somehow — recreate it from
+                        // the same parameters as tauri.conf.json defines.
+                        let _ = tauri::WebviewWindowBuilder::new(
+                            app_handle,
+                            "main",
+                            tauri::WebviewUrl::App("/".into()),
+                        )
+                        .title("Ravn")
+                        .inner_size(1000.0, 720.0)
+                        .min_inner_size(640.0, 480.0)
+                        .hidden_title(true)
+                        .title_bar_style(TitleBarStyle::Overlay)
+                        .traffic_light_position(tauri::LogicalPosition::new(16.0, 20.0))
+                        .build();
+                    }
+                }
+            }
+
+            // Suppress unused-variable warnings on non-macOS targets.
+            #[cfg(not(target_os = "macos"))]
+            let _ = (app_handle, event);
+        });
 }
