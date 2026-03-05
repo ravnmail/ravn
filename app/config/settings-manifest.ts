@@ -364,6 +364,18 @@ export const settingsManifest: SettingsManifest = [
     name: 'settings.groups.views.name',
     sections: [
       {
+        id: 'sidebar',
+        name: 'settings.views.sidebar.section',
+        items: [
+          {
+            id: 'views.sidebar.showLabelsSection',
+            name: 'settings.views.sidebar.showLabelsSection.name',
+            description: 'settings.views.sidebar.showLabelsSection.description',
+            is: 'Toggle',
+          },
+        ],
+      },
+      {
         id: 'kanban',
         name: 'settings.views.kanban.section',
         items: [

@@ -325,6 +325,27 @@
       "newView": "New View",
       "title": "Views"
     },
+    "sidebarNav": {
+      "labelsSection": "Labels",
+      "newLabel": "New Label",
+      "newLabelPlaceholder": "Label name…"
+    },
+    "sidebarLabelItem": {
+      "actions": {
+        "edit": "Edit Label",
+        "delete": "Delete Label"
+      }
+    },
+    "labelEditDialog": {
+      "title": "Edit Label",
+      "description": "Change the name, icon, or color of this label."
+    },
+    "labelMailList": {
+      "emptyState": {
+        "title": "No emails",
+        "message": "No emails are tagged with this label yet."
+      }
+    },
     "emailAutocomplete": {
       "loading": "Loading contacts...",
       "noResults": "No contacts found",
@@ -1210,6 +1231,13 @@
       }
     },
     "views": {
+      "sidebar": {
+        "section": "Sidebar",
+        "showLabelsSection": {
+          "name": "Show Labels Section in Sidebar",
+          "description": "Show all labels as a navigation section at the bottom of the sidebar"
+        }
+      },
       "kanban": {
         "section": "Kanban",
         "showLabelsSection": {

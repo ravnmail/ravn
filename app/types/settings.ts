@@ -43,8 +43,13 @@ export interface KanbanViewSettings {
   showLabelsSection: boolean
 }
 
+export interface SidebarSettings {
+  showLabelsSection: boolean
+}
+
 export interface ViewsSettings {
   kanban: KanbanViewSettings
+  sidebar: SidebarSettings
 }
 
 export interface RegionalSettings {

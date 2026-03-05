@@ -21,7 +21,7 @@ export interface DragData {
 }
 
 export interface DropTargetData {
-  type: 'folder' | 'swimlane'
+  type: 'folder' | 'swimlane' | 'label'
   id: string
   accepts?: string[]
 

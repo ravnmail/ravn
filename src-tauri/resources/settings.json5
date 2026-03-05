@@ -75,6 +75,8 @@
   // Views Settings
   // Show the labels management section in the View Editor
   'views.kanban.showLabelsSection': true,
+  // Show the labels section in the sidebar navigation
+  'views.sidebar.showLabelsSection': true,
 
   // Regional / Date & Time Settings
   // Date format string (dayjs tokens): "MMM D, YYYY" | "DD.MM.YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD"

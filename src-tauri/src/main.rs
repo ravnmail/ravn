@@ -630,6 +630,7 @@ fn main() {
             view::update_view,
             view::delete_view,
             conversation::get_conversations_for_folder,
+            conversation::get_conversations_for_label,
             conversation::get_conversation_for_message_id,
             conversation::get_conversation_by_id,
             search::search_emails,

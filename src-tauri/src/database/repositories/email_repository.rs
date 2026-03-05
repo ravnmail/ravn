@@ -40,6 +40,16 @@ pub trait EmailRepository {
         limit: i64,
         offset: i64,
     ) -> Result<Vec<Email>, DatabaseError>;
+    async fn find_by_label_with_filters(
+        &self,
+        label_id: Uuid,
+        limit: i64,
+        offset: i64,
+        sort_by: &str,
+        sort_order: &str,
+        filter_read: Option<bool>,
+        filter_has_attachments: Option<bool>,
+    ) -> Result<Vec<Email>, DatabaseError>;
     async fn create(&self, email: &Email) -> Result<Uuid, DatabaseError>;
     async fn update(&self, email: &Email) -> Result<(), DatabaseError>;
     async fn update_metadata_only(&self, email: &Email) -> Result<(), DatabaseError>;
@@ -283,6 +293,60 @@ impl EmailRepository for SqliteEmailRepository {
         sqlx_query = sqlx_query.bind(limit).bind(offset);
 
         sqlx_query
+            .fetch_all(&self.pool)
+            .await
+            .map_err(DatabaseError::ConnectionError)
+    }
+
+    async fn find_by_label_with_filters(
+        &self,
+        label_id: Uuid,
+        limit: i64,
+        offset: i64,
+        sort_by: &str,
+        sort_order: &str,
+        filter_read: Option<bool>,
+        filter_has_attachments: Option<bool>,
+    ) -> Result<Vec<Email>, DatabaseError> {
+        let label_id_str = label_id.to_string();
+        let mut query = String::from(
+            "SELECT DISTINCT e.* FROM emails e \
+             JOIN email_labels el ON el.email_id = e.id \
+             WHERE e.is_deleted = 0 AND el.label_id = ?",
+        );
+
+        if let Some(is_read) = filter_read {
+            query.push_str(&format!(" AND e.is_read = {}", if is_read { 1 } else { 0 }));
+        }
+
+        if let Some(has_attachments) = filter_has_attachments {
+            query.push_str(&format!(
+                " AND e.has_attachments = {}",
+                if has_attachments { 1 } else { 0 }
+            ));
+        }
+
+        let order_column = match sort_by {
+            "sent_at" => "e.sent_at",
+            "size" => "e.size",
+            _ => "e.received_at",
+        };
+
+        let order_direction = if sort_order.to_lowercase() == "asc" {
+            "ASC"
+        } else {
+            "DESC"
+        };
+
+        query.push_str(&format!(
+            " ORDER BY {} {} NULLS LAST, e.id ASC LIMIT ? OFFSET ?",
+            order_column, order_direction
+        ));
+
+        sqlx::query_as::<_, Email>(&query)
+            .bind(label_id_str)
+            .bind(limit)
+            .bind(offset)
             .fetch_all(&self.pool)
             .await
             .map_err(DatabaseError::ConnectionError)
