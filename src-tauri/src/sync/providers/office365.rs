@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -135,6 +135,17 @@ struct GraphFlag {
 #[derive(Debug, Deserialize)]
 struct GraphAttachmentsResponse {
     value: Vec<GraphAttachment>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GraphErrorResponse {
+    error: Option<GraphErrorBody>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GraphErrorBody {
+    code: Option<String>,
+    message: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -341,6 +352,105 @@ impl Office365Provider {
         }
     }
 
+    fn parse_retry_after_seconds(headers: &reqwest::header::HeaderMap) -> Option<u64> {
+        headers
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.trim().parse::<u64>().ok())
+    }
+
+    async fn graph_get_json_with_retry<T, F, Fut>(
+        &self,
+        operation_name: &str,
+        operation: F,
+    ) -> SyncResult<T>
+    where
+        T: serde::de::DeserializeOwned + Send,
+        F: Fn(String) -> Fut,
+        Fut: std::future::Future<Output = Result<reqwest::Response, reqwest::Error>>,
+    {
+        let mut last_error = None;
+
+        for attempt in 0..=3u32 {
+            let response = self
+                .execute_with_401_retry(|token| operation(token))
+                .await?;
+
+            let status = response.status();
+
+            if status.is_success() {
+                return response.json::<T>().await.map_err(|e| {
+                    SyncError::Office365Error(format!(
+                        "{}: failed to parse response body: {}",
+                        operation_name, e
+                    ))
+                });
+            }
+
+            if status.as_u16() == 404 {
+                return Err(SyncError::Office365Error(format!(
+                    "{}: resource not found",
+                    operation_name
+                )));
+            }
+
+            let headers = response.headers().clone();
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unable to read error".to_string());
+
+            let graph_error = serde_json::from_str::<GraphErrorResponse>(&error_text)
+                .ok()
+                .and_then(|body| body.error);
+
+            let error_code = graph_error
+                .as_ref()
+                .and_then(|err| err.code.as_deref())
+                .unwrap_or("unknown");
+            let error_message = graph_error
+                .as_ref()
+                .and_then(|err| err.message.as_deref())
+                .unwrap_or(error_text.as_str());
+
+            let is_retryable = status.as_u16() == 429
+                || status.as_u16() == 503
+                || status.as_u16() == 504
+                || matches!(error_code, "ApplicationThrottled" | "TooManyRequests");
+
+            if !is_retryable || attempt >= 3 {
+                return Err(SyncError::Office365Error(format!(
+                    "{} (status {} / {}): {}",
+                    operation_name, status, error_code, error_message
+                )));
+            }
+
+            let delay_secs = Self::parse_retry_after_seconds(&headers)
+                .unwrap_or_else(|| 2u64.saturating_pow(attempt + 1))
+                .max(1);
+
+            log::warn!(
+                "[Office365] {} throttled/retryable failure (status {} / {}, attempt {}/4). Retrying in {}s",
+                operation_name,
+                status,
+                error_code,
+                attempt + 1,
+                delay_secs
+            );
+
+            last_error = Some(SyncError::Office365Error(format!(
+                "{} (status {} / {}): {}",
+                operation_name, status, error_code, error_message
+            )));
+
+            tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
+        }
+
+        Err(last_error.unwrap_or_else(|| {
+            SyncError::Office365Error(format!("{} failed after retries", operation_name))
+        }))
+    }
+
     fn map_folder_type(display_name: &str) -> FolderType {
         let name_lower = display_name.to_lowercase();
         if name_lower.contains("inbox") {
@@ -448,55 +558,94 @@ impl Office365Provider {
         &self,
         message_id: &str,
     ) -> SyncResult<Vec<SyncAttachment>> {
-        let token = self.ensure_token().await?;
+        let operation_name = format!("Failed to fetch attachments for message {}", message_id);
 
-        let response = self
-            .client
-            .get(format!(
-                "{}/me/messages/{}/attachments",
-                GRAPH_API_BASE, message_id
-            ))
-            .bearer_auth(&token)
-            .send()
+        let attachments_response: GraphAttachmentsResponse = match self
+            .graph_get_json_with_retry(&operation_name, |token| {
+                let client = self.client.clone();
+                let message_id = message_id.to_string();
+                async move {
+                    client
+                        .get(format!(
+                            "{}/me/messages/{}/attachments",
+                            GRAPH_API_BASE, message_id
+                        ))
+                        .bearer_auth(token)
+                        .send()
+                        .await
+                }
+            })
             .await
-            .map_err(|e| {
-                SyncError::NetworkError(format!(
-                    "Network error fetching attachments for message {}: {}",
-                    message_id, e
-                ))
-            })?;
-
-        if !response.status().is_success() {
-            if response.status().as_u16() == 404 {
+        {
+            Ok(response) => response,
+            Err(SyncError::Office365Error(message)) if message.contains("resource not found") => {
                 log::debug!("Message {} not found when fetching attachments", message_id);
                 return Ok(Vec::new());
             }
+            Err(err) => return Err(err),
+        };
 
-            let status = response.status();
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unable to read error".to_string());
-
-            return Err(SyncError::Office365Error(format!(
-                "Failed to fetch attachments for message {} (status {}): {}",
-                message_id, status, error_text
-            )));
-        }
-
-        let attachments_response: GraphAttachmentsResponse =
-            response.json().await.map_err(|e| {
-                SyncError::Office365Error(format!(
-                    "Failed to parse attachments response for message {}: {}",
-                    message_id, e
-                ))
-            })?;
+        let mut seen_remote_paths = HashSet::new();
+        let mut seen_inline_content_ids = HashSet::new();
 
         let sync_attachments: Vec<SyncAttachment> = attachments_response
             .value
             .into_iter()
-            .filter(|att| att.is_file_attachment())
-            .map(|att| att.to_sync_attachment(message_id))
+            .filter(|att| {
+                if !att.is_file_attachment() {
+                    log::debug!(
+                        "[Office365] Skipping non-file attachment {} (type: {:?})",
+                        att.name,
+                        att.odata_type
+                    );
+                    return false;
+                }
+                true
+            })
+            .filter_map(|att| {
+                let sync_attachment = att.to_sync_attachment(message_id);
+
+                let remote_path = match sync_attachment.remote_path.clone() {
+                    Some(remote_path) => remote_path,
+                    None => {
+                        log::warn!(
+                            "[Office365] Skipping attachment {} for message {} because remote_path is missing",
+                            sync_attachment.filename,
+                            message_id
+                        );
+                        return None;
+                    }
+                };
+
+                if !seen_remote_paths.insert(remote_path.clone()) {
+                    log::debug!(
+                        "[Office365] Deduplicated attachment {} for message {} by remote_path {}",
+                        sync_attachment.filename,
+                        message_id,
+                        remote_path
+                    );
+                    return None;
+                }
+
+                if sync_attachment.is_inline {
+                    if let Some(content_id) = sync_attachment
+                        .content_id
+                        .as_ref()
+                        .map(|cid| cid.trim_matches(|c| c == '<' || c == '>').to_string())
+                    {
+                        if !content_id.is_empty() && !seen_inline_content_ids.insert(content_id) {
+                            log::debug!(
+                                "[Office365] Deduplicated inline attachment {} for message {} by content_id",
+                                sync_attachment.filename,
+                                message_id
+                            );
+                            return None;
+                        }
+                    }
+                }
+
+                Some(sync_attachment)
+            })
             .collect();
 
         Ok(sync_attachments)
@@ -513,52 +662,74 @@ impl Office365Provider {
     ) -> SyncResult<()> {
         // Process attachments for emails that have them
         for email in emails.iter_mut() {
-            if email.has_attachments {
-                match self.fetch_attachments_for_message(&email.remote_id).await {
-                    Ok(mut attachments) => {
-                        if !attachments.is_empty() {
-                            log::debug!(
-                                "[Office365] Fetched {} attachment metadata for email {}",
-                                attachments.len(),
-                                email.remote_id
-                            );
+            if !email.has_attachments {
+                continue;
+            }
 
-                            // Download all attachments if enabled (sequential with logging)
-                            if download_all {
-                                for attachment in &mut attachments {
-                                    match self.fetch_attachment(attachment).await {
-                                        Ok(data) => {
-                                            log::debug!(
-                                                "[Office365] Downloaded attachment {} ({} bytes)",
-                                                attachment.filename,
-                                                data.len()
-                                            );
-                                            attachment.data = Some(data);
-                                        }
-                                        Err(e) => {
-                                            log::warn!(
-                                                "[Office365] Failed to download attachment {}: {}",
-                                                attachment.filename,
-                                                e
-                                            );
-                                            // Continue - email can still be synced without this attachment
-                                        }
-                                    }
-                                }
+            if !email.attachments.is_empty() {
+                log::debug!(
+                    "[Office365] Skipping attachment enrichment for email {} because attachments are already present ({})",
+                    email.remote_id,
+                    email.attachments.len()
+                );
+                continue;
+            }
+
+            match self.fetch_attachments_for_message(&email.remote_id).await {
+                Ok(mut attachments) => {
+                    if attachments.is_empty() {
+                        continue;
+                    }
+
+                    log::debug!(
+                        "[Office365] Fetched {} deduplicated attachment metadata entries for email {}",
+                        attachments.len(),
+                        email.remote_id
+                    );
+
+                    if download_all {
+                        for attachment in &mut attachments {
+                            if attachment.is_cached && attachment.data.is_none() {
+                                log::debug!(
+                                    "[Office365] Skipping download for already cached attachment {} on email {}",
+                                    attachment.filename,
+                                    email.remote_id
+                                );
+                                continue;
                             }
 
-                            email.attachments = attachments;
+                            match self.fetch_attachment(attachment).await {
+                                Ok(data) => {
+                                    log::debug!(
+                                        "[Office365] Downloaded attachment {} ({} bytes)",
+                                        attachment.filename,
+                                        data.len()
+                                    );
+                                    attachment.data = Some(data);
+                                }
+                                Err(e) => {
+                                    log::warn!(
+                                        "[Office365] Failed to download attachment {} for email {}: {}",
+                                        attachment.filename,
+                                        email.remote_id,
+                                        e
+                                    );
+                                    // Continue - email can still be synced without this attachment
+                                }
+                            }
                         }
                     }
-                    Err(e) => {
-                        log::warn!(
-                            "[Office365] Failed to fetch attachments for email {}: {}",
-                            email.remote_id,
-                            e
-                        );
-                        // Don't fail the entire sync if attachment fetching fails
-                        // The email can still be synced without attachments
-                    }
+
+                    email.attachments = attachments;
+                }
+                Err(e) => {
+                    log::warn!(
+                        "[Office365] Failed to fetch attachments for email {}: {}",
+                        email.remote_id,
+                        e
+                    );
+                    // Don't fail the entire sync if attachment fetching fails
+                    // The email can still be synced without attachments
                 }
             }
         }
@@ -1456,61 +1627,112 @@ impl EmailProvider for Office365Provider {
         let attachment_id_owned = attachment_id.to_string();
         let filename = attachment.filename.clone();
         let expected_size = attachment.size;
-
-        let response = self
-            .execute_with_401_retry(|token| {
-                let client = self.client.clone();
-                let msg_id = message_id_owned.clone();
-                let att_id = attachment_id_owned.clone();
-                async move {
-                    client
-                        .get(format!(
-                            "{}/me/messages/{}/attachments/{}/$value",
-                            GRAPH_API_BASE, msg_id, att_id
-                        ))
-                        .bearer_auth(token)
-                        .timeout(std::time::Duration::from_secs(300))
-                        .send()
-                        .await
-                }
-            })
-            .await?;
-
-        let status = response.status();
-        if !status.is_success() {
-            return Err(SyncError::Office365Error(format!(
-                "Failed to download attachment {} (status {}): {}",
-                filename,
-                status.as_u16(),
-                status.canonical_reason().unwrap_or("Unknown error")
-            )));
-        }
-
-        if let Some(content_length) = response.content_length() {
-            if content_length as i64 != expected_size {
-                log::warn!(
-                    "Attachment size mismatch for {}: expected {}, got {}",
-                    filename,
-                    expected_size,
-                    content_length
-                );
-            }
-        }
-
-        let bytes = response.bytes().await.map_err(|e| {
-            SyncError::NetworkError(format!(
-                "Failed to read attachment bytes for {}: {}",
-                filename, e
-            ))
-        })?;
-
-        log::debug!(
-            "Successfully downloaded attachment {} ({} bytes)",
-            filename,
-            bytes.len()
+        let operation_name = format!(
+            "Failed to download attachment {} for message {}",
+            filename, message_id
         );
 
-        Ok(bytes.to_vec())
+        let mut last_error = None;
+
+        for attempt in 0..=3u32 {
+            let response = self
+                .execute_with_401_retry(|token| {
+                    let client = self.client.clone();
+                    let msg_id = message_id_owned.clone();
+                    let att_id = attachment_id_owned.clone();
+                    async move {
+                        client
+                            .get(format!(
+                                "{}/me/messages/{}/attachments/{}/$value",
+                                GRAPH_API_BASE, msg_id, att_id
+                            ))
+                            .bearer_auth(token)
+                            .timeout(std::time::Duration::from_secs(300))
+                            .send()
+                            .await
+                    }
+                })
+                .await?;
+
+            let status = response.status();
+
+            if status.is_success() {
+                if let Some(content_length) = response.content_length() {
+                    if content_length as i64 != expected_size {
+                        log::warn!(
+                            "Attachment size mismatch for {}: expected {}, got {}",
+                            filename,
+                            expected_size,
+                            content_length
+                        );
+                    }
+                }
+
+                let bytes = response.bytes().await.map_err(|e| {
+                    SyncError::NetworkError(format!(
+                        "Failed to read attachment bytes for {}: {}",
+                        filename, e
+                    ))
+                })?;
+
+                return Ok(bytes.to_vec());
+            }
+
+            let headers = response.headers().clone();
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unable to read error".to_string());
+
+            let graph_error = serde_json::from_str::<GraphErrorResponse>(&error_text)
+                .ok()
+                .and_then(|body| body.error);
+
+            let error_code = graph_error
+                .as_ref()
+                .and_then(|err| err.code.as_deref())
+                .unwrap_or("unknown");
+            let error_message = graph_error
+                .as_ref()
+                .and_then(|err| err.message.as_deref())
+                .unwrap_or(error_text.as_str());
+
+            let is_retryable = status.as_u16() == 429
+                || status.as_u16() == 503
+                || status.as_u16() == 504
+                || matches!(error_code, "ApplicationThrottled" | "TooManyRequests");
+
+            if !is_retryable || attempt >= 3 {
+                return Err(SyncError::Office365Error(format!(
+                    "{} (status {} / {}): {}",
+                    operation_name, status, error_code, error_message
+                )));
+            }
+
+            let delay_secs = Self::parse_retry_after_seconds(&headers)
+                .unwrap_or_else(|| 2u64.saturating_pow(attempt + 1))
+                .max(1);
+
+            log::warn!(
+                "[Office365] Attachment download throttled/retryable failure for {} (status {} / {}, attempt {}/4). Retrying in {}s",
+                filename,
+                status,
+                error_code,
+                attempt + 1,
+                delay_secs
+            );
+
+            last_error = Some(SyncError::Office365Error(format!(
+                "{} (status {} / {}): {}",
+                operation_name, status, error_code, error_message
+            )));
+
+            tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
+        }
+
+        Err(last_error.unwrap_or_else(|| {
+            SyncError::Office365Error(format!("{} failed after retries", operation_name))
+        }))
     }
 
     async fn move_email(
@@ -1606,10 +1828,7 @@ impl EmailProvider for Office365Provider {
                     let req = request.clone();
                     async move {
                         client
-                            .post(format!(
-                                "{}/me/messages/{}/move",
-                                GRAPH_API_BASE, remote_id
-                            ))
+                            .post(format!("{}/me/messages/{}/move", GRAPH_API_BASE, remote_id))
                             .bearer_auth(token)
                             .json(&req)
                             .send()

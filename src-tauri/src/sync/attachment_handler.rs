@@ -60,8 +60,8 @@ impl<S: FileStorage> AttachmentHandler<S> {
     ) -> SyncResult<Uuid> {
         let email_id_str = email_id.to_string();
 
-        let existing = if let Some(ref content_id) = attachment.content_id {
-            sqlx::query!(
+        let existing_id = if let Some(ref content_id) = attachment.content_id {
+            sqlx::query_scalar!(
                 "SELECT id FROM attachments WHERE email_id = ? AND content_id = ?",
                 email_id_str,
                 content_id
@@ -70,10 +70,17 @@ impl<S: FileStorage> AttachmentHandler<S> {
             .await
             .map_err(|e| SyncError::DatabaseError(e.to_string()))?
         } else {
-            None
+            sqlx::query_scalar!(
+                "SELECT id FROM attachments WHERE email_id = ? AND hash = ?",
+                email_id_str,
+                attachment.hash
+            )
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| SyncError::DatabaseError(e.to_string()))?
         };
 
-        if let Some(record) = existing {
+        if let Some(existing_id) = existing_id {
             sqlx::query!(
                 r#"
                 UPDATE attachments
@@ -89,14 +96,13 @@ impl<S: FileStorage> AttachmentHandler<S> {
                 attachment.remote_path,
                 attachment.is_inline,
                 attachment.content_id,
-                record.id
+                existing_id
             )
             .execute(&self.pool)
             .await
             .map_err(|e| SyncError::DatabaseError(e.to_string()))?;
 
-            let attachment_id_str = record.id.as_str();
-            let attachment_id = Uuid::parse_str(&attachment_id_str)
+            let attachment_id = Uuid::parse_str(&existing_id)
                 .map_err(|e| SyncError::DatabaseError(format!("Invalid ULID: {}", e)))?;
             Ok(attachment_id)
         } else {
