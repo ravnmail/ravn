@@ -1,3 +1,5 @@
+import { useQueryClient } from '@tanstack/vue-query'
+import type { InfiniteData } from '@tanstack/vue-query'
 import { invoke } from '@tauri-apps/api/core'
 
 import type { EmailDetail, EmailListItem } from '~/types/email'
@@ -25,6 +27,72 @@ export function useEmails() {
   const isLoading = useState('emailsLoading', () => false)
   const error = useState<string | null>('emailsError', () => null)
   const { updateBadgeCount } = useNotifications()
+  const queryClient = useQueryClient()
+
+  type ConversationListPage = {
+    items: Array<{
+      id: string
+      message_count: number
+      ai_cache?: string
+      messages: EmailListItem[]
+    }>
+    nextOffset: number
+  }
+
+  const updateEmailInConversationCaches = (
+    emailId: string,
+    updater: (email: EmailListItem) => EmailListItem
+  ) => {
+    queryClient.setQueriesData<InfiniteData<ConversationListPage>>(
+      {
+        queryKey: ['conversations', 'list'],
+      },
+      (oldData) => {
+        if (!oldData) return oldData
+
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page) => ({
+            ...page,
+            items: page.items.map((conversation) => {
+              let hasChanges = false
+
+              const messages = conversation.messages.map((message) => {
+                if (message.id !== emailId) return message
+                hasChanges = true
+                return updater(message)
+              })
+
+              return hasChanges
+                ? {
+                    ...conversation,
+                    messages,
+                  }
+                : conversation
+            }),
+          })),
+        }
+      }
+    )
+  }
+
+  const updateEmailDetailCache = (
+    emailId: string,
+    updater: (email: EmailDetail) => EmailDetail
+  ) => {
+    queryClient.setQueryData<EmailDetail>(['emails', 'detail', emailId], (oldData) => {
+      if (!oldData) return oldData
+      return updater(oldData)
+    })
+  }
+
+  const invalidateEmailRelatedCaches = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['conversations', 'list'] }),
+      queryClient.invalidateQueries({ queryKey: ['conversations', 'detail'] }),
+      queryClient.invalidateQueries({ queryKey: ['emails'] }),
+    ])
+  }
 
   const fetch = async (id: string): Promise<EmailDetail | null> => {
     isLoading.value = true
@@ -227,20 +295,74 @@ export function useEmails() {
   }
 
   const addLabelToEmail = async (request: AddLabelToEmailRequest): Promise<void> => {
+    error.value = null
+
+    const existingLabel = queryClient
+      .getQueriesData<InfiniteData<ConversationListPage>>({ queryKey: ['conversations', 'list'] })
+      .flatMap(([, data]) => data?.pages ?? [])
+      .flatMap((page) => page.items)
+      .flatMap((conversation) => conversation.messages)
+      .find((message) => message.id === request.email_id)
+      ?.labels.find((label) => label.id === request.label_id)
+
+    if (existingLabel) {
+      updateEmailInConversationCaches(request.email_id, (email) => {
+        if (email.labels.some((label) => label.id === request.label_id)) {
+          return email
+        }
+
+        return {
+          ...email,
+          labels: [...email.labels, existingLabel],
+        }
+      })
+
+      updateEmailDetailCache(request.email_id, (email) => {
+        if (email.labels.some((label) => label.id === request.label_id)) {
+          return email
+        }
+
+        return {
+          ...email,
+          labels: [...email.labels, existingLabel],
+        }
+      })
+    }
+
     try {
       await invoke('add_label_to_email', { request })
-    } catch (error) {
-      console.error('Failed to add label to email:', error)
-      throw error
+      await invalidateEmailRelatedCaches()
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      error.value = errorMessage
+      await invalidateEmailRelatedCaches()
+      console.error('Failed to add label to email:', errorMessage)
+      throw new Error(errorMessage)
     }
   }
 
   const removeLabelFromEmail = async (emailId: string, labelId: string): Promise<void> => {
+    error.value = null
+
+    updateEmailInConversationCaches(emailId, (email) => ({
+      ...email,
+      labels: email.labels.filter((label) => label.id !== labelId),
+    }))
+
+    updateEmailDetailCache(emailId, (email) => ({
+      ...email,
+      labels: email.labels.filter((label) => label.id !== labelId),
+    }))
+
     try {
       await invoke('remove_label_from_email', { emailId, labelId })
-    } catch (error) {
-      console.error('Failed to remove label from email:', error)
-      throw error
+      await invalidateEmailRelatedCaches()
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      error.value = errorMessage
+      await invalidateEmailRelatedCaches()
+      console.error('Failed to remove label from email:', errorMessage)
+      throw new Error(errorMessage)
     }
   }
 

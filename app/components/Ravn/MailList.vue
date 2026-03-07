@@ -3,13 +3,14 @@ import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useFocusWithin } from '@vueuse/core'
 import dayjs from 'dayjs'
 import { toast } from 'vue-sonner'
+
 import ConversationItem from '~/components/Ravn/ConversationItem.vue'
 import MailContextMenu from '~/components/Ravn/MailContextMenu.vue'
-import IconName from '~/components/ui/IconName.vue'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import { FormField } from '~/components/ui/form'
+import IconName from '~/components/ui/IconName.vue'
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
 import {
   Select,
@@ -21,6 +22,7 @@ import {
 import { Switch } from '~/components/ui/switch'
 import { useMultiSelect } from '~/composables/useDragAndDrop'
 import type { ConversationListItem } from '~/types/conversation'
+import type { EmailListItem } from '~/types/email'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -38,27 +40,15 @@ const props = defineProps<{
 
 const { useGetConversationsForFolderInfinite } = useConversation()
 const { folders, useUpdateSettingsMutation, useInitSyncMutation } = useFolders()
+const { labels } = useLabels()
 
 const { mutateAsync: updateSettings } = useUpdateSettingsMutation()
 const { mutateAsync: initSync } = useInitSyncMutation()
 
-const { archive, trash, updateRead, move, addLabelToEmail, setRemindAt } = useEmails()
+const { archive, trash, updateRead, move, addLabelToEmail, removeLabelFromEmail, setRemindAt } =
+  useEmails()
 
 const multiSelect = useMultiSelect<ConversationListItem>()
-
-// Tracks which conversation was right-clicked to target context menu actions
-const contextMenuConvId = ref<string | null>(null)
-
-const getContextMenuFirstMessageId = (): string | null => {
-  if (!contextMenuConvId.value) return null
-  const conv = conversations.value.find((c) => c.id === contextMenuConvId.value)
-  if (!conv) return null
-  return (
-    conv.messages.filter((m) => m.folder_id === props.folderId)[0]?.id ??
-    conv.messages[0]?.id ??
-    null
-  )
-}
 
 const sortBy = ref<string>('received_at')
 const sortOrder = ref<string>('desc')
@@ -142,92 +132,6 @@ const saveFolderSettings = () => {
   }, 500)
 }
 
-onMounted(async () => {
-  await initSync({ folderId: props.folderId, full: false })
-  addContext('mailList', focused)
-
-  const ns = 'mailList'
-  register({
-    namespace: ns,
-    id: 'archiveEmail',
-    icon: 'lucide:archive',
-    handler: () => {
-      const id = getContextMenuFirstMessageId()
-      if (id) archive(id)
-    },
-  })
-  register({
-    namespace: ns,
-    id: 'deleteEmail',
-    icon: 'lucide:trash-2',
-    handler: () => {
-      const id = getContextMenuFirstMessageId()
-      if (id) trash(id)
-    },
-  })
-  register({
-    namespace: ns,
-    id: 'markRead',
-    icon: 'lucide:mail-open',
-    handler: () => {
-      const id = getContextMenuFirstMessageId()
-      if (id) updateRead(id, true)
-    },
-  })
-  register({
-    namespace: ns,
-    id: 'markUnread',
-    icon: 'lucide:mail',
-    handler: () => {
-      const id = getContextMenuFirstMessageId()
-      if (id) updateRead(id, false)
-    },
-  })
-  register({
-    namespace: ns,
-    id: 'moveEmail',
-    icon: 'lucide:folder-input',
-    handler: (arg) => {
-      const id = getContextMenuFirstMessageId()
-      if (id && arg) move(id, arg as string)
-    },
-  })
-  register({
-    namespace: ns,
-    id: 'assignLabel',
-    icon: 'lucide:tag',
-    handler: (arg) => {
-      const id = getContextMenuFirstMessageId()
-      if (id && arg) addLabelToEmail({ email_id: id, label_id: arg as string })
-    },
-  })
-  register({
-    namespace: ns,
-    id: 'setRemindAt',
-    icon: 'lucide:bell',
-    handler: (arg) => {
-      const id = getContextMenuFirstMessageId()
-      if (id) setRemindAt(id, (arg as string | null) ?? null)
-    },
-  })
-})
-
-onBeforeUnmount(() => {
-  removeContext('mailList')
-  const ns = 'mailList'
-  for (const id of [
-    'archiveEmail',
-    'deleteEmail',
-    'markRead',
-    'markUnread',
-    'moveEmail',
-    'assignLabel',
-    'setRemindAt',
-  ]) {
-    unregister(ns, id)
-  }
-})
-
 watch([sortBy, sortOrder, filterRead, filterHasAttachments], async () => {
   saveFolderSettings()
 })
@@ -240,8 +144,6 @@ watch(
   { deep: true }
 )
 
-// ─── Infinite query ───────────────────────────────────────────────────────────
-
 const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
   useGetConversationsForFolderInfinite(
     computed(() => props.folderId),
@@ -253,21 +155,191 @@ const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
     }
   )
 
-/** Flat list of all loaded conversations across all pages */
 const conversations = computed<ConversationListItem[]>(
   () => data.value?.pages.flatMap((p) => p.items) ?? []
 )
 
-// ─── Actions ─────────────────────────────────────────────────────────────────
+const cloneEmail = (email: EmailListItem): EmailListItem => ({
+  ...email,
+  labels: [...email.labels],
+})
+
+const cloneConversation = (conversation: ConversationListItem): ConversationListItem => ({
+  ...conversation,
+  messages: conversation.messages.map(cloneEmail),
+})
+
+const stableConversationCopies = shallowRef<Record<string, ConversationListItem>>({})
+
+watch(
+  conversations,
+  (items) => {
+    const nextMap: Record<string, ConversationListItem> = {}
+
+    for (const conversation of items) {
+      const existing = stableConversationCopies.value[conversation.id]
+      if (!existing) {
+        nextMap[conversation.id] = cloneConversation(conversation)
+        continue
+      }
+
+      const sourceById = new Map(conversation.messages.map((message) => [message.id, message]))
+      const mergedMessages = existing.messages
+        .filter((message) => sourceById.has(message.id))
+        .map((message) => {
+          const source = sourceById.get(message.id)!
+          return {
+            ...source,
+            labels: [...message.labels],
+          }
+        })
+
+      for (const source of conversation.messages) {
+        if (!mergedMessages.some((message) => message.id === source.id)) {
+          mergedMessages.push(cloneEmail(source))
+        }
+      }
+
+      nextMap[conversation.id] = {
+        ...conversation,
+        messages: mergedMessages,
+      }
+    }
+
+    stableConversationCopies.value = nextMap
+  },
+  { immediate: true }
+)
+
+const getStableConversation = (conversationId: string) => {
+  return stableConversationCopies.value[conversationId] ?? null
+}
+
+const getFolderScopedMessage = (
+  conversation: ConversationListItem | null | undefined
+): EmailListItem | null => {
+  if (!conversation) return null
+  return (
+    conversation.messages.find((message) => message.folder_id === props.folderId) ??
+    conversation.messages[0] ??
+    null
+  )
+}
+
+const contextMenuTarget = shallowRef<{
+  conversationId: string
+  emailId: string
+} | null>(null)
+
+const getContextConversation = () => {
+  if (!contextMenuTarget.value) return null
+  return getStableConversation(contextMenuTarget.value.conversationId)
+}
+
+const getContextMenuActiveEmail = () => {
+  const conversation = getContextConversation()
+  if (!conversation || !contextMenuTarget.value) return null
+
+  return (
+    conversation.messages.find((message) => message.id === contextMenuTarget.value?.emailId) ??
+    getFolderScopedMessage(conversation)
+  )
+}
+
+const getContextMenuFirstMessageId = (): string | null => {
+  return getContextMenuActiveEmail()?.id ?? null
+}
+
+const setContextMenuTarget = (conversationId: string) => {
+  const conversation = getStableConversation(conversationId)
+  const email = getFolderScopedMessage(conversation)
+  if (!conversation || !email) {
+    contextMenuTarget.value = null
+    return
+  }
+
+  contextMenuTarget.value = {
+    conversationId: conversation.id,
+    emailId: email.id,
+  }
+}
+
+const replaceContextConversation = (nextConversation: ConversationListItem) => {
+  stableConversationCopies.value = {
+    ...stableConversationCopies.value,
+    [nextConversation.id]: nextConversation,
+  }
+}
+
+const updateConversationById = (
+  conversationId: string,
+  updater: (conversation: ConversationListItem) => ConversationListItem
+) => {
+  const conversation = getStableConversation(conversationId)
+  if (!conversation) return null
+
+  const nextConversation = updater(cloneConversation(conversation))
+  replaceContextConversation(nextConversation)
+  return nextConversation
+}
+
+const updateEmailInConversation = (
+  conversationId: string,
+  emailId: string,
+  updater: (email: EmailListItem) => EmailListItem
+) => {
+  return updateConversationById(conversationId, (conversation) => ({
+    ...conversation,
+    messages: conversation.messages.map((message) =>
+      message.id === emailId ? updater(message) : message
+    ),
+  }))
+}
+
+const handleConversationContextMenu = (conversationId: string) => {
+  setContextMenuTarget(conversationId)
+}
+
+const toggleLabelForContextEmail = async (labelId: string) => {
+  const target = contextMenuTarget.value
+  const activeEmail = getContextMenuActiveEmail()
+  if (!target || !activeEmail) return
+
+  const existingLabel = activeEmail.labels.find((label) => label.id === labelId)
+  const availableLabel = labels.value.find((label) => label.id === labelId)
+  if (!existingLabel && !availableLabel) return
+
+  const previousConversation = cloneConversation(getContextConversation()!)
+  const nextLabels = existingLabel
+    ? activeEmail.labels.filter((label) => label.id !== labelId)
+    : [...activeEmail.labels, availableLabel!]
+
+  updateEmailInConversation(target.conversationId, target.emailId, (email) => ({
+    ...email,
+    labels: nextLabels,
+  }))
+
+  try {
+    if (existingLabel) {
+      await removeLabelFromEmail(target.emailId, labelId)
+    } else {
+      await addLabelToEmail({ email_id: target.emailId, label_id: labelId })
+    }
+  } catch (error) {
+    replaceContextConversation(previousConversation)
+    throw error
+  }
+}
 
 const handleAction = async (actionId: string, conversationId: string) => {
-  const conversation = conversations.value.find((c) => c.id === conversationId) || null
+  const conversation = getStableConversation(conversationId) || null
   if (!conversation || !conversation.messages[0]) {
     console.error('[MailList] Conversation not found:', conversationId)
     return
   }
 
-  const firstEmail = conversation.messages[0]
+  const firstEmail = getFolderScopedMessage(conversation) ?? conversation.messages[0]
+
   try {
     switch (actionId) {
       case 'archive':
@@ -298,8 +370,6 @@ const handleAction = async (actionId: string, conversationId: string) => {
     }
   }
 }
-
-// ─── Grouping ─────────────────────────────────────────────────────────────────
 
 type GroupKey =
   | 'today'
@@ -394,13 +464,6 @@ const getPrimaryMessage = (conversation: ConversationListItem) => {
   return getFolderMessages(conversation)[0]
 }
 
-// ─── Virtual rows ─────────────────────────────────────────────────────────────
-
-/**
- * A "virtual row" is either a group header or a conversation item.
- * We flatten the grouped data into this structure so the virtualizer
- * can render it as a single scrollable list.
- */
 type VirtualRow =
   | { type: 'group-header'; key: GroupKey; count: number }
   | { type: 'conversation'; conversation: ConversationListItem; groupKey: GroupKey }
@@ -470,15 +533,12 @@ const virtualRows = computed<VirtualRow[]>(() => {
     }
   }
 
-  // Sentinel row to trigger the next page load
   if (hasNextPage.value) {
     rows.push({ type: 'load-more' })
   }
 
   return rows
 })
-
-// ─── Virtualizer ──────────────────────────────────────────────────────────────
 
 const virtualizer = useVirtualizer(
   computed(() => ({
@@ -499,7 +559,6 @@ const virtualizer = useVirtualizer(
 const virtualItems = computed(() => virtualizer.value.getVirtualItems())
 const totalSize = computed(() => virtualizer.value.getTotalSize())
 
-// Trigger next page when the load-more sentinel becomes visible
 watch(virtualItems, (items) => {
   if (!hasNextPage.value || isFetchingNextPage.value) return
   const last = items[items.length - 1]
@@ -509,8 +568,6 @@ watch(virtualItems, (items) => {
     fetchNextPage()
   }
 })
-
-// ─── Selection ────────────────────────────────────────────────────────────────
 
 const handleSelect = (conversation: ConversationListItem, event?: MouseEvent) => {
   if (event?.metaKey || event?.ctrlKey || event?.shiftKey) {
@@ -537,18 +594,165 @@ watch(
   () => props.folderId,
   () => {
     multiSelect.clearSelection()
+    contextMenuTarget.value = null
   }
 )
 
-const leftActions = ref<SwipeAction[]>([
-  { id: 'archive', icon: 'lucide:archive', label: 'actions.archive', color: 'bg-warning' },
-])
+onMounted(async () => {
+  await initSync({ folderId: props.folderId, full: false })
+  addContext('mailList', focused)
 
-const rightActions = ref<SwipeAction[]>([
-  { id: 'more', icon: 'lucide:ellipsis', label: 'actions.more', color: 'bg-gray-500' },
-  { id: 'reply', icon: 'lucide:reply', label: 'actions.reply', color: 'bg-accent' },
-  { id: 'delete', icon: 'lucide:trash-2', label: 'actions.delete', color: 'bg-destructive' },
-])
+  const ns = 'mailList'
+  register({
+    namespace: ns,
+    id: 'archiveEmail',
+    icon: 'lucide:archive',
+    handler: async () => {
+      const id = getContextMenuFirstMessageId()
+      if (id) await archive(id)
+    },
+  })
+  register({
+    namespace: ns,
+    id: 'deleteEmail',
+    icon: 'lucide:trash-2',
+    handler: async () => {
+      const id = getContextMenuFirstMessageId()
+      if (id) await trash(id)
+    },
+  })
+  register({
+    namespace: ns,
+    id: 'markRead',
+    icon: 'lucide:mail-open',
+    handler: async () => {
+      const target = contextMenuTarget.value
+      const id = getContextMenuFirstMessageId()
+      if (!id || !target) return
+
+      const previousConversation = cloneConversation(getContextConversation()!)
+      updateEmailInConversation(target.conversationId, target.emailId, (email) => ({
+        ...email,
+        is_read: true,
+      }))
+
+      try {
+        await updateRead(id, true)
+      } catch (error) {
+        replaceContextConversation(previousConversation)
+        throw error
+      }
+    },
+  })
+  register({
+    namespace: ns,
+    id: 'markUnread',
+    icon: 'lucide:mail',
+    handler: async () => {
+      const target = contextMenuTarget.value
+      const id = getContextMenuFirstMessageId()
+      if (!id || !target) return
+
+      const previousConversation = cloneConversation(getContextConversation()!)
+      updateEmailInConversation(target.conversationId, target.emailId, (email) => ({
+        ...email,
+        is_read: false,
+      }))
+
+      try {
+        await updateRead(id, false)
+      } catch (error) {
+        replaceContextConversation(previousConversation)
+        throw error
+      }
+    },
+  })
+  register({
+    namespace: ns,
+    id: 'moveEmail',
+    icon: 'lucide:folder-input',
+    handler: async (arg) => {
+      const target = contextMenuTarget.value
+      const id = getContextMenuFirstMessageId()
+      const nextFolderId = arg as string | undefined
+      if (!id || !target || !nextFolderId) return
+
+      const previousConversation = cloneConversation(getContextConversation()!)
+      updateEmailInConversation(target.conversationId, target.emailId, (email) => ({
+        ...email,
+        folder_id: nextFolderId,
+      }))
+
+      try {
+        await move(id, nextFolderId)
+      } catch (error) {
+        replaceContextConversation(previousConversation)
+        throw error
+      }
+    },
+  })
+  register({
+    namespace: ns,
+    id: 'assignLabel',
+    icon: 'lucide:tag',
+    handler: async (arg) => {
+      const labelId = typeof arg === 'string' ? arg : undefined
+      if (!labelId) return
+      await toggleLabelForContextEmail(labelId)
+    },
+  })
+  register({
+    namespace: ns,
+    id: 'removeLabel',
+    icon: 'lucide:tag',
+    handler: async (arg) => {
+      const labelId = typeof arg === 'string' ? arg : undefined
+      if (!labelId) return
+      await toggleLabelForContextEmail(labelId)
+    },
+  })
+  register({
+    namespace: ns,
+    id: 'setRemindAt',
+    icon: 'lucide:bell',
+    handler: async (arg) => {
+      const target = contextMenuTarget.value
+      const id = getContextMenuFirstMessageId()
+      if (!id || !target) return
+
+      const remindAt = (arg as string | null) ?? null
+      const previousConversation = cloneConversation(getContextConversation()!)
+      updateEmailInConversation(target.conversationId, target.emailId, (email) => ({
+        ...email,
+        remind_at: remindAt ?? undefined,
+      }))
+
+      try {
+        await setRemindAt(id, remindAt)
+      } catch (error) {
+        replaceContextConversation(previousConversation)
+        throw error
+      }
+    },
+  })
+})
+
+onBeforeUnmount(() => {
+  removeContext('mailList')
+  const ns = 'mailList'
+  for (const id of [
+    'archiveEmail',
+    'deleteEmail',
+    'markRead',
+    'markUnread',
+    'moveEmail',
+    'assignLabel',
+    'removeLabel',
+    'setRemindAt',
+  ]) {
+    unregister(ns, id)
+  }
+})
 
 const route = useRoute()
 </script>
@@ -558,7 +762,6 @@ const route = useRoute()
     ref="mailListRef"
     class="flex h-full flex-col"
   >
-    <!-- Header -->
     <div class="flex shrink-0 items-center border-b border-b-border p-3">
       <IconName
         v-if="currentFolder"
@@ -661,7 +864,6 @@ const route = useRoute()
       </div>
     </div>
 
-    <!-- Empty state -->
     <EmptyState
       v-if="status === 'success' && conversations.length === 0"
       :description="
@@ -678,17 +880,16 @@ const route = useRoute()
       class="flex-1"
     />
 
-    <!-- Virtual scroll container -->
     <div
       v-else
       ref="scrollerRef"
       class="flex-1 overflow-y-auto p-2"
     >
       <MailContextMenu
-        :selected-email-ids="selectedMessageIds"
+        :active-email="getContextMenuActiveEmail()"
+        :selected-email-ids="contextMenuTarget ? [contextMenuTarget.emailId] : selectedMessageIds"
         :on-execute-action="(id, arg) => executeAction('mailList', id, arg)"
       >
-        <!-- Virtualizer padding container -->
         <div
           class="relative w-full"
           :style="{ height: `${totalSize}px` }"
@@ -701,7 +902,6 @@ const route = useRoute()
             :style="{ transform: `translateY(${virtualItem.start}px)` }"
             :data-index="virtualItem.index"
           >
-            <!-- Group header -->
             <template v-if="virtualRows[virtualItem.index]?.type === 'group-header'">
               <div
                 class="flex cursor-pointer items-center gap-1 px-2 py-2 text-sm font-bold text-muted hover:text-primary"
@@ -725,13 +925,12 @@ const route = useRoute()
               </div>
             </template>
 
-            <!-- Conversation item -->
             <template v-else-if="virtualRows[virtualItem.index]?.type === 'conversation'">
               <ConversationItem
-                @contextmenu.capture="
-                  contextMenuConvId = (virtualRows[virtualItem.index] as any).conversation.id
+                :conversation="
+                  getStableConversation((virtualRows[virtualItem.index] as any).conversation.id) ??
+                  (virtualRows[virtualItem.index] as any).conversation
                 "
-                :conversation="(virtualRows[virtualItem.index] as any).conversation"
                 :folder-id="folderId"
                 :is-multi-selected="
                   multiSelect.isSelected((virtualRows[virtualItem.index] as any).conversation.id)
@@ -745,10 +944,14 @@ const route = useRoute()
                 :selected-message-ids="selectedMessageIds"
                 @action="handleAction"
                 @click="handleSelect((virtualRows[virtualItem.index] as any).conversation, $event)"
+                @contextmenu.capture="
+                  handleConversationContextMenu(
+                    (virtualRows[virtualItem.index] as any).conversation.id
+                  )
+                "
               />
             </template>
 
-            <!-- Load-more sentinel -->
             <template v-else-if="virtualRows[virtualItem.index]?.type === 'load-more'">
               <div class="flex items-center justify-center py-3">
                 <Icon

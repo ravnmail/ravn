@@ -94,8 +94,50 @@ const handleRename = () => {
 }
 
 // Context menu — one instance per lane, tracks the right-clicked email
-const { archive, trash, move, updateRead, addLabelToEmail, setRemindAt } = useEmails()
+const { archive, trash, move, updateRead, addLabelToEmail, removeLabelFromEmail, setRemindAt } =
+  useEmails()
 const contextEmail = ref<EmailListItem | null>(null)
+
+const replaceContextEmail = (updater: (email: EmailListItem) => EmailListItem) => {
+  if (!contextEmail.value) return
+  contextEmail.value = updater(contextEmail.value)
+}
+
+const toggleLabelOptimistically = async (email: EmailListItem, labelId: string) => {
+  const existingLabels = email.labels || []
+  const hasLabel = existingLabels.some((label) => label.id === labelId)
+  const previousEmail = { ...email, labels: [...existingLabels] }
+
+  if (hasLabel) {
+    replaceContextEmail((currentEmail) => ({
+      ...currentEmail,
+      labels: currentEmail.labels.filter((label) => label.id !== labelId),
+    }))
+
+    try {
+      await removeLabelFromEmail(email.id, labelId)
+    } catch (error) {
+      contextEmail.value = previousEmail
+      throw error
+    }
+
+    return
+  }
+
+  const labelToAdd = existingLabels.find((label) => label.id === labelId)
+
+  replaceContextEmail((currentEmail) => ({
+    ...currentEmail,
+    labels: labelToAdd ? [...currentEmail.labels, labelToAdd] : currentEmail.labels,
+  }))
+
+  try {
+    await addLabelToEmail({ email_id: email.id, label_id: labelId })
+  } catch (error) {
+    contextEmail.value = previousEmail
+    throw error
+  }
+}
 
 const executeAction = async (actionId: string, arg?: unknown) => {
   const email = contextEmail.value
@@ -115,15 +157,30 @@ const executeAction = async (actionId: string, arg?: unknown) => {
       break
     case 'markRead':
       await updateRead(email.id, true)
+      replaceContextEmail((currentEmail) => ({
+        ...currentEmail,
+        is_read: true,
+      }))
       break
     case 'markUnread':
       await updateRead(email.id, false)
+      replaceContextEmail((currentEmail) => ({
+        ...currentEmail,
+        is_read: false,
+      }))
       break
     case 'assignLabel':
-      await addLabelToEmail({ email_id: email.id, label_id: arg as string })
+      if (typeof arg === 'string') {
+        await toggleLabelOptimistically(email, arg)
+        emit('refresh')
+      }
       break
     case 'setRemindAt':
       await setRemindAt(email.id, arg as string | null)
+      replaceContextEmail((currentEmail) => ({
+        ...currentEmail,
+        remind_at: (arg as string | null) ?? undefined,
+      }))
       emit('refresh')
       break
   }
@@ -273,6 +330,7 @@ const executeAction = async (actionId: string, arg?: unknown) => {
     >
       <MailContextMenu
         :selected-email-ids="contextEmail ? [contextEmail.id] : []"
+        :active-email="contextEmail"
         :on-execute-action="executeAction"
       >
         <div>

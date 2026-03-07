@@ -21,6 +21,7 @@ import {
 import { Switch } from '~/components/ui/switch'
 import { useMultiSelect } from '~/composables/useDragAndDrop'
 import type { ConversationListItem } from '~/types/conversation'
+import type { EmailListItem } from '~/types/email'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -36,22 +37,14 @@ const props = defineProps<{
 }>()
 
 const { useGetConversationsForLabelInfinite } = useConversation()
-const { archive, trash, updateRead, addLabelToEmail, setRemindAt } = useEmails()
+const { archive, trash, updateRead, addLabelToEmail, removeLabelFromEmail, setRemindAt } =
+  useEmails()
 const { useGetLabel } = useLabels()
 
 const { data: labelData } = useGetLabel(computed(() => props.labelId))
 const label = computed(() => labelData.value ?? null)
 
 const multiSelect = useMultiSelect<ConversationListItem>()
-
-const contextMenuConvId = ref<string | null>(null)
-
-const getContextMenuFirstMessageId = (): string | null => {
-  if (!contextMenuConvId.value) return null
-  const conv = conversations.value.find((c) => c.id === contextMenuConvId.value)
-  if (!conv) return null
-  return conv.messages[0]?.id ?? null
-}
 
 const sortBy = ref<string>('received_at')
 const sortOrder = ref<string>('desc')
@@ -75,82 +68,7 @@ const expandedGroups = ref<Set<string>>(
   ])
 )
 
-onMounted(() => {
-  addContext('mailList', focused)
-
-  const ns = 'mailList'
-  register({
-    namespace: ns,
-    id: 'archiveEmail',
-    icon: 'lucide:archive',
-    handler: () => {
-      const id = getContextMenuFirstMessageId()
-      if (id) archive(id)
-    },
-  })
-  register({
-    namespace: ns,
-    id: 'deleteEmail',
-    icon: 'lucide:trash-2',
-    handler: () => {
-      const id = getContextMenuFirstMessageId()
-      if (id) trash(id)
-    },
-  })
-  register({
-    namespace: ns,
-    id: 'markRead',
-    icon: 'lucide:mail-open',
-    handler: () => {
-      const id = getContextMenuFirstMessageId()
-      if (id) updateRead(id, true)
-    },
-  })
-  register({
-    namespace: ns,
-    id: 'markUnread',
-    icon: 'lucide:mail',
-    handler: () => {
-      const id = getContextMenuFirstMessageId()
-      if (id) updateRead(id, false)
-    },
-  })
-  register({
-    namespace: ns,
-    id: 'assignLabel',
-    icon: 'lucide:tag',
-    handler: (arg) => {
-      const id = getContextMenuFirstMessageId()
-      if (id && arg) addLabelToEmail({ email_id: id, label_id: arg as string })
-    },
-  })
-  register({
-    namespace: ns,
-    id: 'setRemindAt',
-    icon: 'lucide:bell',
-    handler: (arg) => {
-      const id = getContextMenuFirstMessageId()
-      if (id) setRemindAt(id, (arg as string | null) ?? null)
-    },
-  })
-})
-
-onBeforeUnmount(() => {
-  removeContext('mailList')
-  const ns = 'mailList'
-  for (const id of [
-    'archiveEmail',
-    'deleteEmail',
-    'markRead',
-    'markUnread',
-    'assignLabel',
-    'setRemindAt',
-  ]) {
-    unregister(ns, id)
-  }
-})
-
-// ─── Infinite query ───────────────────────────────────────────────────────────
+const contextMenuEmailId = ref<string | null>(null)
 
 const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
   useGetConversationsForLabelInfinite(
@@ -167,41 +85,212 @@ const conversations = computed<ConversationListItem[]>(
   () => data.value?.pages.flatMap((p) => p.items) ?? []
 )
 
-// ─── Actions ─────────────────────────────────────────────────────────────────
+const findConversationByEmailId = (emailId: string) => {
+  return conversations.value.find((conversation) =>
+    conversation.messages.some((message) => message.id === emailId)
+  )
+}
 
-const handleAction = async (actionId: string, conversationId: string) => {
-  const conversation = conversations.value.find((c) => c.id === conversationId) || null
-  if (!conversation || !conversation.messages[0]) {
-    console.error('[LabelMailList] Conversation not found:', conversationId)
-    return
-  }
+const findEmailById = (emailId: string | null | undefined): EmailListItem | null => {
+  if (!emailId) return null
+  const conversation = findConversationByEmailId(emailId)
+  return conversation?.messages.find((message) => message.id === emailId) ?? null
+}
 
-  const firstEmail = conversation.messages[0]
-  try {
-    switch (actionId) {
-      case 'archive':
-        await archive(firstEmail.id)
-        break
-      case 'delete':
-        await trash(firstEmail.id)
-        break
-      default:
-        console.warn('[LabelMailList] Unknown action:', actionId)
-    }
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error)
-    console.error('[LabelMailList] ❌ Action failed:', actionId, error)
-    if (errorMsg.includes('IMAP config not set') || errorMsg.includes('credentials')) {
-      toast.error(t('components.mailList.errors.credentials') as string)
-    } else if (errorMsg.includes('Archive folder not found')) {
-      toast.error(t('components.mailList.errors.archiveFolder') as string)
-    } else {
-      toast.error(t('components.mailList.errors.generic') as string)
-    }
+const contextMenuEmail = computed(() => findEmailById(contextMenuEmailId.value))
+
+const handleEmailContextMenu = (emailId: string) => {
+  contextMenuEmailId.value = emailId
+}
+
+const getContextMenuEmailId = () => {
+  return contextMenuEmailId.value
+}
+
+const updateEmailInPages = (emailId: string, updater: (email: EmailListItem) => EmailListItem) => {
+  if (!data.value) return
+
+  data.value = {
+    ...data.value,
+    pages: data.value.pages.map((page) => ({
+      ...page,
+      items: page.items.map((conversation) => {
+        let changed = false
+
+        const messages = conversation.messages.map((message) => {
+          if (message.id !== emailId) return message
+          changed = true
+          return updater(message)
+        })
+
+        return changed
+          ? {
+              ...conversation,
+              messages,
+            }
+          : conversation
+      }),
+    })),
   }
 }
 
-// ─── Grouping ─────────────────────────────────────────────────────────────────
+const toggleLabelOnEmail = async (emailId: string, labelId: string) => {
+  const email = findEmailById(emailId)
+  if (!email) return
+
+  const hasLabel = email.labels.some((item) => item.id === labelId)
+  const labelRecord = email.labels.find((item) => item.id === labelId) ?? label.value
+
+  updateEmailInPages(emailId, (currentEmail) => ({
+    ...currentEmail,
+    labels: hasLabel
+      ? currentEmail.labels.filter((item) => item.id !== labelId)
+      : labelRecord
+        ? [...currentEmail.labels, labelRecord]
+        : currentEmail.labels,
+  }))
+
+  try {
+    if (hasLabel) {
+      await removeLabelFromEmail(emailId, labelId)
+    } else {
+      await addLabelToEmail({ email_id: emailId, label_id: labelId })
+    }
+  } catch (error) {
+    updateEmailInPages(emailId, (currentEmail) => ({
+      ...currentEmail,
+      labels: hasLabel
+        ? labelRecord && !currentEmail.labels.some((item) => item.id === labelId)
+          ? [...currentEmail.labels, labelRecord]
+          : currentEmail.labels
+        : currentEmail.labels.filter((item) => item.id !== labelId),
+    }))
+    throw error
+  }
+}
+
+onMounted(() => {
+  addContext('mailList', focused)
+
+  const ns = 'mailList'
+
+  register({
+    namespace: ns,
+    id: 'archiveEmail',
+    icon: 'lucide:archive',
+    handler: async () => {
+      const emailId = getContextMenuEmailId()
+      if (!emailId) return
+      await archive(emailId)
+    },
+  })
+
+  register({
+    namespace: ns,
+    id: 'deleteEmail',
+    icon: 'lucide:trash-2',
+    handler: async () => {
+      const emailId = getContextMenuEmailId()
+      if (!emailId) return
+      await trash(emailId)
+    },
+  })
+
+  register({
+    namespace: ns,
+    id: 'markRead',
+    icon: 'lucide:mail-open',
+    handler: async () => {
+      const emailId = getContextMenuEmailId()
+      if (!emailId) return
+
+      updateEmailInPages(emailId, (email) => ({
+        ...email,
+        is_read: true,
+      }))
+
+      await updateRead(emailId, true)
+    },
+  })
+
+  register({
+    namespace: ns,
+    id: 'markUnread',
+    icon: 'lucide:mail',
+    handler: async () => {
+      const emailId = getContextMenuEmailId()
+      if (!emailId) return
+
+      updateEmailInPages(emailId, (email) => ({
+        ...email,
+        is_read: false,
+      }))
+
+      await updateRead(emailId, false)
+    },
+  })
+
+  register({
+    namespace: ns,
+    id: 'assignLabel',
+    icon: 'lucide:tag',
+    handler: async (arg) => {
+      const emailId = getContextMenuEmailId()
+      const labelId = arg as string | undefined
+      if (!emailId || !labelId) return
+
+      await toggleLabelOnEmail(emailId, labelId)
+    },
+  })
+
+  register({
+    namespace: ns,
+    id: 'removeLabel',
+    icon: 'lucide:tag',
+    handler: async (arg) => {
+      const emailId = getContextMenuEmailId()
+      const labelId = arg as string | undefined
+      if (!emailId || !labelId) return
+
+      await toggleLabelOnEmail(emailId, labelId)
+    },
+  })
+
+  register({
+    namespace: ns,
+    id: 'setRemindAt',
+    icon: 'lucide:bell',
+    handler: async (arg) => {
+      const emailId = getContextMenuEmailId()
+      if (!emailId) return
+
+      const remindAt = (arg as string | null) ?? null
+
+      updateEmailInPages(emailId, (email) => ({
+        ...email,
+        remind_at: remindAt ?? undefined,
+      }))
+
+      await setRemindAt(emailId, remindAt)
+    },
+  })
+})
+
+onBeforeUnmount(() => {
+  removeContext('mailList')
+  const ns = 'mailList'
+  for (const id of [
+    'archiveEmail',
+    'deleteEmail',
+    'markRead',
+    'markUnread',
+    'assignLabel',
+    'removeLabel',
+    'setRemindAt',
+  ]) {
+    unregister(ns, id)
+  }
+})
 
 type GroupKey =
   | 'today'
@@ -263,8 +352,6 @@ const getPrimaryMessage = (conversation: ConversationListItem) =>
   conversation.messages.toSorted(
     (a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime()
   )[0]
-
-// ─── Virtual rows ─────────────────────────────────────────────────────────────
 
 type VirtualRow =
   | { type: 'group-header'; key: GroupKey; count: number }
@@ -340,8 +427,6 @@ const virtualRows = computed<VirtualRow[]>(() => {
   return rows
 })
 
-// ─── Virtualizer ──────────────────────────────────────────────────────────────
-
 const virtualizer = useVirtualizer(
   computed(() => ({
     count: virtualRows.value.length,
@@ -371,8 +456,6 @@ watch(virtualItems, (items) => {
   }
 })
 
-// ─── Selection ────────────────────────────────────────────────────────────────
-
 const handleSelect = (conversation: ConversationListItem, event?: MouseEvent) => {
   if (event?.metaKey || event?.ctrlKey || event?.shiftKey) {
     multiSelect.toggleSelect(conversation, event)
@@ -387,7 +470,6 @@ const selectedMessageIds = computed(() => {
   const selectedConversations = conversations.value.filter(
     (c) => selectedConvIds.includes(c.id) || props.conversationId === c.id
   )
-  // For label view we include all messages of the conversation
   return selectedConversations.flatMap((conv) => conv.messages.map((m) => m.id))
 })
 
@@ -395,6 +477,7 @@ watch(
   () => props.labelId,
   () => {
     multiSelect.clearSelection()
+    contextMenuEmailId.value = null
   }
 )
 
@@ -416,7 +499,6 @@ const route = useRoute()
     ref="mailListRef"
     class="flex h-full flex-col"
   >
-    <!-- Header -->
     <div class="flex shrink-0 items-center border-b border-b-border p-3">
       <div class="flex items-center gap-2 font-semibold text-primary">
         <Icon
@@ -520,7 +602,6 @@ const route = useRoute()
       </div>
     </div>
 
-    <!-- Empty state -->
     <EmptyState
       v-if="status === 'success' && conversations.length === 0"
       :description="$t('components.labelMailList.emptyState.message')"
@@ -529,14 +610,14 @@ const route = useRoute()
       class="flex-1"
     />
 
-    <!-- Virtual scroll container -->
     <div
       v-else
       ref="scrollerRef"
       class="flex-1 overflow-y-auto p-2"
     >
       <MailContextMenu
-        :selected-email-ids="selectedMessageIds"
+        :active-email="contextMenuEmail"
+        :selected-email-ids="contextMenuEmailId ? [contextMenuEmailId] : selectedMessageIds"
         :on-execute-action="(id, arg) => executeAction('mailList', id, arg)"
       >
         <div
@@ -551,7 +632,6 @@ const route = useRoute()
             :style="{ transform: `translateY(${virtualItem.start}px)` }"
             :data-index="virtualItem.index"
           >
-            <!-- Group header -->
             <template v-if="virtualRows[virtualItem.index]?.type === 'group-header'">
               <div
                 class="flex cursor-pointer items-center gap-1 px-2 py-2 text-sm font-bold text-muted hover:text-primary"
@@ -575,12 +655,8 @@ const route = useRoute()
               </div>
             </template>
 
-            <!-- Conversation item -->
             <template v-else-if="virtualRows[virtualItem.index]?.type === 'conversation'">
               <ConversationItem
-                @contextmenu.capture="
-                  contextMenuConvId = (virtualRows[virtualItem.index] as any).conversation.id
-                "
                 :conversation="(virtualRows[virtualItem.index] as any).conversation"
                 :folder-id="
                   (virtualRows[virtualItem.index] as any).conversation.messages[0]?.folder_id ?? ''
@@ -597,10 +673,14 @@ const route = useRoute()
                 :selected-message-ids="selectedMessageIds"
                 @action="handleAction"
                 @click="handleSelect((virtualRows[virtualItem.index] as any).conversation, $event)"
+                @contextmenu.capture="
+                  handleEmailContextMenu(
+                    (virtualRows[virtualItem.index] as any).conversation.messages[0]?.id
+                  )
+                "
               />
             </template>
 
-            <!-- Load-more sentinel -->
             <template v-else-if="virtualRows[virtualItem.index]?.type === 'load-more'">
               <div class="flex items-center justify-center py-3">
                 <Icon

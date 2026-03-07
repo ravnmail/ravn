@@ -1,29 +1,55 @@
 <script lang="ts" setup>
+import { computed } from 'vue'
 
-import IconName from '~/components/ui/IconName.vue'
-import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '~/components/ui/command'
+import {
+  Command,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '~/components/ui/command'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
+import type { EmailListItem } from '~/types/email'
 
 const { labels } = useLabels()
 
-defineProps<{
-  showHidden?: boolean
-  multiple?: boolean
-  selectedLabels?: string[]
+const props = withDefaults(
+  defineProps<{
+    email?: EmailListItem | null
+    selectedLabels?: string[]
+  }>(),
+  {
+    email: null,
+    selectedLabels: undefined,
+  }
+)
+
+const emit = defineEmits<{
+  (e: 'toggle', value: { labelId: string; selected: boolean }): void
 }>()
 
-defineEmits<{
-  (e: 'update:selected-labels', value: string[]): void
-}>()
+const selectedLabelIds = computed(() => {
+  if (props.selectedLabels) {
+    return [...props.selectedLabels]
+  }
 
+  return props.email?.labels?.map((label) => label.id) ?? []
+})
+
+const isSelected = (labelId: string) => {
+  return selectedLabelIds.value.includes(labelId)
+}
+
+const handleSelect = (labelId: string) => {
+  emit('toggle', {
+    labelId,
+    selected: !isSelected(labelId),
+  })
+}
 </script>
 
 <template>
-  <Command
-    :model-value="selectedLabels"
-    :multiple="multiple"
-    @update:model-value="$emit('update:selected-labels', $event)"
-  >
+  <Command :model-value="selectedLabelIds">
     <CommandInput
       class="py-2 text-sm"
       placeholder="Filter labels..."
@@ -34,13 +60,14 @@ defineEmits<{
           v-for="item in labels"
           :key="item.id"
           :value="item.id"
+          @select.prevent="handleSelect(item.id)"
         >
           <EmailLabel
             class="font-medium"
             v-bind="item"
           />
           <Icon
-            v-if="selectedLabels?.includes(item.id)"
+            v-if="isSelected(item.id)"
             class="ml-auto"
             name="lucide:check"
           />

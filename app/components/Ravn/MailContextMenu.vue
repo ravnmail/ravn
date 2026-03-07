@@ -12,22 +12,115 @@ import {
   ContextMenuTrigger,
 } from '~/components/ui/context-menu'
 import DropdownMenuItemRich from '~/components/ui/dropdown-menu/DropdownMenuItemRich.vue'
+import type { EmailListItem } from '~/types/email'
 
 const props = defineProps<{
   selectedEmailIds?: string[]
-  onExecuteAction?: (id: string, arg?: unknown) => void
+  activeEmail?: EmailListItem | null
+  onExecuteAction?: (id: string, arg?: unknown) => void | Promise<void>
 }>()
 
 const { t } = useI18n()
 const open = ref(false)
 
-const handleFolderSelect = (v: string | string[]) => {
-  const id = Array.isArray(v) ? v[0] : v
-  if (!id) return
-  props.onExecuteAction?.('moveEmail', id)
+const closeMenu = () => {
   nextTick(() => {
     open.value = false
   })
+}
+
+const isProcessingFolderChange = ref(false)
+const isProcessingLabelChange = ref(false)
+const optimisticSelectedFolderIds = ref<string[] | null>(null)
+const optimisticSelectedLabelIds = ref<string[] | null>(null)
+
+const selectedLabelIds = computed(() => {
+  return (
+    optimisticSelectedLabelIds.value ?? props.activeEmail?.labels?.map((label) => label.id) ?? []
+  )
+})
+
+const selectedFolderIds = computed(() => {
+  return (
+    optimisticSelectedFolderIds.value ??
+    (props.activeEmail?.folder_id ? [props.activeEmail.folder_id] : [])
+  )
+})
+
+watch(
+  () => props.activeEmail?.id,
+  () => {
+    optimisticSelectedFolderIds.value = null
+    optimisticSelectedLabelIds.value = null
+    isProcessingFolderChange.value = false
+    isProcessingLabelChange.value = false
+  }
+)
+
+watch(
+  () => props.activeEmail?.folder_id,
+  (folderId) => {
+    if (optimisticSelectedFolderIds.value && optimisticSelectedFolderIds.value[0] === folderId) {
+      optimisticSelectedFolderIds.value = null
+      isProcessingFolderChange.value = false
+    }
+  }
+)
+
+watch(
+  () =>
+    props.activeEmail?.labels
+      ?.map((label) => label.id)
+      .sort()
+      .join('|') ?? '',
+  (labelKey) => {
+    const optimisticKey = optimisticSelectedLabelIds.value?.slice().sort().join('|') ?? ''
+    if (optimisticSelectedLabelIds.value && optimisticKey === labelKey) {
+      optimisticSelectedLabelIds.value = null
+      isProcessingLabelChange.value = false
+    }
+  }
+)
+
+const handleFolderSelect = async (v: string | string[]) => {
+  const id = Array.isArray(v) ? v[0] : v
+  const currentFolderId = props.activeEmail?.folder_id
+
+  if (!id || !props.activeEmail?.id || id === currentFolderId || isProcessingFolderChange.value)
+    return
+
+  optimisticSelectedFolderIds.value = [id]
+  isProcessingFolderChange.value = true
+
+  try {
+    await props.onExecuteAction?.('moveEmail', id)
+    closeMenu()
+  } catch (error) {
+    optimisticSelectedFolderIds.value = null
+    isProcessingFolderChange.value = false
+    throw error
+  }
+}
+
+const handleLabelToggle = async (payload: { labelId: string; selected: boolean }) => {
+  if (!props.activeEmail?.id || isProcessingLabelChange.value) return
+
+  const { labelId, selected } = payload
+  const previousSelected = selectedLabelIds.value
+  const nextSelected = selected
+    ? [...previousSelected, labelId]
+    : previousSelected.filter((currentLabelId) => currentLabelId !== labelId)
+
+  optimisticSelectedLabelIds.value = nextSelected
+  isProcessingLabelChange.value = true
+
+  try {
+    await props.onExecuteAction?.(selected ? 'assignLabel' : 'removeLabel', labelId)
+  } catch (error) {
+    optimisticSelectedLabelIds.value = null
+    isProcessingLabelChange.value = false
+    throw error
+  }
 }
 
 interface ReminderPreset {
@@ -132,7 +225,10 @@ const reminderPresets = computed<ReminderPreset[]>(() => {
             class="p-0"
             @open-auto-focus.prevent
           >
-            <FolderMenu @update:selected-folders="handleFolderSelect" />
+            <FolderMenu
+              :selected-folders="selectedFolderIds"
+              @update:selected-folders="handleFolderSelect"
+            />
           </ContextMenuSubContent>
         </ContextMenuSub>
         <ContextMenuSub>
@@ -148,12 +244,9 @@ const reminderPresets = computed<ReminderPreset[]>(() => {
             @open-auto-focus.prevent
           >
             <LabelMenu
-              @update:selected-labels="
-                (v) => {
-                  const id = Array.isArray(v) ? v[0] : v
-                  if (id) onExecuteAction?.('assignLabel', id)
-                }
-              "
+              :email="activeEmail"
+              :selected-labels="selectedLabelIds"
+              @toggle="handleLabelToggle"
             />
           </ContextMenuSubContent>
         </ContextMenuSub>
