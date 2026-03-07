@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import { marked } from 'marked'
+
 import type { Attachment } from '~/types/email'
 
 const props = defineProps<{
@@ -62,7 +63,10 @@ const html = computed(() => {
   })
   const cidResolved = resolveCidInMarkdown(props.content)
   const source = props.imagesBlocked ? stripImageSources(cidResolved) : cidResolved
-  return marked.parse(source) as string
+  // Convert markdown images to HTML first, before parsing the rest of the markdown
+  // This ensures linked images like [![img](src)](url) are properly rendered
+  const withHtmlImages = source.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
+  return marked.parse(withHtmlImages) as string
 })
 
 const handleClick = (event: MouseEvent) => {
