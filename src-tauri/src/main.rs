@@ -186,6 +186,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         // ── macOS window-lifecycle ────────────────────────────────────────────
         // Intercept the red traffic-light button (and any other OS-level "close
