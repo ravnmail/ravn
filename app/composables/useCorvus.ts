@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/vue-query'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 
-import type { EmailDetail } from '~/types/email'
+import type { EmailAnalysis, EmailDetail } from '~/types/email'
 
 interface ChatMessage {
   role: string
@@ -53,14 +53,6 @@ interface GenerateSubjectContext {
   contact_notes?: ContactNote[]
 }
 
-interface EmailAnalysis {
-  gist: string
-  responses: Array<{
-    title: string
-    content: string
-  }>
-}
-
 interface EmailAnalysisResult {
   analysis: EmailAnalysis | null
   error?: string
@@ -71,18 +63,35 @@ interface AvailableModel {
   name: string
 }
 
-const QUERY_KEYS = {
-  all: ['corvus'] as const,
-  models: () => [...QUERY_KEYS.all, 'models'] as const,
-}
-
 interface WritingStyleResult {
   style?: string
   error?: string
 }
 
-let listenerRegistered = false
-const globalUnlistenFn = ref<(() => void) | null>(null)
+const QUERY_KEYS = {
+  all: ['corvus'] as const,
+  models: () => [...QUERY_KEYS.all, 'models'] as const,
+}
+
+const inFlightAnalysis = new Map<string, Promise<EmailAnalysis | null>>()
+
+function parseEmailAnalysis(value: unknown): EmailAnalysis | null {
+  if (!value) return null
+
+  try {
+    const parsed =
+      typeof value === 'string' ? (JSON.parse(value) as EmailAnalysis) : (value as EmailAnalysis)
+
+    if (parsed && typeof parsed.gist === 'string' && Array.isArray(parsed.responses)) {
+      return parsed
+    }
+
+    return null
+  } catch (error) {
+    console.error('Failed to parse ai_cache:', error)
+    return null
+  }
+}
 
 export function useCorvus() {
   const isAskingAi = ref(false)
@@ -110,6 +119,88 @@ export function useCorvus() {
   const isSavingWritingStyle = ref(false)
   const writingStyleError = ref<string | null>(null)
   const writingStyle = ref<string | null>(null)
+
+  const parseAnalysisFromCache = (email: EmailDetail | null | undefined): EmailAnalysis | null => {
+    if (!email) return null
+    return parseEmailAnalysis(email.ai_cache)
+  }
+
+  const applyAnalysisForEmail = (email: EmailDetail, analysis: EmailAnalysis | null) => {
+    currentAnalysis.value = analysis
+    analysisError.value = null
+
+    if (analysis) {
+      email.ai_cache = JSON.stringify(analysis)
+    }
+  }
+
+  const runEmailAnalysis = async (
+    email: EmailDetail,
+    forceRefresh: boolean = false
+  ): Promise<EmailAnalysis | null> => {
+    if (!email?.id) {
+      analysisError.value = 'Invalid email'
+      return null
+    }
+
+    if (!forceRefresh) {
+      const cached = parseAnalysisFromCache(email)
+      if (cached) {
+        applyAnalysisForEmail(email, cached)
+        return cached
+      }
+
+      const existingRequest = inFlightAnalysis.get(email.id)
+      if (existingRequest) {
+        isAnalyzing.value = true
+        analyzingEmailId.value = email.id
+
+        try {
+          const analysis = await existingRequest
+          applyAnalysisForEmail(email, analysis)
+          return analysis
+        } finally {
+          isAnalyzing.value = false
+          analyzingEmailId.value = null
+        }
+      }
+    }
+
+    const request = (async () => {
+      const result = await invoke<EmailAnalysisResult>('analyze_email_with_ai', {
+        emailId: email.id,
+        forceRefresh,
+      })
+
+      if (result.error) {
+        throw new Error(result.error)
+      }
+
+      return result.analysis
+    })()
+
+    inFlightAnalysis.set(email.id, request)
+
+    try {
+      isAnalyzing.value = true
+      analyzingEmailId.value = email.id
+      analysisError.value = null
+      currentAnalysis.value = null
+
+      const analysis = await request
+      applyAnalysisForEmail(email, analysis)
+      return analysis
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to analyze email'
+      console.error('runEmailAnalysis error:', error)
+      analysisError.value = message
+      return null
+    } finally {
+      inFlightAnalysis.delete(email.id)
+      isAnalyzing.value = false
+      analyzingEmailId.value = null
+    }
+  }
 
   const askAi = async (history: ChatMessage[]): Promise<string | null> => {
     try {
@@ -218,57 +309,15 @@ export function useCorvus() {
   }
 
   const analyzeEmail = async (email: EmailDetail): Promise<EmailAnalysis | null> => {
-    if (!email || !email.id) {
-      analysisError.value = 'Invalid email'
-      return null
-    }
-
-    const cached = parseAnalysisFromCache(email)
-    if (cached) {
-      currentAnalysis.value = cached
-      return cached
-    }
-
-    return _runAnalysis(email)
+    return runEmailAnalysis(email, false)
   }
 
-  /** Force a fresh analysis from the backend, ignoring any cached result. */
   const reanalyzeEmail = async (email: EmailDetail): Promise<EmailAnalysis | null> => {
-    if (!email || !email.id) {
-      analysisError.value = 'Invalid email'
-      return null
+    if (email) {
+      email.ai_cache = undefined
     }
 
-    return _runAnalysis(email)
-  }
-
-  const _runAnalysis = async (email: EmailDetail): Promise<EmailAnalysis | null> => {
-    try {
-      isAnalyzing.value = true
-      analyzingEmailId.value = email.id
-      analysisError.value = null
-      currentAnalysis.value = null
-
-      const result = await invoke<EmailAnalysisResult>('analyze_email_with_ai', {
-        emailId: email.id,
-      })
-
-      if (result.error) {
-        analysisError.value = result.error
-        return null
-      }
-
-      currentAnalysis.value = result.analysis
-      return result.analysis
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to analyze email'
-      console.error('analyzeEmail error:', error)
-      analysisError.value = message
-      return null
-    } finally {
-      isAnalyzing.value = false
-      analyzingEmailId.value = null
-    }
+    return runEmailAnalysis(email, true)
   }
 
   const useGetModels = () =>
@@ -281,27 +330,6 @@ export function useCorvus() {
         return models
       },
     })
-
-  const parseAnalysisFromCache = (email: EmailDetail): EmailAnalysis | null => {
-    if (!email.ai_cache) return null
-
-    try {
-      // ai_cache may arrive as an already-deserialized object (Tauri deserialises
-      // JSON columns automatically) or as a raw JSON string from older code paths.
-      const raw = email.ai_cache
-      const parsed: EmailAnalysis =
-        typeof raw === 'string' ? JSON.parse(raw) : (raw as unknown as EmailAnalysis)
-
-      // Basic shape guard – make sure it really looks like an EmailAnalysis
-      if (parsed && typeof parsed.gist === 'string') {
-        return parsed
-      }
-      return null
-    } catch (error) {
-      console.error('Failed to parse ai_cache:', error)
-      return null
-    }
-  }
 
   const clearAiState = () => {
     askAiResponse.value = null
@@ -328,6 +356,14 @@ export function useCorvus() {
     analyzingEmailId.value = null
   }
 
+  const clearAnalysisCacheForEmail = (email: EmailDetail | null | undefined) => {
+    if (!email) return
+    email.ai_cache = undefined
+    if (email.id) {
+      inFlightAnalysis.delete(email.id)
+    }
+  }
+
   const getWritingStyle = async (): Promise<string | null> => {
     try {
       isLoadingWritingStyle.value = true
@@ -341,7 +377,6 @@ export function useCorvus() {
       }
 
       writingStyle.value = result.style || null
-
       return writingStyle.value
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch writing style'
@@ -367,7 +402,6 @@ export function useCorvus() {
       }
 
       writingStyle.value = result.style || null
-
       return true
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save writing style'
@@ -581,29 +615,6 @@ export function useCorvus() {
     }
   }
 
-  onMounted(async () => {
-    if (listenerRegistered) return
-    listenerRegistered = true
-
-    try {
-      const unlisten = await listen<string>('email:ai-analysis-complete', (event) => {
-        console.log('AI analysis complete for email:', event.payload)
-      })
-
-      globalUnlistenFn.value = unlisten
-    } catch (error) {
-      console.error('Failed to set up event listener:', error)
-    }
-  })
-
-  onUnmounted(() => {
-    if (globalUnlistenFn.value) {
-      globalUnlistenFn.value()
-      globalUnlistenFn.value = null
-      listenerRegistered = false
-    }
-  })
-
   return {
     isAskingAi,
     askAiError,
@@ -633,6 +644,7 @@ export function useCorvus() {
     analyzeEmail,
     reanalyzeEmail,
     clearAnalysisState,
+    clearAnalysisCacheForEmail,
 
     isLoadingModels,
     modelsError,

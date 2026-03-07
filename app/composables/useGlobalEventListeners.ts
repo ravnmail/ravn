@@ -1,6 +1,5 @@
-import { listen } from '@tauri-apps/api/event'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 import type { QueryClient } from '@tanstack/vue-query'
+import { listen } from '@tauri-apps/api/event'
 
 type EventDef =
   | { type: 'query-invalidation'; name: string; invalidateKey: readonly unknown[] }
@@ -33,7 +32,10 @@ export const useGlobalEventListeners = (queryClient: QueryClient) => {
 
       if (eventDef.type === 'query-invalidation') {
         callback = () => {
-          console.log(`Event received: ${name}, invalidating queries for key:`, eventDef.invalidateKey)
+          console.log(
+            `Event received: ${name}, invalidating queries for key:`,
+            eventDef.invalidateKey
+          )
           queryClient.invalidateQueries({ queryKey: eventDef.invalidateKey })
         }
       } else {
@@ -57,31 +59,117 @@ export const useGlobalEventListeners = (queryClient: QueryClient) => {
   // Register all events from all composables
   const allEvents: Array<EventDef> = [
     // Folders
-    { type: 'query-invalidation', name: 'folder:created', invalidateKey: ['folders', 'list'] as const },
-    { type: 'query-invalidation', name: 'folder:updated', invalidateKey: ['folders', 'list'] as const },
-    { type: 'query-invalidation', name: 'folder:deleted', invalidateKey: ['folders', 'list'] as const },
-    { type: 'query-invalidation', name: 'folder:updated', invalidateKey: ['conversations', 'list'] as const },
+    {
+      type: 'query-invalidation',
+      name: 'folder:created',
+      invalidateKey: ['folders', 'list'] as const,
+    },
+    {
+      type: 'query-invalidation',
+      name: 'folder:updated',
+      invalidateKey: ['folders', 'list'] as const,
+    },
+    {
+      type: 'query-invalidation',
+      name: 'folder:deleted',
+      invalidateKey: ['folders', 'list'] as const,
+    },
+    {
+      type: 'query-invalidation',
+      name: 'folder:updated',
+      invalidateKey: ['conversations', 'list'] as const,
+    },
     // Labels
-    { type: 'query-invalidation', name: 'label:created', invalidateKey: ['labels', 'list'] as const },
-    { type: 'query-invalidation', name: 'label:updated', invalidateKey: ['labels', 'list'] as const },
-    { type: 'query-invalidation', name: 'label:deleted', invalidateKey: ['labels', 'list'] as const },
+    {
+      type: 'query-invalidation',
+      name: 'label:created',
+      invalidateKey: ['labels', 'list'] as const,
+    },
+    {
+      type: 'query-invalidation',
+      name: 'label:updated',
+      invalidateKey: ['labels', 'list'] as const,
+    },
+    {
+      type: 'query-invalidation',
+      name: 'label:deleted',
+      invalidateKey: ['labels', 'list'] as const,
+    },
     // Accounts
-    { type: 'query-invalidation', name: 'account:created', invalidateKey: ['accounts', 'list'] as const },
-    { type: 'query-invalidation', name: 'account:updated', invalidateKey: ['accounts', 'list'] as const },
-    { type: 'query-invalidation', name: 'account:deleted', invalidateKey: ['accounts', 'list'] as const },
+    {
+      type: 'query-invalidation',
+      name: 'account:created',
+      invalidateKey: ['accounts', 'list'] as const,
+    },
+    {
+      type: 'query-invalidation',
+      name: 'account:updated',
+      invalidateKey: ['accounts', 'list'] as const,
+    },
+    {
+      type: 'query-invalidation',
+      name: 'account:deleted',
+      invalidateKey: ['accounts', 'list'] as const,
+    },
     // Emails
-    { type: 'query-invalidation', name: 'email:updated', invalidateKey: ['emails', 'list'] as const },
-    { type: 'query-invalidation', name: 'email:deleted', invalidateKey: ['emails', 'list'] as const },
+    {
+      type: 'query-invalidation',
+      name: 'email:updated',
+      invalidateKey: ['emails', 'list'] as const,
+    },
+    {
+      type: 'query-invalidation',
+      name: 'email:deleted',
+      invalidateKey: ['emails', 'list'] as const,
+    },
     // AI Analysis
-    { type: 'query-invalidation', name: 'email:ai-analysis-complete', invalidateKey: ['email-ai'] as const },
+    {
+      type: 'query-invalidation',
+      name: 'email:ai-analysis-complete',
+      invalidateKey: ['email-ai'] as const,
+    },
+    {
+      type: 'query-invalidation',
+      name: 'email:ai-analysis-complete',
+      invalidateKey: ['emails'] as const,
+    },
+    {
+      type: 'query-invalidation',
+      name: 'email:ai-analysis-complete',
+      invalidateKey: ['conversations'] as const,
+    },
     // Contacts
-    { type: 'query-invalidation', name: 'contact:created', invalidateKey: ['contacts', 'list'] as const },
-    { type: 'query-invalidation', name: 'contact:updated', invalidateKey: ['contacts', 'list'] as const },
-    { type: 'query-invalidation', name: 'contact:deleted', invalidateKey: ['contacts', 'list'] as const },
+    {
+      type: 'query-invalidation',
+      name: 'contact:created',
+      invalidateKey: ['contacts', 'list'] as const,
+    },
+    {
+      type: 'query-invalidation',
+      name: 'contact:updated',
+      invalidateKey: ['contacts', 'list'] as const,
+    },
+    {
+      type: 'query-invalidation',
+      name: 'contact:deleted',
+      invalidateKey: ['contacts', 'list'] as const,
+    },
     // Conversations
-    { type: 'query-invalidation', name: 'conversation:created', invalidateKey: ['conversations', 'list'] as const },
-    { type: 'query-invalidation', name: 'conversation:updated', invalidateKey: ['conversations', 'list'] as const },
-    { type: 'query-invalidation', name: 'conversation:deleted', invalidateKey: ['conversations', 'list'] as const },
+    {
+      type: 'query-invalidation',
+      name: 'conversation:created',
+      invalidateKey: ['conversations', 'list'] as const,
+    },
+    {
+      type: 'query-invalidation',
+      name: 'conversation:updated',
+      invalidateKey: ['conversations', 'list'] as const,
+    },
+    {
+      type: 'query-invalidation',
+      name: 'conversation:deleted',
+      invalidateKey: ['conversations', 'list'] as const,
+    },
     // Views
     { type: 'query-invalidation', name: 'view:created', invalidateKey: ['views', 'list'] as const },
     { type: 'query-invalidation', name: 'view:updated', invalidateKey: ['views', 'list'] as const },

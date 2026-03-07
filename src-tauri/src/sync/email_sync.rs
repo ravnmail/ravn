@@ -941,6 +941,8 @@ impl EmailSync {
                 }
             }
 
+            db_email.ai_cache = existing_email.ai_cache.clone();
+
             if should_update_body {
                 log::debug!(
                     "[EmailSync] Full update for email {}, folder_id: {:?}",

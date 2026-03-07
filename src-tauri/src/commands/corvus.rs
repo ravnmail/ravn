@@ -251,6 +251,7 @@ pub async fn generate_search_query(
 pub async fn analyze_email_with_ai(
     state: State<'_, AppState>,
     email_id: Uuid,
+    force_refresh: Option<bool>,
 ) -> Result<EmailAnalysisResult, String> {
     log::debug!("Analyzing email with ID: {}", email_id);
 
@@ -266,14 +267,20 @@ pub async fn analyze_email_with_ai(
         .map_err(|e| format!("Failed to fetch email: {}", e))?
         .ok_or_else(|| "Email not found".to_string())?;
 
-    if let Some(ref cache) = email.ai_cache {
-        if let Ok(cached_analysis) = serde_json::from_str::<EmailAnalysis>(cache) {
-            log::debug!("Returning cached analysis for email {}", email_id);
-            return Ok(EmailAnalysisResult {
-                analysis: Some(cached_analysis),
-                error: None,
-            });
+    let force_refresh = force_refresh.unwrap_or(false);
+
+    if !force_refresh {
+        if let Some(ref cache) = email.ai_cache {
+            if let Ok(cached_analysis) = serde_json::from_str::<EmailAnalysis>(cache) {
+                log::debug!("Returning cached analysis for email {}", email_id);
+                return Ok(EmailAnalysisResult {
+                    analysis: Some(cached_analysis),
+                    error: None,
+                });
+            }
         }
+    } else {
+        log::debug!("Force refresh requested for email {}", email_id);
     }
 
     // Resolve the account that owns this email so we can tell the AI who the user is
@@ -335,15 +342,12 @@ pub async fn analyze_email_with_ai(
             let analysis_json = serde_json::to_string(&analysis)
                 .map_err(|e| format!("Failed to serialize analysis: {}", e))?;
 
-            let mut updated_email = email;
-            updated_email.ai_cache = Some(analysis_json);
-
             email_repo
-                .update(&updated_email)
+                .update_ai_cache(email_id, &analysis_json)
                 .await
-                .map_err(|e| format!("Failed to update email with analysis: {}", e))?;
+                .map_err(|e| format!("Failed to persist ai_cache for email {}: {}", email_id, e))?;
 
-            log::debug!("Analysis stored for email {}", email_id);
+            log::debug!("AI cache stored for email {}", email_id);
 
             if let Err(e) = state
                 .app_handle

@@ -1,10 +1,9 @@
 <script lang="ts" setup>
-import MessageView from '~/components/Ravn/MessageView.vue'
-import EmailAIAnalysis from '~/components/Ravn/EmailAIAnalysis.vue'
-import EmailActionButtons from '~/components/Ravn/EmailActionButtons.vue'
 import Composer from '~/components/Composer.vue'
-import type { EmailDetail } from '~/types/email'
+import EmailActionButtons from '~/components/Ravn/EmailActionButtons.vue'
+import MessageView from '~/components/Ravn/MessageView.vue'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
+import type { EmailDetail } from '~/types/email'
 
 const props = defineProps<{
   emailId: string
@@ -12,30 +11,8 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const { fetch, archive, trash } = useEmails()
-const {
-  isAnalyzing,
-  analysisError,
-  currentAnalysis,
-  analyzeEmail,
-  clearAnalysisState,
-  parseAnalysisFromCache
-} = useCorvus()
 
 const selectedEmail = await fetch(props.emailId)
-
-onMounted(async () => {
-  clearAnalysisState()
-  const cached = parseAnalysisFromCache(selectedEmail)
-  if (cached) {
-    currentAnalysis.value = cached
-  } else {
-    try {
-      await analyzeEmail(selectedEmail)
-    } catch (_: unknown) {
-      // Ignore analysis errors
-    }
-  }
-})
 
 const handleReply = (email: EmailDetail) => {
   replyTo(email)
@@ -80,21 +57,23 @@ const handleDelete = async (email: EmailDetail) => {
 
 const handleQuickReply = (content: string) => {
   if (!selectedEmail) return
-  // Use the composable to handle quick reply with initial content
-  replyTo(selectedEmail, content)
+  // Quick reply should open a reply-all composer with the generated content
+  replyAll(selectedEmail, content)
 }
-
 </script>
 
 <template>
-  <div class="flex flex-col w-full h-full">
-    <div v-if="selectedEmail && selectedEmail.is_draft" class="p-3">
+  <div class="flex h-full w-full flex-col">
+    <div
+      v-if="selectedEmail && selectedEmail.is_draft"
+      class="p-3"
+    >
       <Composer :draft="selectedEmail" />
     </div>
     <div v-else-if="selectedEmail">
       <div class="px-3 pb-3">
         <div class="flex items-center justify-between">
-          <h1 class="pl-4 text-xl font-semibold select-auto text-primary relative z-10">
+          <h1 class="relative z-10 pl-4 text-xl font-semibold text-primary select-auto">
             {{ selectedEmail.subject || t('components.emailViewer.noSubject') }}
           </h1>
           <EmailActionButtons

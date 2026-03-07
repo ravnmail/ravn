@@ -1,15 +1,16 @@
 <script lang="ts" setup>
-import { Button } from '~/components/ui/button'
-import MessageView from '~/components/Ravn/MessageView.vue'
+import { useFocusWithin } from '@vueuse/core'
+import { toast } from 'vue-sonner'
+
 import Composer from '~/components/Composer.vue'
 import ConversationDetailsPane from '~/components/Ravn/ConversationDetailsPane.vue'
-import type { EmailDetail } from '~/types/email'
-import { ScrollArea } from '~/components/ui/scroll-area'
+import MessageView from '~/components/Ravn/MessageView.vue'
+import { Button } from '~/components/ui/button'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '~/components/ui/resizable'
-import { toast } from 'vue-sonner'
+import { ScrollArea } from '~/components/ui/scroll-area'
 import { cn } from '~/lib/utils'
-import { useFocusWithin } from '@vueuse/core'
+import type { EmailDetail } from '~/types/email'
 
 const props = defineProps<{
   conversationId: string
@@ -44,8 +45,8 @@ const onTogglePanel = (collapsed: boolean) => {
 }
 
 const activeComposer = ref<{
-  type: 'reply' | 'reply-all' | 'forward',
-  originalMessage: EmailDetail,
+  type: 'reply' | 'reply-all' | 'forward'
+  originalMessage: EmailDetail
   initialContent?: string
 } | null>(null)
 
@@ -66,7 +67,7 @@ const scrollToComposer = () => {
     if (conversationContainer.value) {
       conversationContainer.value.scrollTo({
         top: 0,
-        behavior: 'smooth'
+        behavior: 'smooth',
       })
     }
   })
@@ -75,7 +76,7 @@ const scrollToComposer = () => {
 const handleReply = (message: EmailDetail) => {
   activeComposer.value = {
     type: 'reply',
-    originalMessage: message
+    originalMessage: message,
   }
   scrollToComposer()
 }
@@ -83,7 +84,7 @@ const handleReply = (message: EmailDetail) => {
 const handleReplyAll = (message: EmailDetail) => {
   activeComposer.value = {
     type: 'reply-all',
-    originalMessage: message
+    originalMessage: message,
   }
   scrollToComposer()
 }
@@ -91,16 +92,16 @@ const handleReplyAll = (message: EmailDetail) => {
 const handleForward = (message: EmailDetail) => {
   activeComposer.value = {
     type: 'forward',
-    originalMessage: message
+    originalMessage: message,
   }
   scrollToComposer()
 }
 
 const handleQuickReply = (message: EmailDetail, content: string) => {
   activeComposer.value = {
-    type: 'reply',
+    type: 'reply-all',
     originalMessage: message,
-    initialContent: content
+    initialContent: content,
   }
   scrollToComposer()
 }
@@ -151,7 +152,12 @@ const handleDelete = async () => {
   }
 }
 
-const sentfolderIds = computed(() => folders.value?.filter(folder => ['sent', 'draft'].includes(folder.folder_type)).map(f => f.id) || [])
+const sentfolderIds = computed(
+  () =>
+    folders.value
+      ?.filter((folder) => ['sent', 'draft'].includes(folder.folder_type))
+      .map((f) => f.id) || []
+)
 
 const isSentMessage = (message: EmailDetail) => {
   return sentfolderIds.value.includes(message.folder_id)
@@ -162,12 +168,12 @@ onMounted(() => {
   register({
     id: 'archiveConversation',
     namespace: 'ConversationView',
-    handler: handleArchive
+    handler: handleArchive,
   })
   register({
     id: 'showConversationDetails',
     namespace: 'ConversationView',
-    handler: () => togglePanel(panelCollapsed.value)
+    handler: () => togglePanel(panelCollapsed.value),
   })
 })
 
@@ -176,25 +182,26 @@ onBeforeUnmount(() => {
   unregister('ConversationView', 'archiveConversation')
   unregister('ConversationView', 'showConversationDetails')
 })
-
 </script>
 
 <template>
   <ResizablePanelGroup
     ref="conversationViewerRef"
     auto-save-id="conversation-layout-sidebar"
-    class="flex h-screen bg-background w-full"
+    class="flex h-screen w-full bg-background"
     direction="horizontal"
   >
-    <ResizablePanel class="flex-1 flex flex-col">
+    <ResizablePanel class="flex flex-1 flex-col">
       <div
         v-if="conversation"
-        class="flex-1 flex flex-col h-full"
+        class="flex h-full flex-1 flex-col"
       >
         <div class="px-3 pt-2">
           <div class="flex items-start justify-between">
             <h1
-              :class="cn('text-xl font-semibold select-auto text-primary relative z-10', titleClass ?? '')"
+              :class="
+                cn('relative z-10 text-xl font-semibold text-primary select-auto', titleClass ?? '')
+              "
             >
               {{ subject }}
             </h1>
@@ -203,7 +210,7 @@ onBeforeUnmount(() => {
               variant="ghost"
               @click="togglePanel(panelCollapsed)"
             >
-              <Icon name="lucide:info"/>
+              <Icon name="lucide:info" />
             </Button>
           </div>
         </div>
@@ -214,22 +221,26 @@ onBeforeUnmount(() => {
           >
             <Composer
               v-if="activeComposer.type"
-              :forward="activeComposer.type === 'forward' ? activeComposer.originalMessage : undefined"
+              :forward="
+                activeComposer.type === 'forward' ? activeComposer.originalMessage : undefined
+              "
               :initial-content="activeComposer.initialContent"
               :is-reply-all="activeComposer.type === 'reply-all'"
-              :reply-to="activeComposer.type === 'forward' ? undefined : activeComposer.originalMessage"
+              :reply-to="
+                activeComposer.type === 'forward' ? undefined : activeComposer.originalMessage
+              "
               @discarded="handleComposerDiscarded"
               @sent="handleComposerSent"
             />
           </div>
-          <div class="px-3 pt-3 space-y-6">
+          <div class="space-y-6 px-3 pt-3">
             <template
               v-for="(message, index) in conversation?.messages"
               :key="message.id"
             >
               <div
                 v-if="message.is_draft"
-                class="border border-border rounded-lg p-3"
+                class="rounded-lg border border-border p-3"
               >
                 <Composer
                   :draft="message"
@@ -240,7 +251,11 @@ onBeforeUnmount(() => {
               <MessageView
                 v-else
                 :auto-analyze="true"
-                :class="[ settings.email.conversation.insetOutgoing && isSentMessage(message) ? 'ml-12' : '' ]"
+                :class="[
+                  settings.email.conversation.insetOutgoing && isSentMessage(message)
+                    ? 'ml-12'
+                    : '',
+                ]"
                 :initial-reduced="settings.email.conversation.collapseMessages && index > 0"
                 :is-first="index === 0"
                 v-bind="message"
@@ -259,7 +274,7 @@ onBeforeUnmount(() => {
         icon="📭"
       />
     </ResizablePanel>
-    <ResizableHandle @dblclick="togglePanel(panelCollapsed)"/>
+    <ResizableHandle @dblclick="togglePanel(panelCollapsed)" />
     <ResizablePanel
       v-if="conversation"
       id="conversation-panel"
@@ -272,7 +287,7 @@ onBeforeUnmount(() => {
       @collapse="() => onTogglePanel(true)"
       @expand="() => onTogglePanel(false)"
     >
-      <ConversationDetailsPane :conversation="conversation"/>
+      <ConversationDetailsPane :conversation="conversation" />
     </ResizablePanel>
   </ResizablePanelGroup>
 </template>

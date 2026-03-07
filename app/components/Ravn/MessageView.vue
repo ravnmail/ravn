@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
+
 import AttachmentList from '~/components/Ravn/AttachmentList.vue'
 import EmailActionButtons from '~/components/Ravn/EmailActionButtons.vue'
 import EmailAddress from '~/components/Ravn/EmailAddress.vue'
@@ -8,17 +9,7 @@ import EmailMarkdown from '~/components/Ravn/EmailMarkdown.vue'
 import { Button } from '~/components/ui/button'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
 import { SimpleTooltip } from '~/components/ui/tooltip'
-import type { EmailDetail } from '~/types/email'
-
-const { allowImages } = useEmails()
-const {
-  attachments,
-  loadAttachments,
-  isLoading: isLoadingAttachments,
-  error: attachmentError,
-} = useAttachments()
-const { formatEmailDate } = useFormatting()
-const { getSetting } = useSettings()
+import type { EmailAnalysis, EmailDetail } from '~/types/email'
 
 const props = withDefaults(
   defineProps<
@@ -44,9 +35,16 @@ const emit = defineEmits<{
   (e: 'quick-reply', email: EmailDetail, content: string): void
 }>()
 
-const handleQuickReply = (content: string) => {
-  emit('quick-reply', props as EmailDetail, content)
-}
+const { allowImages, updateRead } = useEmails()
+const {
+  attachments,
+  loadAttachments,
+  isLoading: isLoadingAttachments,
+  error: attachmentError,
+} = useAttachments()
+const { formatEmailDate } = useFormatting()
+const { getSetting } = useSettings()
+const { analyzeEmail, reanalyzeEmail } = useCorvus()
 
 const headerExpanded = ref(false)
 const reduced = ref(props.initialReduced)
@@ -56,99 +54,195 @@ const showFullContent = ref(false)
 const renderMode = ref<'simple' | 'normal'>('simple')
 const temporaryRenderMode = ref<'simple' | 'normal' | null>(null)
 
-const {
-  isAnalyzing,
-  analysisError,
-  currentAnalysis,
-  analyzeEmail,
-  reanalyzeEmail,
-  clearAnalysisState,
-  parseAnalysisFromCache,
-} = useCorvus()
-const { updateRead } = useEmails()
-const showAnalyzeButton = ref(false)
-
-const effectiveRenderMode = computed(() => {
-  return temporaryRenderMode.value || renderMode.value
+const localEmail = reactive<EmailDetail>({
+  ...props,
+  attachments: [...(props.attachments || [])],
+  labels: [...(props.labels || [])],
+  to: [...(props.to || [])],
+  cc: [...(props.cc || [])],
+  bcc: [...(props.bcc || [])],
 })
 
+const isAnalyzing = ref(false)
+const analysisError = ref<string | null>(null)
+const showAnalyzeButton = ref(false)
 const markAsReadTimout = ref<NodeJS.Timeout | null>(null)
+const autoAnalysisAttemptedForEmailId = ref<string | null>(null)
 
-onMounted(async () => {
+const effectiveRenderMode = computed(() => temporaryRenderMode.value || renderMode.value)
+
+function parseAnalysis(value: unknown): EmailAnalysis | null {
+  if (!value) return null
+
   try {
-    const mode = await getSetting<'simple' | 'normal'>('email.renderMode')
-    renderMode.value = mode || 'normal'
-  } catch {
-    renderMode.value = 'normal'
+    const parsed =
+      typeof value === 'string' ? (JSON.parse(value) as EmailAnalysis) : (value as EmailAnalysis)
+
+    if (
+      parsed &&
+      typeof parsed.gist === 'string' &&
+      Array.isArray(parsed.responses) &&
+      parsed.responses.every(
+        (response) =>
+          response && typeof response.title === 'string' && typeof response.content === 'string'
+      )
+    ) {
+      return parsed
+    }
+
+    return null
+  } catch (error) {
+    console.error('Failed to parse ai_cache:', error)
+    return null
   }
+}
+
+const currentAnalysis = computed(() => parseAnalysis(localEmail.ai_cache))
+const hasAnyAttachments = computed(
+  () => localEmail.has_attachments || localEmail.attachments?.some((a) => a.is_inline)
+)
+const hasQuotedContentAvailable = computed(() => !!localEmail.other_mails)
+const hasQuotedContent = computed(() => hasQuotedContentAvailable.value)
+
+const hasExternalImages = computed(() => {
+  const html = localEmail.body_html || ''
+  if (!html) return false
+
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const images = doc.querySelectorAll('img')
+
+  for (const img of images) {
+    const src = img.getAttribute('src') || ''
+    if (src && !src.startsWith('data:') && !src.startsWith('/') && !src.startsWith('cid:')) {
+      return true
+    }
+  }
+
+  return false
+})
+
+function syncLocalEmailFromProps() {
+  localEmail.id = props.id
+  localEmail.account_id = props.account_id
+  localEmail.folder_id = props.folder_id
+  localEmail.message_id = props.message_id
+  localEmail.conversation_id = props.conversation_id
+  localEmail.remote_id = props.remote_id
+  localEmail.from = props.from
+  localEmail.to = [...(props.to || [])]
+  localEmail.cc = [...(props.cc || [])]
+  localEmail.bcc = [...(props.bcc || [])]
+  localEmail.reply_to = props.reply_to
+  localEmail.subject = props.subject
+  localEmail.snippet = props.snippet
+  localEmail.body_plain = props.body_plain
+  localEmail.body_html = props.body_html
+  localEmail.other_mails = props.other_mails
+  localEmail.ai_cache = props.ai_cache
+  localEmail.headers = props.headers
+  localEmail.size = props.size
+  localEmail.received_at = props.received_at
+  localEmail.sent_at = props.sent_at
+  localEmail.scheduled_send_at = props.scheduled_send_at
+  localEmail.remind_at = props.remind_at
+  localEmail.is_read = props.is_read
+  localEmail.is_flagged = props.is_flagged
+  localEmail.is_draft = props.is_draft
+  localEmail.has_attachments = props.has_attachments
+  localEmail.sync_status = props.sync_status
+  localEmail.body_fetch_attempts = props.body_fetch_attempts
+  localEmail.last_body_fetch_attempt = props.last_body_fetch_attempt
+  localEmail.tracking_blocked = props.tracking_blocked
+  localEmail.images_blocked = props.images_blocked
+  localEmail.created_at = props.created_at
+  localEmail.updated_at = props.updated_at
+  localEmail.labels = [...(props.labels || [])]
+  localEmail.attachments = [...(props.attachments || [])]
+  localEmail.category = props.category
+}
+
+function applyAnalysis(analysis: EmailAnalysis | null) {
+  localEmail.ai_cache = analysis ? JSON.stringify(analysis) : undefined
+  analysisError.value = null
+  showAnalyzeButton.value = !analysis
+}
+
+async function runAnalysis(mode: 'normal' | 'force') {
+  const emailId = localEmail.id
+  autoAnalysisAttemptedForEmailId.value = emailId
+
+  if (mode === 'force') {
+    localEmail.ai_cache = undefined
+  }
+
+  try {
+    isAnalyzing.value = true
+    analysisError.value = null
+
+    const analysis =
+      mode === 'force' ? await reanalyzeEmail(localEmail) : await analyzeEmail(localEmail)
+
+    applyAnalysis(analysis)
+  } catch (error) {
+    analysisError.value = error instanceof Error ? error.message : 'Failed to analyze email'
+    showAnalyzeButton.value = true
+  } finally {
+    isAnalyzing.value = false
+  }
+}
+
+async function maybeAnalyzeEmail() {
   if (!props.showAI) return
 
-  // Always start clean so a previously-viewed email's result never bleeds in.
-  clearAnalysisState()
+  const shouldAnalyze = localEmail.category !== 'promotions'
 
-  markAsReadTimout.value = setTimeout(async () => {
-    try {
-      if (props.is_read) return
-      await updateRead(props.id, true)
-    } catch (_: any) {}
-  }, 2000)
-
-  const shouldAnalyze = props.category !== 'promotions'
-  const cached = parseAnalysisFromCache(props as EmailDetail)
-  if (cached) {
-    currentAnalysis.value = cached
+  if (currentAnalysis.value) {
     showAnalyzeButton.value = false
-  } else if (props.autoAnalyze && shouldAnalyze) {
-    try {
-      await analyzeEmail(props as EmailDetail)
-      showAnalyzeButton.value = false
-    } catch (_: unknown) {
-      showAnalyzeButton.value = true
-    }
-  } else {
+    autoAnalysisAttemptedForEmailId.value = localEmail.id
+    return
+  }
+
+  if (!props.autoAnalyze || !shouldAnalyze) {
     showAnalyzeButton.value = true
+    return
   }
-})
 
-onUnmounted(() => {
-  if (markAsReadTimout.value) {
-    clearTimeout(markAsReadTimout.value)
-    markAsReadTimout.value = null
+  if (isAnalyzing.value || autoAnalysisAttemptedForEmailId.value === localEmail.id) {
+    return
   }
-})
 
-const handleAnalyze = async () => {
-  try {
-    await analyzeEmail(props as EmailDetail)
-    showAnalyzeButton.value = false
-  } catch (_: unknown) {
-    // Error will be shown in analysis component
-  }
+  await runAnalysis('normal')
 }
 
-const handleReanalyze = async () => {
-  try {
-    await reanalyzeEmail(props as EmailDetail)
-    showAnalyzeButton.value = false
-  } catch (_: unknown) {
-    // Error will be shown in analysis component
-  }
+async function handleAnalyze() {
+  await runAnalysis('normal')
 }
 
-const resolveCidImages = (html: string): string => {
+async function handleReanalyze() {
+  await runAnalysis('force')
+}
+
+function handleQuickReply(content: string) {
+  emit('reply-all', localEmail)
+  emit('quick-reply', localEmail, content)
+}
+
+function resolveCidImages(html: string): string {
   if (!html) return html
-  // Use attachments from useAttachments() — these have content_id + full_path (absolute)
+
   const inlineAttachments = attachments.value.filter((a) => a.is_inline && a.full_path)
   if (inlineAttachments.length === 0) return html
 
   const doc = new DOMParser().parseFromString(html, 'text/html')
   const images = doc.querySelectorAll('img')
+
   images.forEach((img) => {
     const src = img.getAttribute('src') || ''
-    if (!src || src.startsWith('data:') || src.startsWith('asset:') || src.startsWith('http'))
+    if (!src || src.startsWith('data:') || src.startsWith('asset:') || src.startsWith('http')) {
       return
+    }
 
-    let attachment = undefined
+    let attachment
 
     if (src.startsWith('cid:')) {
       const contentId = src.slice(4).replace(/^<|>$/g, '')
@@ -157,9 +251,7 @@ const resolveCidImages = (html: string): string => {
       )
     }
 
-    // Fallback: some clients reference inline images by bare filename instead of cid:
     if (!attachment) {
-      // Strip any path components — match only on the final filename segment
       const srcFilename = src.split('/').pop()?.split('?')[0] ?? ''
       if (srcFilename) {
         attachment = inlineAttachments.find(
@@ -173,10 +265,11 @@ const resolveCidImages = (html: string): string => {
       img.setAttribute('data-cid-resolved', 'true')
     }
   })
+
   return doc.documentElement.innerHTML
 }
 
-const stripImageSources = (html: string): string => {
+function stripImageSources(html: string): string {
   const doc = new DOMParser().parseFromString(html, 'text/html')
 
   const images = doc.querySelectorAll('img')
@@ -202,85 +295,28 @@ const stripImageSources = (html: string): string => {
   return doc.documentElement.innerHTML
 }
 
-const hasExternalImages = computed(() => {
-  const html = props.body_html || ''
-  if (!html) return false
-
-  const doc = new DOMParser().parseFromString(html, 'text/html')
-  const images = doc.querySelectorAll('img')
-
-  for (const img of images) {
-    const src = img.getAttribute('src') || ''
-    if (src && !src.startsWith('data:') && !src.startsWith('/') && !src.startsWith('cid:')) {
-      return true
-    }
-  }
-
-  return false
-})
-
-const hasQuotedContentAvailable = computed(() => !!props.other_mails)
-
 const getDisplayHtml = computed(() => {
-  const html = props.body_html || ''
+  const html = localEmail.body_html || ''
   const resolved = resolveCidImages(html)
   return imagesBlocked.value ? stripImageSources(resolved) : resolved
 })
-
-const hasQuotedContent = computed(() => {
-  return hasQuotedContentAvailable.value
-})
-
-const toggleRenderMode = () => {
-  if (temporaryRenderMode.value) {
-    temporaryRenderMode.value = null
-  } else {
-    temporaryRenderMode.value = renderMode.value === 'simple' ? 'normal' : 'simple'
-  }
-}
 
 const getQuotedHtml = computed(() => {
-  if (!showFullContent.value || !props.other_mails) return ''
+  if (!showFullContent.value || !localEmail.other_mails) return ''
 
-  const html = props.other_mails
+  const html = localEmail.other_mails
   const resolved = resolveCidImages(html)
   return imagesBlocked.value ? stripImageSources(resolved) : resolved
 })
 
-const hasAnyAttachments = computed(
-  () => props.has_attachments || props.attachments?.some((a) => a.is_inline)
-)
-
-onMounted(() => {
-  if (hasAnyAttachments.value) {
-    loadAttachments(props.id)
-  }
-})
-
-watch(
-  () => props.id,
-  (newId) => {
-    if (hasAnyAttachments.value) {
-      loadAttachments(newId)
-    }
-  }
-)
-
-watch(
-  () => props.images_blocked,
-  (newValue) => {
-    imagesBlocked.value = newValue
-  }
-)
-
-const handleAllowImages = async () => {
-  const success = await allowImages(props.id)
+async function handleAllowImages() {
+  const success = await allowImages(localEmail.id)
   if (success) {
     imagesBlocked.value = false
   }
 }
 
-const handleIframeLoad = (event: Event) => {
+function handleIframeLoad(event: Event) {
   const iframe = event.target as HTMLIFrameElement
   try {
     const doc = iframe.contentDocument || iframe.contentWindow?.document
@@ -307,12 +343,83 @@ const handleIframeLoad = (event: Event) => {
   }
 }
 
-const toggleReduced = () => {
-  if (props.isFirst) {
-    return
+function toggleRenderMode() {
+  if (temporaryRenderMode.value) {
+    temporaryRenderMode.value = null
+  } else {
+    temporaryRenderMode.value = renderMode.value === 'simple' ? 'normal' : 'simple'
   }
+}
+
+function toggleReduced() {
+  if (props.isFirst) return
   reduced.value = !reduced.value
 }
+
+watch(
+  () => props,
+  () => {
+    syncLocalEmailFromProps()
+    imagesBlocked.value = props.images_blocked
+  },
+  { deep: true }
+)
+
+watch(
+  () => props.id,
+  async (newId, oldId) => {
+    if (!newId || newId === oldId) return
+
+    autoAnalysisAttemptedForEmailId.value = null
+    syncLocalEmailFromProps()
+    analysisError.value = null
+    showAnalyzeButton.value = false
+
+    if (hasAnyAttachments.value) {
+      loadAttachments(newId)
+    }
+
+    await maybeAnalyzeEmail()
+  }
+)
+
+watch(
+  () => props.images_blocked,
+  (newValue) => {
+    imagesBlocked.value = newValue
+  }
+)
+
+onMounted(async () => {
+  syncLocalEmailFromProps()
+
+  try {
+    const mode = await getSetting<'simple' | 'normal'>('email.renderMode')
+    renderMode.value = mode || 'normal'
+  } catch {
+    renderMode.value = 'normal'
+  }
+
+  markAsReadTimout.value = setTimeout(async () => {
+    try {
+      if (localEmail.is_read) return
+      await updateRead(localEmail.id, true)
+    } catch (_: any) {}
+  }, 2000)
+
+  if (hasAnyAttachments.value) {
+    loadAttachments(localEmail.id)
+  }
+
+  await maybeAnalyzeEmail()
+})
+
+onUnmounted(() => {
+  if (markAsReadTimout.value) {
+    clearTimeout(markAsReadTimout.value)
+    markAsReadTimout.value = null
+  }
+})
 </script>
 
 <template>
@@ -323,9 +430,9 @@ const toggleReduced = () => {
     >
       <div class="flex flex-1">
         <RavnAvatar
-          v-if="from"
-          :email="from.address"
-          :name="from.name"
+          v-if="localEmail.from"
+          :email="localEmail.from.address"
+          :name="localEmail.from.name"
           class="mr-4 shrink-0"
           size="lg"
         />
@@ -341,10 +448,10 @@ const toggleReduced = () => {
                 :show-avatar="headerExpanded"
                 class="font-bold"
                 is-last
-                v-bind="from"
+                v-bind="localEmail.from"
               />
               <Icon
-                v-if="has_attachments"
+                v-if="localEmail.has_attachments"
                 class="ml-1 shrink-0 text-muted"
                 name="lucide:paperclip"
               />
@@ -352,30 +459,30 @@ const toggleReduced = () => {
           </div>
           <div :class="['items-center gap-x-2', headerExpanded ? '' : 'flex flex-wrap']">
             <div
-              v-if="to?.length"
+              v-if="localEmail.to?.length"
               class="flex text-sm"
             >
               <span class="mr-1 text-muted">{{ $t('components.messageView.labels.to') }}: </span>
               <div class="flex flex-wrap">
                 <EmailAddress
-                  v-for="(a, i) in to"
+                  v-for="(a, i) in localEmail.to"
                   :key="i"
-                  :is-last="i === to.length - 1"
+                  :is-last="i === localEmail.to.length - 1"
                   show-avatar
                   v-bind="a"
                 />
               </div>
             </div>
             <div
-              v-if="cc?.length"
+              v-if="localEmail.cc?.length"
               class="flex text-sm"
             >
               <span class="mr-1 text-muted">{{ $t('components.messageView.labels.cc') }}: </span>
               <div class="flex flex-wrap">
                 <EmailAddress
-                  v-for="(a, i) in cc"
+                  v-for="(a, i) in localEmail.cc"
                   :key="i"
-                  :is-last="i === cc.length - 1"
+                  :is-last="i === localEmail.cc.length - 1"
                   show-avatar
                   v-bind="a"
                 />
@@ -392,7 +499,7 @@ const toggleReduced = () => {
               class="flex space-x-1 text-sm"
             >
               <span class="text-muted">{{ $t('components.messageView.labels.subject') }}: </span>
-              <span class="text-primary select-auto">{{ subject }}</span>
+              <span class="text-primary select-auto">{{ localEmail.subject }}</span>
             </div>
           </div>
         </div>
@@ -400,7 +507,7 @@ const toggleReduced = () => {
       <div class="flex flex-col items-end justify-between">
         <EmailActionButtons
           v-if="showActions"
-          :email="props"
+          :email="localEmail"
           @archive="emit('archive', $event)"
           @delete="emit('delete', $event)"
           @forward="emit('forward', $event)"
@@ -408,15 +515,16 @@ const toggleReduced = () => {
           @reply-all="emit('reply-all', $event)"
         />
         <div class="ml-auto text-sm">
-          {{ formatEmailDate($props, 1, { dateFormat: 'lll' }) }}
+          {{ formatEmailDate(localEmail, 1, { dateFormat: 'lll' }) }}
         </div>
       </div>
     </div>
+
     <template v-if="showAI">
       <EmailAIAnalysis
         v-if="currentAnalysis || isAnalyzing || analysisError"
         :analysis="currentAnalysis"
-        :email="props"
+        :email="localEmail"
         :error="analysisError"
         :is-analyzing="isAnalyzing"
         :reduced="reduced"
@@ -434,19 +542,21 @@ const toggleReduced = () => {
         </Button>
       </div>
     </template>
+
     <div
-      v-if="labels?.length > 0"
+      v-if="localEmail.labels?.length > 0"
       class="flex flex-wrap gap-1"
     >
       <EmailLabel
-        v-for="l in labels"
+        v-for="l in localEmail.labels"
         :key="l.id"
         v-bind="l"
       />
     </div>
+
     <template v-if="!reduced">
       <div
-        v-if="has_attachments && isLoadingAttachments"
+        v-if="hasAnyAttachments && isLoadingAttachments"
         class="text-muted-foreground flex items-center gap-2 rounded bg-muted/50 p-2 text-sm"
       >
         <Icon
@@ -455,17 +565,20 @@ const toggleReduced = () => {
         />
         <span>{{ $t('components.messageView.loadingAttachments') }}</span>
       </div>
+
       <div
-        v-else-if="has_attachments && attachmentError"
+        v-else-if="hasAnyAttachments && attachmentError"
         class="flex items-center gap-2 rounded bg-destructive/10 p-2 text-sm text-destructive"
       >
         <Icon name="lucide:alert-circle" />
         <span>{{ $t('components.messageView.attachmentError') }}</span>
       </div>
+
       <AttachmentList
-        v-else-if="has_attachments && attachments.length > 0"
+        v-else-if="hasAnyAttachments && attachments.length > 0"
         :attachments="attachments.filter((a) => !a.is_inline)"
       />
+
       <div
         v-if="imagesBlocked && hasExternalImages"
         class="flex items-center justify-between rounded border-border bg-surface p-1 text-xs"
@@ -484,17 +597,19 @@ const toggleReduced = () => {
           >{{ $t('components.messageView.actions.showImages') }}
         </Button>
       </div>
+
       <div class="relative flex flex-col">
         <div
-          v-if="effectiveRenderMode === 'simple' && body_plain"
+          v-if="effectiveRenderMode === 'simple' && localEmail.body_plain"
           class="rounded-xl bg-surface p-3"
         >
           <EmailMarkdown
-            :content="body_plain"
+            :content="localEmail.body_plain"
             :images-blocked="imagesBlocked"
             :inline-attachments="attachments.filter((a) => a.is_inline && !!a.full_path)"
           />
         </div>
+
         <div
           v-else
           class="overflow-clip rounded-xl bg-gray-50 p-2 text-gray-950"
@@ -508,6 +623,7 @@ const toggleReduced = () => {
             @load="handleIframeLoad"
           />
         </div>
+
         <div
           v-if="showFullContent && getQuotedHtml"
           class="mt-2 ml-12 overflow-clip rounded border-l-4 border-accent bg-gray-50 p-2"
@@ -520,6 +636,7 @@ const toggleReduced = () => {
             @load="handleIframeLoad"
           />
         </div>
+
         <div class="absolute top-2 right-2 flex flex-col justify-center gap-1">
           <SimpleTooltip
             :tooltip-markdown="
@@ -529,7 +646,7 @@ const toggleReduced = () => {
             "
           >
             <Button
-              v-if="body_plain"
+              v-if="localEmail.body_plain"
               size="icon"
               variant="ghost"
               @click="toggleRenderMode"
@@ -537,6 +654,7 @@ const toggleReduced = () => {
               <Icon :name="effectiveRenderMode === 'simple' ? 'lucide:code' : 'lucide:file-text'" />
             </Button>
           </SimpleTooltip>
+
           <SimpleTooltip
             :tooltip-markdown="
               showFullContent
