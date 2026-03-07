@@ -13,9 +13,11 @@ use super::error::{SyncError, SyncResult};
 use super::sync_manager::SyncManager;
 use super::sync_queue::{SyncPriority, SyncQueue, SyncQueueItem, SyncQueueWorker};
 use super::types::FolderType;
+use crate::config::settings::Settings;
 use crate::database::repositories::{
     AccountRepository, SqliteAccountRepository, SqliteSyncStateRepository, SyncStateRepository,
 };
+use crate::services::notification_service::NotificationService;
 
 /// Background sync task handle
 struct SyncTask {
@@ -30,6 +32,7 @@ pub struct BackgroundSyncManager {
     tasks: Arc<RwLock<HashMap<Uuid, SyncTask>>>,
     shutdown_tx: tokio::sync::broadcast::Sender<()>,
     app_handle: tauri::AppHandle,
+    settings: Arc<Settings>,
 }
 
 impl BackgroundSyncManager {
@@ -39,6 +42,7 @@ impl BackgroundSyncManager {
         app_data_dir: String,
         credential_store: Arc<CredentialStore>,
         app_handle: tauri::AppHandle,
+        settings: Arc<Settings>,
     ) -> Self {
         let (shutdown_tx, _) = tokio::sync::broadcast::channel(16);
 
@@ -49,6 +53,7 @@ impl BackgroundSyncManager {
             tasks: Arc::new(RwLock::new(HashMap::new())),
             shutdown_tx,
             app_handle,
+            settings,
         }
     }
 
@@ -133,6 +138,7 @@ impl BackgroundSyncManager {
         let pool = self.pool.clone();
         let app_data_dir = self.app_data_dir.clone();
         let credential_store = Arc::clone(&self.credential_store);
+        let settings = Arc::clone(&self.settings);
         let app_handle = self.app_handle.clone();
         let mut shutdown_rx = self.shutdown_tx.subscribe();
         let account_id_copy = *account_id;
@@ -150,7 +156,21 @@ impl BackgroundSyncManager {
                     app_data_dir.clone(),
                     Arc::clone(&credential_store),
                 )
+                .with_settings(Arc::clone(&settings))
                 .with_app_handle(app_handle.clone());
+
+                let bootstrap_notification_service =
+                    NotificationService::new(pool.clone(), Arc::clone(&settings))
+                        .with_app_handle(app_handle.clone())
+                        .suppress_notifications(true);
+
+                if let Err(e) = bootstrap_notification_service.begin_bootstrap_sync() {
+                    log::warn!(
+                        "Failed to mark bootstrap sync as started for account {}: {}",
+                        account_id_copy,
+                        e
+                    );
+                }
 
                 match sync_manager.sync_account(&account).await {
                     Ok(report) => {
@@ -165,6 +185,14 @@ impl BackgroundSyncManager {
                         log::error!("Initial sync failed for account {}: {}", account_id_copy, e);
                     }
                 }
+
+                if let Err(e) = bootstrap_notification_service.end_bootstrap_sync() {
+                    log::warn!(
+                        "Failed to mark bootstrap sync as finished for account {}: {}",
+                        account_id_copy,
+                        e
+                    );
+                }
             }
 
             loop {
@@ -173,7 +201,7 @@ impl BackgroundSyncManager {
                         log::info!("Shutdown signal received for account {}", account_id_copy);
                         break;
                     }
-                    _ = Self::sync_folders_periodic(&pool, &app_data_dir, Arc::clone(&credential_store), app_handle.clone(), account_id_copy) => {
+                    _ = Self::sync_folders_periodic(&pool, &app_data_dir, Arc::clone(&credential_store), Arc::clone(&settings), app_handle.clone(), account_id_copy) => {
                     }
                 }
             }
@@ -257,11 +285,13 @@ impl BackgroundSyncManager {
         pool: &SqlitePool,
         app_data_dir: &str,
         credential_store: Arc<CredentialStore>,
+        settings: Arc<crate::config::settings::Settings>,
         app_handle: tauri::AppHandle,
         account_id: Uuid,
     ) {
         let sync_manager = Arc::new(
             SyncManager::new(pool.clone(), app_data_dir.to_string(), credential_store)
+                .with_settings(Arc::clone(&settings))
                 .with_app_handle(app_handle),
         );
 

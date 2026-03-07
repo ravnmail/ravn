@@ -15,11 +15,9 @@ use crate::database::repositories::{
     SqliteLabelRepository,
 };
 use crate::services::email_service::{EmailAttachment, EmailData, EmailService};
-use crate::services::notification_service::NotificationService;
 use crate::state::AppState;
 use crate::sync::types::AccountSettings;
 use sqlx::types::Json;
-use std::sync::Arc;
 use turndown::Turndown;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -421,11 +419,7 @@ pub async fn send_email_from_account(
         }
     }
 
-    let notification_service = Arc::new(
-        NotificationService::new(state.db_pool.clone(), state.settings.clone())
-            .with_app_handle(state.app_handle.clone()),
-    );
-    if let Err(e) = notification_service.notify_outgoing_email().await {
+    if let Err(e) = state.sync_coordinator.notify_outgoing_email().await {
         log::warn!("Failed to trigger outgoing email notification: {}", e);
     }
 

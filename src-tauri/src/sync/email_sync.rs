@@ -28,8 +28,8 @@ pub struct EmailSync {
     credential_store: Arc<CredentialStore>,
     contact_extractor: Arc<ContactExtractor>,
     search_manager: Option<Arc<SearchManager>>,
-    app_handle: Option<tauri::AppHandle>,
-    notification_service: Option<Arc<NotificationService>>,
+    pub app_handle: Option<tauri::AppHandle>,
+    pub notification_service: Option<Arc<NotificationService>>,
     turndown: Arc<Turndown>,
 }
 

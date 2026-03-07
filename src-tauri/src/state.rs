@@ -3,6 +3,7 @@ use crate::licensing::{LicenseManager, LicenseRefreshRunner};
 use crate::search::SearchManager;
 use crate::services::avatar_service::AvatarService;
 use crate::services::corvus::CorvusService;
+use crate::services::notification_service::NotificationService;
 use crate::sync::auth::CredentialStore;
 use crate::sync::{
     BackgroundAiAnalyzer, BackgroundAvatarFetcher, BackgroundBodyFetcher, BackgroundCleanup,
@@ -27,6 +28,7 @@ pub struct AppState {
     pub sync_coordinator: Arc<SyncCoordinator>,
     pub credential_store: Arc<CredentialStore>,
     pub search_manager: Arc<SearchManager>,
+    pub notification_service: Arc<NotificationService>,
     pub license_manager: Arc<LicenseManager>,
     pub license_refresh_runner: Arc<LicenseRefreshRunner>,
     pub app_handle: tauri::AppHandle,

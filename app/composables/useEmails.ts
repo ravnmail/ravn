@@ -24,6 +24,7 @@ export interface AddLabelToEmailRequest {
 export function useEmails() {
   const isLoading = useState('emailsLoading', () => false)
   const error = useState<string | null>('emailsError', () => null)
+  const { updateBadgeCount } = useNotifications()
 
   const fetch = async (id: string): Promise<EmailDetail | null> => {
     isLoading.value = true
@@ -96,6 +97,7 @@ export function useEmails() {
 
     try {
       await invoke('update_read', { emailId, isRead })
+      await updateBadgeCount()
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
@@ -122,6 +124,7 @@ export function useEmails() {
 
     try {
       await invoke('move_email', { emailId, folderId })
+      await updateBadgeCount()
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
@@ -135,6 +138,7 @@ export function useEmails() {
 
     try {
       await invoke('archive', { emailId })
+      await updateBadgeCount()
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
@@ -187,8 +191,7 @@ export function useEmails() {
 
     try {
       return await invoke<number>('empty_folder', { folderId })
-    }
-    catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       console.error('Failed to empty folder:', errorMessage)

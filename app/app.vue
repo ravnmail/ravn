@@ -1,11 +1,11 @@
 <script lang="ts" setup>
 import { useQueryClient } from '@tanstack/vue-query'
-
 import { Toaster } from 'vue-sonner'
+
 import { AlertDialogProvider } from '@/composables/useAlertDialog'
+import LicenseManagementDialog from '~/components/LicenseManagementDialog.vue'
 import AddAccountModal from '~/components/Ravn/AddAccountModal.vue'
 import ViewCreationWizard from '~/components/Ravn/ViewCreationWizard.vue'
-import LicenseManagementDialog from '~/components/LicenseManagementDialog.vue'
 
 const queryClient = useQueryClient()
 const isAddAccountModalOpen = ref(false)
@@ -15,6 +15,7 @@ const isEnterLicenseDialogOpen = ref(false)
 const { setupKeybindings, setupContext, register } = useActions()
 const { getKeybindings, onKeybindingsChanged } = useKeybindings()
 const { initPlatform } = usePlatform()
+useNotifications()
 
 async function loadKeybindings() {
   try {
@@ -35,21 +36,21 @@ onMounted(async () => {
     namespace: 'global',
     handler: () => {
       isEnterLicenseDialogOpen.value = true
-    }
+    },
   })
   register({
     id: 'openAddAccountModal',
     namespace: 'global',
     handler: () => {
       isAddAccountModalOpen.value = true
-    }
+    },
   })
   register({
     id: 'openCreateViewWizard',
     namespace: 'global',
     handler: () => {
       isCreateViewWizardOpen.value = true
-    }
+    },
   })
 
   try {
@@ -76,28 +77,21 @@ useGlobalEventListeners(queryClient)
 
 // provide('isAddAccountModalOpen', isAddAccountModalOpen)
 // provide('isCreateViewWizardOpen', isCreateViewWizardOpen)
-
 </script>
 
 <template>
   <div
-    class="fixed top-0 left-0 w-full h-9 z-0"
+    class="fixed top-0 left-0 z-0 h-9 w-full"
     data-tauri-drag-region
   />
   <NuxtLayout>
-    <CommandPalette/>
+    <CommandPalette />
     <AlertDialogProvider class="h-screen">
-      <NuxtPage/>
+      <NuxtPage />
     </AlertDialogProvider>
-    <ViewCreationWizard
-      v-model:open="isCreateViewWizardOpen"
-    />
-    <AddAccountModal
-      v-model:open="isAddAccountModalOpen"
-    />
-    <LicenseManagementDialog
-      v-model:open="isEnterLicenseDialogOpen"
-    />
+    <ViewCreationWizard v-model:open="isCreateViewWizardOpen" />
+    <AddAccountModal v-model:open="isAddAccountModalOpen" />
+    <LicenseManagementDialog v-model:open="isEnterLicenseDialogOpen" />
     <Toaster
       position="bottom-left"
       rich-colors

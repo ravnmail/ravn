@@ -1,6 +1,5 @@
 /// Notification Tauri commands
 use serde::Serialize;
-use std::sync::Arc;
 use tauri::{Emitter, State};
 
 use crate::services::notification_service::{BadgeCount, NotificationService};
@@ -17,10 +16,9 @@ pub struct NotificationResponse {
 pub async fn update_badge_count(state: State<'_, AppState>) -> Result<BadgeCount, String> {
     log::debug!("Manually updating badge count");
 
-    let notification_service = Arc::new(
+    let notification_service =
         NotificationService::new(state.db_pool.clone(), state.settings.clone())
-            .with_app_handle(state.app_handle.clone()),
-    );
+            .with_app_handle(state.app_handle.clone());
 
     notification_service
         .update_badge_count()
@@ -32,7 +30,24 @@ pub async fn update_badge_count(state: State<'_, AppState>) -> Result<BadgeCount
         .await
         .map_err(|e| format!("Failed to calculate badge count: {}", e))?;
 
-    Ok(BadgeCount { count })
+    let settings = notification_service
+        .get_notification_settings()
+        .map_err(|e| format!("Failed to load notification settings: {}", e))?;
+    let mode = settings
+        .badge_type
+        .clone()
+        .unwrap_or_else(|| "count".to_string());
+    let visible = match mode.as_str() {
+        "none" => false,
+        "dot" | "count" => count > 0,
+        _ => count > 0,
+    };
+
+    Ok(BadgeCount {
+        count,
+        visible,
+        mode,
+    })
 }
 
 /// Get the current badge count without updating
@@ -40,17 +55,33 @@ pub async fn update_badge_count(state: State<'_, AppState>) -> Result<BadgeCount
 pub async fn get_badge_count(state: State<'_, AppState>) -> Result<BadgeCount, String> {
     log::debug!("Getting current badge count");
 
-    let notification_service = Arc::new(
+    let notification_service =
         NotificationService::new(state.db_pool.clone(), state.settings.clone())
-            .with_app_handle(state.app_handle.clone()),
-    );
+            .with_app_handle(state.app_handle.clone());
 
     let count = notification_service
         .calculate_badge_count()
         .await
         .map_err(|e| format!("Failed to calculate badge count: {}", e))?;
 
-    Ok(BadgeCount { count })
+    let settings = notification_service
+        .get_notification_settings()
+        .map_err(|e| format!("Failed to load notification settings: {}", e))?;
+    let mode = settings
+        .badge_type
+        .clone()
+        .unwrap_or_else(|| "count".to_string());
+    let visible = match mode.as_str() {
+        "none" => false,
+        "dot" | "count" => count > 0,
+        _ => count > 0,
+    };
+
+    Ok(BadgeCount {
+        count,
+        visible,
+        mode,
+    })
 }
 
 /// Test notification sound

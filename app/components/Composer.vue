@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import { marked } from 'marked'
 import type { CleanTranslation } from 'nuxt-i18n-micro-types'
+
 import EmailAutocompleteInput from '~/components/EmailAutocompleteInput.vue'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -50,6 +51,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { accounts } = useAccounts()
+const { settings } = useSettings()
 const {
   isSending,
   isSavingDraft,
@@ -160,6 +162,7 @@ const editor = new Editor({
   extensions: [
     MailKit.configure({
       placeholder: t('composer.placeholders.default'),
+      settings: settings.value,
       emailContext: {
         sender: () => selectedAccount.value?.email ?? '',
         subject: () => draft.value.subject ?? '',

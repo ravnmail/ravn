@@ -7,9 +7,11 @@ use uuid::Uuid;
 use super::auth::CredentialStore;
 use super::error::{SyncError, SyncResult};
 use super::SyncManager;
+use crate::config::settings::Settings;
 use crate::database::models::account::Account;
 use crate::database::repositories::{AccountRepository, RepositoryFactory};
 use crate::search::SearchManager;
+use crate::services::notification_service::NotificationService;
 
 /// Central coordinator for managing per-account SyncManager instances
 ///
@@ -21,6 +23,8 @@ pub struct SyncCoordinator {
     credential_store: Arc<CredentialStore>,
     search_manager: Option<Arc<SearchManager>>,
     app_handle: Option<tauri::AppHandle>,
+    notification_service: Option<Arc<NotificationService>>,
+    settings: Option<Arc<Settings>>,
     /// Cache of account_id -> SyncManager instances
     managers: Arc<RwLock<HashMap<Uuid, Arc<SyncManager>>>>,
 }
@@ -37,6 +41,8 @@ impl SyncCoordinator {
             credential_store,
             search_manager: None,
             app_handle: None,
+            notification_service: None,
+            settings: None,
             managers: Arc::new(RwLock::new(HashMap::new())),
         }
     }
@@ -48,6 +54,19 @@ impl SyncCoordinator {
 
     pub fn with_app_handle(mut self, app_handle: tauri::AppHandle) -> Self {
         self.app_handle = Some(app_handle);
+        self
+    }
+
+    pub fn with_notification_service(
+        mut self,
+        notification_service: Arc<NotificationService>,
+    ) -> Self {
+        self.notification_service = Some(notification_service);
+        self
+    }
+
+    pub fn with_settings(mut self, settings: Arc<Settings>) -> Self {
+        self.settings = Some(settings);
         self
     }
 
@@ -109,6 +128,14 @@ impl SyncCoordinator {
 
         if let Some(search_manager) = &self.search_manager {
             manager = manager.with_search_manager(Arc::clone(search_manager));
+        }
+
+        if let Some(app_handle) = &self.app_handle {
+            manager = manager.with_app_handle(app_handle.clone());
+        }
+
+        if let Some(settings) = &self.settings {
+            manager = manager.with_settings(Arc::clone(settings));
         }
 
         if let Some(app_handle) = &self.app_handle {
@@ -204,6 +231,17 @@ impl SyncCoordinator {
         let account = self.get_account(account_id).await?;
         let manager = self.get_manager_for_account(&account).await?;
         manager.move_email(&account, email_id, to_folder_id).await
+    }
+
+    pub async fn notify_outgoing_email(&self) -> SyncResult<()> {
+        let notification_service = self.notification_service.as_ref().ok_or_else(|| {
+            SyncError::InvalidConfiguration("Notification service not configured".to_string())
+        })?;
+
+        notification_service
+            .notify_outgoing_email()
+            .await
+            .map_err(SyncError::InvalidConfiguration)
     }
 
     pub async fn delete_email(

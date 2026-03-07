@@ -1,15 +1,19 @@
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_notification::{NotificationExt, PermissionState};
 use uuid::Uuid;
 
 use crate::config::settings::Settings;
-use crate::database::repositories::{EmailRepository, SqliteEmailRepository};
+use crate::database::models::email::Email;
+use crate::database::repositories::{FolderRepository, SqliteFolderRepository};
 use crate::sync::types::FolderType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotificationSettings {
+    #[serde(rename = "enabled")]
+    pub enabled: Option<bool>,
     #[serde(rename = "incomingSound")]
     pub incoming_sound: Option<String>,
     #[serde(rename = "outgoingSound")]
@@ -20,16 +24,20 @@ pub struct NotificationSettings {
     pub notification_folders: Option<Vec<String>>,
     #[serde(rename = "badgeFolders")]
     pub badge_folders: Option<Vec<String>>,
+    #[serde(rename = "badgeType")]
+    pub badge_type: Option<String>,
 }
 
 impl Default for NotificationSettings {
     fn default() -> Self {
         Self {
+            enabled: Some(true),
             incoming_sound: Some("notification".to_string()),
             outgoing_sound: None,
             reminder_sound: None,
             notification_folders: Some(vec![]),
             badge_folders: Some(vec![]),
+            badge_type: Some("count".to_string()),
         }
     }
 }
@@ -37,12 +45,38 @@ impl Default for NotificationSettings {
 #[derive(Debug, Clone, Serialize)]
 pub struct BadgeCount {
     pub count: i64,
+    pub visible: bool,
+    pub mode: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NotificationEmailPreview {
+    pub id: String,
+    pub account_id: String,
+    pub folder_id: String,
+    pub sender_name: Option<String>,
+    pub sender_address: Option<String>,
+    pub subject: Option<String>,
+    pub snippet: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NotificationEventPayload {
+    pub kind: String,
+    pub title: String,
+    pub body: Option<String>,
+    pub email: Option<NotificationEmailPreview>,
+    pub play_sound: bool,
+    pub suppress_during_bootstrap: bool,
 }
 
 pub struct NotificationService {
     pool: SqlitePool,
     settings: Arc<Settings>,
     app_handle: Option<AppHandle>,
+    suppress_notifications: bool,
 }
 
 impl NotificationService {
@@ -51,11 +85,17 @@ impl NotificationService {
             pool,
             settings,
             app_handle: None,
+            suppress_notifications: false,
         }
     }
 
     pub fn with_app_handle(mut self, app_handle: AppHandle) -> Self {
         self.app_handle = Some(app_handle);
+        self
+    }
+
+    pub fn suppress_notifications(mut self, suppress_notifications: bool) -> Self {
+        self.suppress_notifications = suppress_notifications;
         self
     }
 
@@ -70,6 +110,201 @@ impl NotificationService {
         }
     }
 
+    fn notifications_enabled(&self, settings: &NotificationSettings) -> bool {
+        settings.enabled.unwrap_or(true)
+    }
+
+    fn badge_mode(&self, settings: &NotificationSettings) -> String {
+        settings
+            .badge_type
+            .clone()
+            .unwrap_or_else(|| "count".to_string())
+    }
+
+    fn badge_visible(&self, settings: &NotificationSettings, count: i64) -> bool {
+        match self.badge_mode(settings).as_str() {
+            "none" => false,
+            "dot" => count > 0,
+            "count" => count > 0,
+            _ => count > 0,
+        }
+    }
+
+    async fn apply_badge_count(&self, count: i64) -> Result<(), String> {
+        let settings = self.get_notification_settings()?;
+        let mode = self.badge_mode(&settings);
+
+        if let Some(app_handle) = &self.app_handle {
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let badge_count = match mode.as_str() {
+                    "none" => None,
+                    "dot" => {
+                        if count > 0 {
+                            Some(1)
+                        } else {
+                            None
+                        }
+                    }
+                    "count" => {
+                        if count > 0 {
+                            Some(count)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => {
+                        if count > 0 {
+                            Some(count)
+                        } else {
+                            None
+                        }
+                    }
+                };
+
+                window
+                    .set_badge_count(badge_count)
+                    .map_err(|e| format!("Failed to set badge count: {}", e))?;
+            } else {
+                log::warn!("Cannot update badge count: main window not available");
+            }
+        } else {
+            log::warn!("Cannot update badge count: AppHandle not available");
+        }
+
+        Ok(())
+    }
+
+    async fn show_native_notification(&self, title: &str, body: &str) -> Result<(), String> {
+        let settings = self.get_notification_settings()?;
+        if !self.notifications_enabled(&settings) {
+            return Ok(());
+        }
+
+        let Some(app_handle) = &self.app_handle else {
+            log::warn!("Cannot show native notification: AppHandle not available");
+            return Ok(());
+        };
+
+        let notification = app_handle.notification();
+
+        match notification.permission_state() {
+            Ok(PermissionState::Granted) => {}
+            Ok(PermissionState::Denied) => {
+                log::info!("Notification permission denied by OS");
+                return Ok(());
+            }
+            Ok(PermissionState::Prompt) | Ok(PermissionState::PromptWithRationale) => {
+                match notification.request_permission() {
+                    Ok(PermissionState::Granted) => {}
+                    Ok(state) => {
+                        log::info!("Notification permission not granted: {:?}", state);
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        return Err(format!("Failed to request notification permission: {}", e));
+                    }
+                }
+            }
+            Err(e) => {
+                return Err(format!(
+                    "Failed to get notification permission state: {}",
+                    e
+                ));
+            }
+        }
+
+        notification
+            .builder()
+            .title(title)
+            .body(body)
+            .show()
+            .map_err(|e| format!("Failed to show native notification: {}", e))?;
+
+        Ok(())
+    }
+
+    fn emit_native_notification_event(
+        &self,
+        payload: &NotificationEventPayload,
+    ) -> Result<(), String> {
+        let Some(app_handle) = &self.app_handle else {
+            log::warn!("Cannot emit native notification event: AppHandle not available");
+            return Ok(());
+        };
+
+        app_handle
+            .emit("native-notification", payload)
+            .map_err(|e| format!("Failed to emit native notification event: {}", e))
+    }
+
+    fn emit_bootstrap_sync_state(&self, in_progress: bool) -> Result<(), String> {
+        let Some(app_handle) = &self.app_handle else {
+            log::warn!("Cannot emit bootstrap sync state: AppHandle not available");
+            return Ok(());
+        };
+
+        app_handle
+            .emit("notifications:bootstrap-sync-state", in_progress)
+            .map_err(|e| format!("Failed to emit bootstrap sync state: {}", e))
+    }
+
+    pub fn begin_bootstrap_sync(&self) -> Result<(), String> {
+        self.emit_bootstrap_sync_state(true)
+    }
+
+    pub fn end_bootstrap_sync(&self) -> Result<(), String> {
+        self.emit_bootstrap_sync_state(false)
+    }
+
+    fn build_email_preview(&self, email: &Email) -> NotificationEmailPreview {
+        NotificationEmailPreview {
+            id: email.id.to_string(),
+            account_id: email.account_id.to_string(),
+            folder_id: email.folder_id.to_string(),
+            sender_name: email.from.name.clone(),
+            sender_address: Some(email.from.address.clone()),
+            subject: email.subject.clone(),
+            snippet: email.snippet.clone(),
+        }
+    }
+
+    fn build_incoming_notification_payload(&self, email: &Email) -> NotificationEventPayload {
+        let preview = self.build_email_preview(email);
+        let sender = preview
+            .sender_name
+            .clone()
+            .or(preview.sender_address.clone())
+            .unwrap_or_else(|| "Unknown sender".to_string());
+        let subject = preview
+            .subject
+            .clone()
+            .unwrap_or_else(|| "(no subject)".to_string());
+        let body = preview
+            .snippet
+            .clone()
+            .unwrap_or_else(|| format!("{} — {}", sender, subject));
+
+        NotificationEventPayload {
+            kind: "incoming-email".to_string(),
+            title: "New email".to_string(),
+            body: Some(body),
+            email: Some(preview),
+            play_sound: !self.suppress_notifications,
+            suppress_during_bootstrap: true,
+        }
+    }
+
+    fn build_outgoing_notification_payload(&self) -> NotificationEventPayload {
+        NotificationEventPayload {
+            kind: "outgoing-email".to_string(),
+            title: "Email sent".to_string(),
+            body: Some("Your email was sent successfully.".to_string()),
+            email: None,
+            play_sound: false,
+            suppress_during_bootstrap: false,
+        }
+    }
+
     /// Check if a folder should trigger incoming notifications
     pub async fn should_notify_for_folder(
         &self,
@@ -77,6 +312,10 @@ impl NotificationService {
         folder_type: FolderType,
     ) -> Result<bool, String> {
         let settings = self.get_notification_settings()?;
+
+        if !self.notifications_enabled(&settings) {
+            return Ok(false);
+        }
 
         match &settings.notification_folders {
             None => Ok(false),
@@ -126,9 +365,19 @@ impl NotificationService {
     }
 
     /// Calculate total unread count for badge folders
+    ///
+    /// This intentionally follows folder unread totals instead of recalculating
+    /// from the emails table so badge behavior stays consistent with the rest of
+    /// the UI while local optimistic mutations and provider sync settle.
     pub async fn calculate_badge_count(&self) -> Result<i64, String> {
         let settings = self.get_notification_settings()?;
-        let email_repo = SqliteEmailRepository::new(self.pool.clone());
+        let folder_repo = SqliteFolderRepository::new(self.pool.clone());
+
+        let mode = self.badge_mode(&settings);
+        if mode == "none" {
+            log::info!("Badge disabled by settings");
+            return Ok(0);
+        }
 
         let count = match &settings.badge_folders {
             None => {
@@ -136,27 +385,38 @@ impl NotificationService {
                 0
             }
             Some(folders) if folders.is_empty() => {
-                log::info!("Calculating badge count for all folders");
-                email_repo
-                    .count_unread_all()
+                log::info!("Calculating badge count from unread totals for all folders");
+                let folders = folder_repo
+                    .get_all()
                     .await
-                    .map_err(|e| format!("Failed to count unread emails: {}", e))?
+                    .map_err(|e| format!("Failed to load folders for badge count: {}", e))?;
+
+                folders.iter().map(|folder| folder.unread_count).sum()
             }
-            Some(folders) => {
-                let folder_ids: Result<Vec<Uuid>, _> = folders
+            Some(folder_ids) => {
+                let parsed_folder_ids: Result<Vec<Uuid>, _> = folder_ids
                     .iter()
                     .map(|id_str| Uuid::parse_str(id_str))
                     .collect();
 
-                let folder_ids =
-                    folder_ids.map_err(|e| format!("Failed to parse folder IDs: {}", e))?;
+                let parsed_folder_ids =
+                    parsed_folder_ids.map_err(|e| format!("Failed to parse folder IDs: {}", e))?;
 
-                log::info!("Calculating badge count for {} folders", folder_ids.len());
+                log::info!(
+                    "Calculating badge count from unread totals for {} folders",
+                    parsed_folder_ids.len()
+                );
 
-                email_repo
-                    .count_unread_by_folders(&folder_ids)
-                    .await
-                    .map_err(|e| format!("Failed to count unread emails in badge folders: {}", e))?
+                let mut total = 0_i64;
+                for folder_id in parsed_folder_ids {
+                    if let Some(folder) = folder_repo.find_by_id(folder_id).await.map_err(|e| {
+                        format!("Failed to load folder {} for badge count: {}", folder_id, e)
+                    })? {
+                        total += folder.unread_count;
+                    }
+                }
+
+                total
             }
         };
 
@@ -165,14 +425,26 @@ impl NotificationService {
 
     /// Update app badge count
     pub async fn update_badge_count(&self) -> Result<(), String> {
+        let settings = self.get_notification_settings()?;
         let count = self.calculate_badge_count().await?;
+        let visible = self.badge_visible(&settings, count);
+        let mode = self.badge_mode(&settings);
+
+        self.apply_badge_count(count).await?;
 
         if let Some(app_handle) = &self.app_handle {
             app_handle
-                .emit("badge-count-updated", BadgeCount { count })
+                .emit(
+                    "badge-count-updated",
+                    BadgeCount {
+                        count,
+                        visible,
+                        mode,
+                    },
+                )
                 .map_err(|e| format!("Failed to emit badge count event: {}", e))?;
 
-            log::debug!("Updated badge count: {}", count);
+            log::debug!("Updated badge count: {}, visible: {}", count, visible);
         } else {
             log::warn!("Cannot update badge count: AppHandle not available");
         }
@@ -185,12 +457,24 @@ impl NotificationService {
         &self,
         folder_id: Uuid,
         folder_type: FolderType,
+        email: &Email,
     ) -> Result<(), String> {
         if self
             .should_notify_for_folder(folder_id, folder_type)
             .await?
         {
-            self.play_incoming_sound().await?;
+            let payload = self.build_incoming_notification_payload(email);
+
+            if !self.suppress_notifications {
+                let body = payload
+                    .body
+                    .as_deref()
+                    .unwrap_or("You have received a new email.");
+                self.show_native_notification(&payload.title, body).await?;
+                self.play_incoming_sound().await?;
+            }
+
+            self.emit_native_notification_event(&payload)?;
         }
 
         self.update_badge_count().await?;
@@ -200,6 +484,17 @@ impl NotificationService {
 
     /// Trigger notification for outgoing email
     pub async fn notify_outgoing_email(&self) -> Result<(), String> {
+        let settings = self.get_notification_settings()?;
+        if self.notifications_enabled(&settings) {
+            let payload = self.build_outgoing_notification_payload();
+            let body = payload
+                .body
+                .as_deref()
+                .unwrap_or("Your email was sent successfully.");
+
+            self.show_native_notification(&payload.title, body).await?;
+            self.emit_native_notification_event(&payload)?;
+        }
         self.play_outgoing_sound().await?;
         Ok(())
     }

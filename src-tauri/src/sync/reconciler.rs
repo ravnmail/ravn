@@ -1,9 +1,12 @@
 use crate::database::models::pending_operation::PendingOperationType;
-use crate::database::repositories::SqlitePendingOperationRepository;
+use crate::database::repositories::{
+    FolderRepository, SqliteFolderRepository, SqlitePendingOperationRepository,
+};
 use crate::sync::error::{SyncError, SyncResult};
 use crate::sync::types::{SyncDiff, SyncEmail, SyncFolder};
 use chrono::Utc;
 use sqlx::SqlitePool;
+use tauri::Emitter;
 use uuid::Uuid;
 
 /// Result of a reconciliation pass
@@ -46,15 +49,30 @@ impl Reconciler {
         let mut result = ReconciliationResult::default();
         let pending_repo = SqlitePendingOperationRepository::new(self.pool.clone());
 
+        let folder_repo = SqliteFolderRepository::new(self.pool.clone());
+
         // Process added emails
         for email in &diff.added {
-            let conflicts = self
-                .resolve_conflicts_for_email(email, &pending_repo)
-                .await;
+            let conflicts = self.resolve_conflicts_for_email(email, &pending_repo).await;
             result.conflicts_resolved += conflicts;
 
             match email_sync.upsert_email(email, account_id, "synced").await {
-                Ok(_) => result.added += 1,
+                Ok((_email_id, _inline_attachment_ids, is_new, db_email)) => {
+                    result.added += 1;
+
+                    if is_new {
+                        if let Err(e) = self
+                            .notify_for_new_email(&folder_repo, email_sync, email, &db_email)
+                            .await
+                        {
+                            log::warn!(
+                                "[Reconciler] Failed to notify for new email {}: {}",
+                                email.remote_id,
+                                e
+                            );
+                        }
+                    }
+                }
                 Err(e) => {
                     log::error!(
                         "[Reconciler] Failed to upsert added email {}: {}",
@@ -67,9 +85,7 @@ impl Reconciler {
 
         // Process modified emails
         for email in &diff.modified {
-            let conflicts = self
-                .resolve_conflicts_for_email(email, &pending_repo)
-                .await;
+            let conflicts = self.resolve_conflicts_for_email(email, &pending_repo).await;
             result.conflicts_resolved += conflicts;
 
             match email_sync.upsert_email(email, account_id, "synced").await {
@@ -90,8 +106,9 @@ impl Reconciler {
 
         for remote_id in &diff.deleted {
             // Cancel any pending ops for this email
-            if let Ok(Some(email_id)) =
-                self.find_email_id_by_remote_id(remote_id, &folder_id_str).await
+            if let Ok(Some(email_id)) = self
+                .find_email_id_by_remote_id(remote_id, &folder_id_str)
+                .await
             {
                 let pending_ops = pending_repo
                     .find_pending_for_email(email_id)
@@ -175,15 +192,11 @@ impl Reconciler {
 
             // Check if the provider state already reflects this operation
             let is_superseded = match op_type {
-                Some(PendingOperationType::MarkRead) => {
-                    email.flags.contains(&"\\Seen".to_string())
-                }
+                Some(PendingOperationType::MarkRead) => email.flags.contains(&"\\Seen".to_string()),
                 Some(PendingOperationType::MarkUnread) => {
                     !email.flags.contains(&"\\Seen".to_string())
                 }
-                Some(PendingOperationType::Flag) => {
-                    email.flags.contains(&"\\Flagged".to_string())
-                }
+                Some(PendingOperationType::Flag) => email.flags.contains(&"\\Flagged".to_string()),
                 Some(PendingOperationType::Unflag) => {
                     !email.flags.contains(&"\\Flagged".to_string())
                 }
@@ -202,6 +215,51 @@ impl Reconciler {
         }
 
         cancelled
+    }
+
+    async fn notify_for_new_email(
+        &self,
+        folder_repo: &SqliteFolderRepository,
+        email_sync: &super::email_sync::EmailSync,
+        email: &SyncEmail,
+        db_email: &crate::database::models::email::Email,
+    ) -> SyncResult<()> {
+        let folder = folder_repo
+            .find_by_id(email.folder_id)
+            .await
+            .map_err(|e| SyncError::DatabaseError(e.to_string()))?
+            .ok_or_else(|| {
+                SyncError::DatabaseError(format!("Folder not found for email: {}", email.folder_id))
+            })?;
+
+        let app_handle = email_sync
+            .app_handle
+            .as_ref()
+            .ok_or_else(|| SyncError::DatabaseError("App handle not available".to_string()))?
+            .clone();
+
+        if let Some(notification_service) = &email_sync.notification_service {
+            if let Err(e) = notification_service
+                .notify_incoming_email(folder.id, folder.folder_type, db_email)
+                .await
+            {
+                log::warn!(
+                    "[Reconciler] Notification service failed for new email {}: {}",
+                    email.remote_id,
+                    e
+                );
+            }
+        }
+
+        if let Err(e) = app_handle.emit("email:created", db_email.clone()) {
+            log::warn!(
+                "[Reconciler] Failed to emit email:created for {}: {}",
+                email.remote_id,
+                e
+            );
+        }
+
+        Ok(())
     }
 
     /// Find an email's UUID by its remote_id and folder_id

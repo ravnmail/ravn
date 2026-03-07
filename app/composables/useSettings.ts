@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
-import type { Settings, PartialDeep } from '~/types/settings'
 
+import type { PartialDeep, Settings } from '~/types/settings'
 
 export function useSettings() {
   // Global state for settings
@@ -17,13 +17,11 @@ export function useSettings() {
       const result = await invoke<Settings>('get_all_settings')
       settings.value = result
       return result
-    }
-    catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       throw err
-    }
-    finally {
+    } finally {
       isLoading.value = false
     }
   }
@@ -33,8 +31,7 @@ export function useSettings() {
     try {
       const result = await invoke<T>('get_setting', { key })
       return result
-    }
-    catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       throw err
@@ -47,11 +44,18 @@ export function useSettings() {
       const keysSet = new Set<string>(result)
       userKeys.value = keysSet
       return keysSet
-    }
-    catch (err) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       throw err
+    }
+  }
+
+  const refreshNotificationBadge = async () => {
+    try {
+      await invoke('update_badge_count')
+    } catch (err) {
+      console.error('Failed to refresh notification badge:', err)
     }
   }
 
@@ -63,8 +67,11 @@ export function useSettings() {
       // Reload all settings to keep state in sync
       await fetchSettings()
       await getUserKeys()
-    }
-    catch (err) {
+
+      if (key.startsWith('notifications.')) {
+        await refreshNotificationBadge()
+      }
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       throw err
@@ -78,8 +85,11 @@ export function useSettings() {
       // Reload all settings to keep state in sync
       await fetchSettings()
       await getUserKeys()
-    }
-    catch (err) {
+
+      if (key.startsWith('notifications.')) {
+        await refreshNotificationBadge()
+      }
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       throw err
@@ -92,8 +102,11 @@ export function useSettings() {
     try {
       await invoke('set_settings', { settings: newSettings })
       await fetchSettings()
-    }
-    catch (err) {
+
+      if ('notifications' in newSettings) {
+        await refreshNotificationBadge()
+      }
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       throw err
@@ -106,8 +119,8 @@ export function useSettings() {
       await invoke('reload_settings')
       await fetchSettings()
       await getUserKeys()
-    }
-    catch (err) {
+      await refreshNotificationBadge()
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       throw err

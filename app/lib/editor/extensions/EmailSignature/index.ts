@@ -2,35 +2,31 @@ import type { Editor } from '@tiptap/core'
 import { Node, mergeAttributes } from '@tiptap/core'
 import type { Transaction } from '@tiptap/pm/state'
 import { computed, defineComponent, h } from 'vue'
+
 import ActionDropdownButtonSplit from '~/components/ActionDropdownButtonSplit.vue'
 import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator
+  DropdownMenuSeparator,
 } from '~/components/ui/dropdown-menu'
-import { useSettings } from '~/composables/useSettings'
 
-export type SignatureId = string | null;
+export type SignatureId = string | null
 
 export interface EmailSignatureOptions {
-  HTMLAttributes: Record<string, unknown>;
-  renderHTML: ((signatureId: SignatureId) => string) | null;
+  HTMLAttributes: Record<string, unknown>
+  renderHTML: ((signatureId: SignatureId) => string) | null
 }
 
 export interface EmailSignatureAttributes {
-  signatureId: SignatureId;
+  signatureId: SignatureId
 }
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     emailSignature: {
-      insertEmailSignature: (
-        attributes?: EmailSignatureAttributes,
-      ) => ReturnType;
-      toggleEmailSignature: (
-        signatureId: SignatureId,
-      ) => ReturnType;
-    };
+      insertEmailSignature: (attributes?: EmailSignatureAttributes) => ReturnType
+      toggleEmailSignature: (signatureId: SignatureId) => ReturnType
+    }
   }
 }
 
@@ -50,9 +46,22 @@ export const EmailSignature = Node.create<EmailSignatureOptions>({
       HTMLAttributes: {},
       renderHTML: null,
       button: ({ editor, t }: { editor: Editor; t: (key: string) => string }) => {
-        const { settings } = useSettings()
-        const signatures = computed(() => settings.value?.signatures?.items || [])
-        const globalDefault = computed(() => settings.value?.signatures?.globalDefault)
+        const getSettings = () => {
+          if (typeof useNuxtApp === 'function') {
+            const nuxtApp = useNuxtApp()
+            return nuxtApp.payload.state['settings'] as
+              | {
+                  notifications?: unknown
+                  signatures?: { items?: Array<{ id: string }>; globalDefault?: string | null }
+                }
+              | null
+              | undefined
+          }
+          return null
+        }
+
+        const signatures = computed(() => getSettings()?.signatures?.items || [])
+        const globalDefault = computed(() => getSettings()?.signatures?.globalDefault)
 
         const findSignaturePosition = (doc: {
           descendants: (fn: (node: { type: { name: string } }, pos: number) => boolean) => void
@@ -85,7 +94,11 @@ export const EmailSignature = Node.create<EmailSignatureOptions>({
         const removeSignature = () => {
           const pos = findSignaturePosition(editor.state.doc)
           if (pos !== null) {
-            editor.chain().focus().deleteRange({ from: pos, to: pos + 1 }).run()
+            editor
+              .chain()
+              .focus()
+              .deleteRange({ from: pos, to: pos + 1 })
+              .run()
           }
         }
 
@@ -126,31 +139,40 @@ export const EmailSignature = Node.create<EmailSignatureOptions>({
               setup() {
                 const currentSignatureId = computed(() => getCurrentSignatureId())
 
-                return () => h(DropdownMenuRadioGroup, {
-                  modelValue: currentSignatureId.value,
-                  'onUpdate:modelValue': (value: SignatureId) => {
-                    selectSignature(value)
-                  },
-                }, [
-                  ...signatures.value.map((sig) =>
-                    h(DropdownMenuRadioItem, {
-                      key: sig.id,
-                      value: sig.id,
-                    }, {
-                      default: () => [
-                        sig.title,
-                      ]
-                    })
-                  ),
-                  h(DropdownMenuSeparator),
-                  h(DropdownMenuRadioItem, {
-                    value: null,
-                  }, {
-                    default: () => [
-                      t('composer.signature.none'),
+                return () =>
+                  h(
+                    DropdownMenuRadioGroup,
+                    {
+                      modelValue: currentSignatureId.value,
+                      'onUpdate:modelValue': (value: SignatureId) => {
+                        selectSignature(value)
+                      },
+                    },
+                    [
+                      ...signatures.value.map((sig) =>
+                        h(
+                          DropdownMenuRadioItem,
+                          {
+                            key: sig.id,
+                            value: sig.id,
+                          },
+                          {
+                            default: () => [sig.title],
+                          }
+                        )
+                      ),
+                      h(DropdownMenuSeparator),
+                      h(
+                        DropdownMenuRadioItem,
+                        {
+                          value: null,
+                        },
+                        {
+                          default: () => [t('composer.signature.none')],
+                        }
+                      ),
                     ]
-                  }),
-                ])
+                  )
               },
             }),
           },
@@ -176,15 +198,16 @@ export const EmailSignature = Node.create<EmailSignatureOptions>({
   },
 
   addCommands() {
-    const handleEmailSignature = (attributes?: EmailSignatureAttributes) =>
+    const handleEmailSignature =
+      (attributes?: EmailSignatureAttributes) =>
       ({
-         tr,
-         dispatch,
-         editor,
-       }: {
-        tr: Transaction;
-        dispatch: ((transaction: Transaction) => void) | undefined;
-        editor: Editor;
+        tr,
+        dispatch,
+        editor,
+      }: {
+        tr: Transaction
+        dispatch: ((transaction: Transaction) => void) | undefined
+        editor: Editor
       }) => {
         if (!dispatch) {
           return false
@@ -222,8 +245,7 @@ export const EmailSignature = Node.create<EmailSignatureOptions>({
     return {
       insertEmailSignature: (attributes?: EmailSignatureAttributes) =>
         handleEmailSignature(attributes || { signatureId: null }),
-      toggleEmailSignature: (signatureId: SignatureId) =>
-        handleEmailSignature({ signatureId }),
+      toggleEmailSignature: (signatureId: SignatureId) => handleEmailSignature({ signatureId }),
     }
   },
 
@@ -246,10 +268,6 @@ export const EmailSignature = Node.create<EmailSignatureOptions>({
       return wrapper
     }
 
-    return [
-      'div',
-      mergeAttributes({ 'data-type': 'email-signature' }, HTMLAttributes),
-      '',
-    ]
+    return ['div', mergeAttributes({ 'data-type': 'email-signature' }, HTMLAttributes), '']
   },
 })

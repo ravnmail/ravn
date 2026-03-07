@@ -1,7 +1,7 @@
 use crate::config::ConfigValue;
 use crate::state::AppState;
 use serde_json::Value as JsonValue;
-use tauri::State;
+use tauri::{Emitter, State};
 
 /// Get a setting by key
 #[tauri::command]
@@ -47,12 +47,24 @@ pub async fn set_setting(
         state.settings.set(&k, v).map_err(|e| e.to_string())?;
     }
 
+    state
+        .app_handle
+        .emit("settings-changed", serde_json::json!({ "key": key }))
+        .map_err(|e| e.to_string())?;
+
     Ok(())
 }
 
 #[tauri::command]
 pub async fn remove_setting(state: State<'_, AppState>, key: String) -> Result<(), String> {
-    state.settings.remove(&key).map_err(|e| e.to_string())
+    state.settings.remove(&key).map_err(|e| e.to_string())?;
+
+    state
+        .app_handle
+        .emit("settings-changed", serde_json::json!({ "key": key }))
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -97,10 +109,22 @@ pub async fn set_settings(state: State<'_, AppState>, settings: JsonValue) -> Re
 
     let mut flattened = Vec::new();
     flatten_json("", &settings, &mut flattened);
+    let changed_keys = flattened
+        .iter()
+        .map(|(key, _)| key.clone())
+        .collect::<Vec<_>>();
 
     for (key, value) in flattened {
         state.settings.set(&key, value).map_err(|e| e.to_string())?;
     }
+
+    state
+        .app_handle
+        .emit(
+            "settings-changed",
+            serde_json::json!({ "keys": changed_keys }),
+        )
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }

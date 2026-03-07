@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import type { AnyExtension } from '@tiptap/core'
+import type { AnyExtension, Editor } from '@tiptap/core'
 import { Extension } from '@tiptap/core'
 import { Dropcursor } from '@tiptap/extension-dropcursor'
 import { Gapcursor } from '@tiptap/extension-gapcursor'
@@ -40,8 +40,6 @@ import { TextBubble } from './TextBubble'
 import { TrailingNode } from './TrailingNode'
 import { Underline } from './UnderLine'
 
-const { settings } = useSettings()
-
 export interface MailKitEmailContext {
   sender: () => string
   subject: () => string
@@ -51,8 +49,25 @@ export interface MailKitEmailContext {
   contactNotes: () => Array<{ email: string; display_name?: string | null; notes: string }>
 }
 
+export type MailKitSettings = {
+  signatures?: {
+    globalDefault?: string | null
+    items?: Array<{
+      id: string
+      content: string
+    }>
+  }
+  ai?: {
+    autoCompletion?: {
+      enabled?: boolean
+      [key: string]: any
+    }
+  }
+}
+
 export type MailKitOptions = {
   emailContext?: MailKitEmailContext
+  settings?: MailKitSettings
 }
 
 export const MailKit = Extension.create({
@@ -76,7 +91,7 @@ export const MailKit = Extension.create({
           ],
         },
         defaultBubbleList,
-        button: ({ editor, extension, t }) => {
+        button: ({ editor, extension, t }: { editor: Editor; extension: any; t: any }) => {
           const { list = {}, defaultBubbleList } = extension.options?.bubble ?? {}
           const defaultList = defaultBubbleList?.(editor) ?? []
 
@@ -105,10 +120,10 @@ export const MailKit = Extension.create({
         placeholder: ({ node }) => {
           const nodeTypeName = node?.type?.name
           if (nodeTypeName === 'heading') {
-            return t(`composer.placeholders.h${node.attrs.level}`)
+            return String(t(`composer.placeholders.h${node.attrs.level}`) ?? '')
           }
           if (node.type.name === 'codeBlock') {
-            return t('composer.placeholders.code')
+            return String(t('composer.placeholders.code') ?? '')
           }
           if (
             nodeTypeName === 'table' ||
@@ -120,7 +135,7 @@ export const MailKit = Extension.create({
             return ''
           }
 
-          return t('composer.placeholders.default')
+          return String(t('composer.placeholders.default') ?? '')
         },
         ...this.options.placeholder,
       }),
@@ -156,13 +171,13 @@ export const MailKit = Extension.create({
       Blockquote,
       CodeBlock,
       QuotedContent.configure({
-        replyLabel: t('composer.quotedContent.reply'),
-        forwardedMessageLabel: t('composer.quotedContent.forwardedMessage'),
-        fromLabel: t('composer.quotedContent.from'),
-        dateLabel: t('composer.quotedContent.date'),
-        subjectLabel: t('composer.quotedContent.subject'),
-        toLabel: t('composer.quotedContent.to'),
-        wroteLabel: t('composer.quotedContent.wrote'),
+        replyLabel: String(t('composer.quotedContent.reply') ?? ''),
+        forwardedMessageLabel: String(t('composer.quotedContent.forwardedMessage') ?? ''),
+        fromLabel: String(t('composer.quotedContent.from') ?? ''),
+        dateLabel: String(t('composer.quotedContent.date') ?? ''),
+        subjectLabel: String(t('composer.quotedContent.subject') ?? ''),
+        toLabel: String(t('composer.quotedContent.to') ?? ''),
+        wroteLabel: String(t('composer.quotedContent.wrote') ?? ''),
       }),
 
       HighlightParagraph,
@@ -178,30 +193,32 @@ export const MailKit = Extension.create({
       HorizontalRule,
       Indent,
       AI.configure({
-        completions: async (history, signal) => {
+        completions: async (history: any, signal: AbortSignal | undefined): Promise<any> => {
           console.log('AI completions called with history:', { ...history })
-          const result = await invoke('ask_ai', {
+          const result = await invoke<any>('ask_ai', {
             context: { history },
           })
 
           console.log('AI completions result:', result)
 
-          return result
+          return result as any
         },
         shortcuts: [],
-      }),
+      } as any),
       AutoJoiner.configure({
         elementsToJoin: ['blockquote', 'codeBlock', 'bulletList', 'orderedList'],
       }),
       Callout.configure(),
       EmailSignature.configure({
         renderHTML: (signatureId) => {
+          const mailSettings = this.options.settings
           if (!signatureId) {
-            signatureId = settings.value?.signatures.globalDefault || null
+            signatureId = mailSettings?.signatures?.globalDefault || null
           }
           if (signatureId) {
             return (
-              settings.value?.signatures.items.find(({ id }) => id === signatureId)?.content || ''
+              mailSettings?.signatures?.items?.find(({ id }: { id: string }) => id === signatureId)
+                ?.content || ''
             )
           }
           return ''
@@ -209,11 +226,11 @@ export const MailKit = Extension.create({
       }),
     ]
 
-    if (settings.value.ai.autoCompletion.enabled) {
+    if (this.options.settings?.ai?.autoCompletion?.enabled) {
       const emailCtx = this.options.emailContext
       extensions.push(
         Autocomplete.configure({
-          ...settings.value.ai.autoCompletion,
+          ...this.options.settings.ai.autoCompletion,
           ...(emailCtx
             ? {
                 emailMetadata: () => ({

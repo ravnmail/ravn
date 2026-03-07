@@ -10,6 +10,7 @@ use super::error::{SyncError, SyncResult};
 use super::events::*;
 use super::folder_sync::FolderSync;
 use super::types::SyncFolder;
+use crate::config::Settings;
 use crate::database::error::DatabaseError;
 use crate::database::models::account::Account;
 use crate::database::models::pending_operation::{PendingOperation, PendingOperationType};
@@ -18,6 +19,7 @@ use crate::database::repositories::{
     SqlitePendingOperationRepository,
 };
 use crate::search::SearchManager;
+use crate::services::notification_service::NotificationService;
 
 /// Central sync manager that coordinates all sync operations
 pub struct SyncManager {
@@ -27,7 +29,8 @@ pub struct SyncManager {
     email_sync: Arc<EmailSync>,
     credential_store: Arc<CredentialStore>,
     search_manager: Option<Arc<SearchManager>>,
-    // settings: Arc<Settings>,
+    settings: Option<Arc<Settings>>,
+    notification_service: Option<Arc<NotificationService>>,
     active_syncs: Arc<RwLock<HashMap<Uuid, bool>>>,
     app_handle: Option<tauri::AppHandle>,
 }
@@ -52,6 +55,8 @@ impl SyncManager {
             email_sync,
             credential_store,
             search_manager: None,
+            settings: None,
+            notification_service: None,
             active_syncs: Arc::new(RwLock::new(HashMap::new())),
             app_handle: None,
         }
@@ -69,6 +74,17 @@ impl SyncManager {
 
         if let Some(app_handle) = &self.app_handle {
             email_sync_builder = email_sync_builder.with_app_handle(app_handle.clone());
+        }
+
+        if let Some(notification_service) = &self.notification_service {
+            email_sync_builder =
+                email_sync_builder.with_notification_service(Arc::clone(notification_service));
+        } else if let (Some(app_handle), Some(settings)) = (&self.app_handle, &self.settings) {
+            let notification_service = Arc::new(
+                NotificationService::new(self.pool.clone(), Arc::clone(settings))
+                    .with_app_handle(app_handle.clone()),
+            );
+            email_sync_builder = email_sync_builder.with_notification_service(notification_service);
         }
 
         self.email_sync = Arc::new(email_sync_builder);
@@ -92,8 +108,78 @@ impl SyncManager {
             email_sync_builder = email_sync_builder.with_search_manager(Arc::clone(search_manager));
         }
 
+        if let Some(notification_service) = &self.notification_service {
+            email_sync_builder =
+                email_sync_builder.with_notification_service(Arc::clone(notification_service));
+        } else if let Some(settings) = &self.settings {
+            let notification_service = Arc::new(
+                NotificationService::new(self.pool.clone(), Arc::clone(settings))
+                    .with_app_handle(app_handle.clone()),
+            );
+            email_sync_builder = email_sync_builder.with_notification_service(notification_service);
+        }
+
         self.email_sync = Arc::new(email_sync_builder);
         self.app_handle = Some(app_handle);
+        self
+    }
+
+    pub fn with_settings(mut self, settings: Arc<Settings>) -> Self {
+        self.settings = Some(Arc::clone(&settings));
+
+        let mut email_sync_builder = EmailSync::new(
+            self.pool.clone(),
+            self.app_data_dir.clone(),
+            Arc::clone(&self.credential_store),
+        );
+
+        if let Some(search_manager) = &self.search_manager {
+            email_sync_builder = email_sync_builder.with_search_manager(Arc::clone(search_manager));
+        }
+
+        if let Some(app_handle) = &self.app_handle {
+            email_sync_builder = email_sync_builder.with_app_handle(app_handle.clone());
+
+            if let Some(notification_service) = &self.notification_service {
+                email_sync_builder =
+                    email_sync_builder.with_notification_service(Arc::clone(notification_service));
+            } else {
+                let notification_service = Arc::new(
+                    NotificationService::new(self.pool.clone(), settings)
+                        .with_app_handle(app_handle.clone()),
+                );
+                email_sync_builder =
+                    email_sync_builder.with_notification_service(notification_service);
+            }
+        }
+
+        self.email_sync = Arc::new(email_sync_builder);
+        self
+    }
+
+    pub fn with_notification_service(
+        mut self,
+        notification_service: Arc<NotificationService>,
+    ) -> Self {
+        self.notification_service = Some(Arc::clone(&notification_service));
+
+        let mut email_sync_builder = EmailSync::new(
+            self.pool.clone(),
+            self.app_data_dir.clone(),
+            Arc::clone(&self.credential_store),
+        );
+
+        if let Some(search_manager) = &self.search_manager {
+            email_sync_builder = email_sync_builder.with_search_manager(Arc::clone(search_manager));
+        }
+
+        if let Some(app_handle) = &self.app_handle {
+            email_sync_builder = email_sync_builder.with_app_handle(app_handle.clone());
+        }
+
+        email_sync_builder = email_sync_builder.with_notification_service(notification_service);
+
+        self.email_sync = Arc::new(email_sync_builder);
         self
     }
 
@@ -324,7 +410,11 @@ impl SyncManager {
             .await
             .map_err(|e| SyncError::DatabaseError(e.to_string()));
 
-        log::info!("Queued move for email {} to folder {}", email_id, to_folder_id);
+        log::info!(
+            "Queued move for email {} to folder {}",
+            email_id,
+            to_folder_id
+        );
 
         // 3. Emit event immediately
         self.emit_event(
@@ -392,7 +482,11 @@ impl SyncManager {
 
         log::info!(
             "Queued {} for email {}",
-            if permanent { "permanent delete" } else { "delete" },
+            if permanent {
+                "permanent delete"
+            } else {
+                "delete"
+            },
             email_id
         );
 
@@ -465,6 +559,13 @@ impl SyncManager {
                 is_read,
             },
         );
+
+        if let Some(notification_service) = &self.notification_service {
+            notification_service
+                .update_badge_count()
+                .await
+                .map_err(SyncError::InvalidConfiguration)?;
+        }
 
         Ok(())
     }

@@ -39,6 +39,16 @@ export interface EmailSettings {
   renderMode: 'simple' | 'normal'
 }
 
+export interface NotificationSettings {
+  enabled: boolean
+  incomingSound: string | null
+  outgoingSound: string | null
+  reminderSound: string | null
+  notificationFolders: string[]
+  badgeType: 'count' | 'dot' | null
+  badgeFolders: string[]
+}
+
 export interface KanbanViewSettings {
   showLabelsSection: boolean
 }
@@ -69,6 +79,7 @@ export interface Settings {
   signatures: SignaturesSettings
   keyboard: KeyboardSettings
   email: EmailSettings
+  notifications: NotificationSettings
   views: ViewsSettings
   regional: RegionalSettings
 }

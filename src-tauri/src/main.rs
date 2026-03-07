@@ -40,6 +40,7 @@ use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
     Emitter, Manager, WindowEvent,
 };
+use tauri_plugin_notification::NotificationExt;
 
 fn create_menu(app: &tauri::App) -> Result<Menu<tauri::Wry>, tauri::Error> {
     let menu = Menu::new(app)?;
@@ -184,6 +185,7 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         // ── macOS window-lifecycle ────────────────────────────────────────────
         // Intercept the red traffic-light button (and any other OS-level "close
@@ -283,6 +285,14 @@ fn main() {
                     .expect("Failed to initialize database")
             });
 
+            let notification_service = Arc::new(
+                app_lib::services::notification_service::NotificationService::new(
+                    db.get_pool().clone(),
+                    Arc::clone(&settings),
+                )
+                .with_app_handle(app_handle.clone()),
+            );
+
             let oauth_state_manager = Arc::new(OAuthStateManager::new());
 
             let app_data_dir_str = app_data_dir.to_string_lossy().to_string();
@@ -296,6 +306,7 @@ fn main() {
                 app_data_dir_str.clone(),
                 Arc::clone(&credential_store),
                 app_handle.clone(),
+                Arc::clone(&settings),
             ));
 
             let background_body_fetcher = Arc::new(BackgroundBodyFetcher::new(
@@ -377,7 +388,8 @@ fn main() {
                     Arc::clone(&credential_store),
                 )
                 .with_search_manager(Arc::clone(&search_manager))
-                .with_app_handle(app_handle.clone()),
+                .with_app_handle(app_handle.clone())
+                .with_notification_service(Arc::clone(&notification_service)),
             );
 
             // Create the operation queue to process pending operations (delete, mark read, flag, move)
@@ -400,6 +412,7 @@ fn main() {
                 sync_coordinator,
                 credential_store,
                 search_manager,
+                notification_service: Arc::clone(&notification_service),
                 license_manager: Arc::clone(&license_manager),
                 license_refresh_runner: Arc::clone(&license_refresh_runner),
                 app_handle: app_handle.clone(),
@@ -410,6 +423,10 @@ fn main() {
             };
 
             app_handle.manage(state);
+
+            if let Err(error) = app_handle.notification().request_permission() {
+                log::warn!("Failed to request notification permission: {}", error);
+            }
 
             // Reset any folders stuck in 'syncing' state from a previous unclean shutdown
             {
