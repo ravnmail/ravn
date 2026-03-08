@@ -1,4 +1,7 @@
 <script lang="ts" setup>
+import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview'
+import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview'
+
 import MailContextMenu from '~/components/Ravn/MailContextMenu.vue'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
 import { useDraggable } from '~/composables/useDragAndDrop'
@@ -21,11 +24,54 @@ const { formatTime } = useRegionalFormat()
 
 const itemRef = ref<HTMLElement | null>(null)
 
-const { isDragging } = useDraggable(itemRef, () => ({
-  type: 'email',
+const getDragData = () => ({
+  type: 'email' as const,
   id: props.email.id,
   folderId: props.email.folder_id,
-}))
+})
+
+const { isDragging } = useDraggable(itemRef, getDragData, {
+  onGenerateDragPreview: ({ nativeSetDragImage }) => {
+    setCustomNativeDragPreview({
+      nativeSetDragImage,
+      getOffset: pointerOutsideOfPreview({ x: '16px', y: '8px' }),
+      render({ container }) {
+        const label =
+          props.email.subject?.trim() ||
+          props.email.from.name ||
+          props.email.from.address ||
+          'Email'
+
+        const el = document.createElement('div')
+        el.style.cssText = [
+          'display:flex',
+          'align-items:center',
+          'gap:6px',
+          'padding:6px 10px',
+          'border-radius:8px',
+          'font-size:13px',
+          'font-weight:500',
+          'max-width:220px',
+          'white-space:nowrap',
+          'overflow:hidden',
+          'text-overflow:ellipsis',
+          'box-shadow:0 4px 16px rgba(0,0,0,0.18)',
+          'background:var(--color-background,#fff)',
+          'color:var(--color-foreground,#111)',
+          'border:1px solid var(--color-border,#e5e7eb)',
+          'pointer-events:none',
+        ].join(';')
+
+        const text = document.createElement('span')
+        text.style.cssText = 'overflow:hidden;text-overflow:ellipsis'
+        text.textContent = label
+        el.appendChild(text)
+
+        container.appendChild(el)
+      },
+    })
+  },
+})
 
 const executeAction = async (actionId: string, arg?: unknown) => {
   const email = props.email
@@ -144,7 +190,7 @@ const hasReminder = computed(() => !!props.email.remind_at)
       :class="[
         'group/item relative flex flex-col gap-1 rounded-md bg-card/20 p-2 text-left',
         'cursor-pointer transition-colors select-none',
-        isDragging ? 'cursor-grabbing opacity-50 ring-1 ring-primary' : '',
+        isDragging ? 'cursor-grabbing opacity-30' : '',
         isSelected ? 'bg-selection text-selection-foreground' : email.is_read ? '' : 'text-primary',
       ]"
       @click="emit('click')"

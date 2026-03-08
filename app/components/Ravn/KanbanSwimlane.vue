@@ -43,12 +43,21 @@ const { isOver, canDrop } = useDropTarget(swimlaneRef, {
   },
 })
 
-const backgroundColor = computed(() => {
-  if (isOver.value) {
-    return canDrop.value ? `${props.swimlane.color}40` : '#FF000040'
+const dropStateClass = computed(() => {
+  if (isOver.value && canDrop.value) {
+    return 'bg-primary/10 ring-2 ring-primary ring-offset-1'
   }
-  return props.swimlane.color ? `${props.swimlane.color}20` : 'transparent'
+
+  if (isOver.value && !canDrop.value) {
+    return 'ring-2 ring-destructive ring-offset-1'
+  }
+
+  return ''
 })
+
+const swimlaneBaseStyle = computed(() => ({
+  backgroundColor: props.swimlane.color ? `${props.swimlane.color}15` : 'transparent',
+}))
 
 const collapsed = computed(() => props.swimlane.state === 'closed')
 
@@ -195,20 +204,11 @@ const executeAction = async (actionId: string, arg?: unknown) => {
     class="group/swimlane w-12 shrink-0 self-stretch"
   >
     <div
-      class="relative flex h-full w-full cursor-pointer flex-col items-center justify-start rounded-lg py-3 transition-colors duration-200 hover:bg-white/5"
-      :style="{
-        backgroundColor: isOver
-          ? canDrop
-            ? `${swimlane.color}40`
-            : '#FF000040'
-          : swimlane.color
-            ? `${swimlane.color}15`
-            : 'transparent',
-        outline: isOver
-          ? `2px solid ${canDrop ? (swimlane.color ?? '#ffffff') : '#FF0000'}`
-          : 'none',
-        outlineOffset: '-2px',
-      }"
+      :class="[
+        'relative flex h-full w-full cursor-pointer flex-col items-center justify-start rounded-lg py-3 transition-colors duration-200 hover:bg-white/5',
+        dropStateClass,
+      ]"
+      :style="swimlaneBaseStyle"
       @click="setCollapsed(false)"
     >
       <div class="flex flex-1 -rotate-90 items-center gap-2">
@@ -239,7 +239,8 @@ const executeAction = async (actionId: string, arg?: unknown) => {
   <div
     v-else
     ref="swimlaneRef"
-    class="group/swimlane flex w-80 flex-shrink-0 flex-col"
+    :class="['group/swimlane flex w-80 flex-shrink-0 flex-col rounded-lg', dropStateClass]"
+    :style="swimlaneBaseStyle"
   >
     <!-- Header -->
     <div class="mb-3 flex flex-col gap-2">
