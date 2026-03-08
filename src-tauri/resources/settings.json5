@@ -46,6 +46,41 @@
   'email.conversation.collapseMessages': true,
   // Inset outgoing messages in conversation view
   'email.conversation.insetOutgoing': true,
+  // Reminder preset definitions used in reminder menus
+  // `type` supports: laterToday, tomorrow, nextWeek, nextMonth, custom, clear
+  // Built-in types derive their remind_at dynamically at runtime
+  // `time` is optional and uses 24h HH:mm format for built-in date-based types
+  // Custom presets require `offset.value` and `offset.unit`
+  'email.reminders.presets': [
+    {
+      id: 'later-today',
+      type: 'laterToday',
+      icon: 'lucide:clock-3',
+    },
+    {
+      id: 'tomorrow',
+      type: 'tomorrow',
+      icon: 'lucide:sunrise',
+      time: '09:00',
+    },
+    {
+      id: 'next-week',
+      type: 'nextWeek',
+      icon: 'lucide:calendar-days',
+      time: '09:00',
+    },
+    {
+      id: 'next-month',
+      type: 'nextMonth',
+      icon: 'lucide:calendar-range',
+      time: '09:00',
+    },
+    {
+      id: 'clear',
+      type: 'clear',
+      icon: 'lucide:x-circle',
+    },
+  ],
 
   // Contacts Settings
   'contacts.avatar.services': ['unavatar', 'favicon'],

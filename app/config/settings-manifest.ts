@@ -294,6 +294,18 @@ export const settingsManifest: SettingsManifest = [
           },
         ],
       },
+      {
+        id: 'reminders',
+        name: 'settings.email.reminders.section',
+        items: [
+          {
+            id: 'email.reminders.presets',
+            name: 'settings.email.reminders.presets.name',
+            description: 'settings.email.reminders.presets.description',
+            is: 'ReminderPresets',
+          },
+        ],
+      },
     ],
   },
   {

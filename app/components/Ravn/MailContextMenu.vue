@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import FolderMenu from '~/components/Ravn/FolderMenu.vue'
 import LabelMenu from '~/components/Ravn/LabelMenu.vue'
+import RemindAtMenu from '~/components/Ravn/RemindAtMenu.vue'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -27,6 +28,15 @@ const closeMenu = () => {
   nextTick(() => {
     open.value = false
   })
+}
+
+const handleRemindAtSelect = async (value: string | null) => {
+  try {
+    await props.onExecuteAction?.('setRemindAt', value)
+    closeMenu()
+  } catch (error) {
+    throw error
+  }
 }
 
 const isProcessingFolderChange = ref(false)
@@ -117,60 +127,6 @@ const handleLabelToggle = async (payload: { labelId: string; selected: boolean }
     throw error
   }
 }
-
-interface ReminderPreset {
-  labelKey: string
-  icon: string
-  getValue: () => string | null
-}
-
-const reminderPresets = computed<ReminderPreset[]>(() => {
-  const now = new Date()
-
-  const laterToday = new Date(now)
-  laterToday.setHours(now.getHours() + 3, 0, 0, 0)
-
-  const tomorrow = new Date(now)
-  tomorrow.setDate(now.getDate() + 1)
-  tomorrow.setHours(9, 0, 0, 0)
-
-  const nextWeek = new Date(now)
-  nextWeek.setDate(now.getDate() + 7)
-  nextWeek.setHours(9, 0, 0, 0)
-
-  const nextMonth = new Date(now)
-  nextMonth.setMonth(now.getMonth() + 1)
-  nextMonth.setDate(1)
-  nextMonth.setHours(9, 0, 0, 0)
-
-  return [
-    {
-      labelKey: 'components.remindAt.laterToday',
-      icon: 'lucide:clock-3',
-      getValue: () => laterToday.toISOString(),
-    },
-    {
-      labelKey: 'components.remindAt.tomorrow',
-      icon: 'lucide:sunrise',
-      getValue: () => tomorrow.toISOString(),
-    },
-    {
-      labelKey: 'components.remindAt.nextWeek',
-      icon: 'lucide:calendar-days',
-      getValue: () => nextWeek.toISOString(),
-    },
-    {
-      labelKey: 'components.remindAt.nextMonth',
-      icon: 'lucide:calendar-range',
-      getValue: () => nextMonth.toISOString(),
-    },
-    {
-      labelKey: 'components.remindAt.clear',
-      icon: 'lucide:x-circle',
-      getValue: () => null,
-    },
-  ]
-})
 </script>
 
 <template>
@@ -253,14 +209,11 @@ const reminderPresets = computed<ReminderPreset[]>(() => {
             />
             <span>{{ t('components.remindAt.menuLabel') }}</span>
           </ContextMenuSubTrigger>
-          <ContextMenuSubContent @open-auto-focus.prevent>
-            <DropdownMenuItemRich
-              v-for="preset in reminderPresets"
-              :key="preset.labelKey"
-              :icon="preset.icon"
-              :label="t(preset.labelKey)"
-              @select="onExecuteAction?.('setRemindAt', preset.getValue())"
-            />
+          <ContextMenuSubContent
+            class="p-0"
+            @open-auto-focus.prevent
+          >
+            <RemindAtMenu @select="handleRemindAtSelect" />
           </ContextMenuSubContent>
         </ContextMenuSub>
       </ContextMenuGroup>

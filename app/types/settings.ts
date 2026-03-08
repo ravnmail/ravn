@@ -35,8 +35,31 @@ export interface KeyboardSettings {
   bindings: KeyboardBindings
 }
 
+export type ReminderPresetType = 'laterToday' | 'tomorrow' | 'nextWeek' | 'nextMonth' | 'custom'
+
+export type ReminderPresetOffsetUnit = 'minute' | 'hour' | 'day' | 'week' | 'month'
+
+export interface ReminderPresetOffset {
+  value: number
+  unit: ReminderPresetOffsetUnit
+}
+
+export interface ReminderPresetSetting {
+  id: string
+  label: string
+  type: ReminderPresetType
+  icon?: string | null
+  time?: string | null
+  offset?: ReminderPresetOffset | null
+}
+
+export interface EmailReminderSettings {
+  presets: ReminderPresetSetting[]
+}
+
 export interface EmailSettings {
   renderMode: 'simple' | 'normal'
+  reminders: EmailReminderSettings
 }
 
 export interface NotificationSettings {
