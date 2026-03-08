@@ -374,7 +374,7 @@ const formatDayMonthShort = (date: Date): string => dayjs(date).format('MMM')
           :key="day.dateKey"
           :class="[
             'group/cell flex flex-col overflow-hidden border-r border-b last:border-r-0',
-            day.isCurrentPeriod ? 'bg-background' : 'bg-muted/15',
+            day.isCurrentPeriod ? 'bg-background' : 'bg-surface',
           ]"
         >
           <div
@@ -428,7 +428,7 @@ const formatDayMonthShort = (date: Date): string => dayjs(date).format('MMM')
           :key="day.dateKey"
           :class="[
             'group/cell flex flex-col overflow-hidden border-r border-b last:border-r-0',
-            day.isToday ? 'bg-surface' : 'bg-background',
+            day.isToday ? 'bg-background' : 'bg-surface',
           ]"
         >
           <div class="flex shrink-0 flex-col items-center gap-1 px-2 py-2">
