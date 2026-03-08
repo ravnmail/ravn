@@ -332,10 +332,16 @@ impl CorvusService {
             allow_fallbacks: None,
             require_parameters: None,
             data_collection: None,
+            zdr: None,
+            enforce_distillable_text: None,
             order: None,
+            only: None,
             ignore: None,
             quantizations: None,
             sort: Some(sorting_preference),
+            max_price: None,
+            preferred_min_throughput: None,
+            preferred_max_latency: None,
         })
     }
 
