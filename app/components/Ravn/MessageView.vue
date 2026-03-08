@@ -19,6 +19,7 @@ const props = withDefaults(
       autoAnalyze?: boolean
       initialReduced?: boolean
       isFirst?: boolean
+      isHighlighted?: boolean
     }
   >(),
   {
@@ -27,6 +28,7 @@ const props = withDefaults(
     autoAnalyze: false,
     initialReduced: true,
     isFirst: false,
+    isHighlighted: false,
   }
 )
 
@@ -145,6 +147,7 @@ function syncLocalEmailFromProps() {
   localEmail.sent_at = props.sent_at
   localEmail.scheduled_send_at = props.scheduled_send_at
   localEmail.remind_at = props.remind_at
+  localEmail.notified_at = props.notified_at
   localEmail.is_read = props.is_read
   localEmail.is_flagged = props.is_flagged
   localEmail.is_draft = props.is_draft
@@ -423,7 +426,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
+  <div
+    :class="[
+      'flex flex-col gap-3 rounded-2xl transition-colors',
+      isHighlighted ? 'bg-accent/5 p-3 ring-1 ring-accent/30' : '',
+    ]"
+  >
     <div
       class="items-top flex flex-1"
       @click="toggleReduced()"

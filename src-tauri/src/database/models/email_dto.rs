@@ -29,6 +29,7 @@ pub struct EmailListItem {
     pub received_at: DateTime<Utc>,
     pub sent_at: Option<DateTime<Utc>>,
     pub remind_at: Option<DateTime<Utc>>,
+    pub notified_at: Option<DateTime<Utc>>,
 
     pub is_read: bool,
     pub is_draft: bool,
@@ -58,6 +59,7 @@ impl EmailListItem {
             received_at: email.received_at,
             sent_at: email.sent_at,
             remind_at: email.remind_at,
+            notified_at: None,
             is_read: email.is_read,
             is_draft: email.is_draft,
             is_flagged: email.is_flagged,
@@ -101,6 +103,7 @@ pub struct EmailDetail {
     pub sent_at: Option<DateTime<Utc>>,
     pub scheduled_send_at: Option<DateTime<Utc>>,
     pub remind_at: Option<DateTime<Utc>>,
+    pub notified_at: Option<DateTime<Utc>>,
 
     pub is_read: bool,
     pub is_flagged: bool,
@@ -153,6 +156,7 @@ impl EmailDetail {
             sent_at: email.sent_at,
             scheduled_send_at: email.scheduled_send_at,
             remind_at: email.remind_at,
+            notified_at: None,
             is_read: email.is_read,
             is_flagged: email.is_flagged,
             is_draft: email.is_draft,

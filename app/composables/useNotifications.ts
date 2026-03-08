@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import {
@@ -65,9 +65,9 @@ type ReminderNotificationRecord = {
   remindAt: string
 }
 
-const REMINDER_CHECK_INTERVAL_MS = 30_000
 const REMINDER_DEDUP_STORAGE_KEY = 'ravn.notifications.reminders.sent'
 const MAX_REMINDER_RECORDS = 500
+let notificationSetupPromise: Promise<void> | null = null
 
 export const useNotifications = () => {
   const initialized = useState<boolean>('notifications-initialized', () => false)
@@ -75,15 +75,10 @@ export const useNotifications = () => {
   const audioContext = useState<AudioContext | null>('notifications-audio-context', () => null)
   const settings = useState<any | null>('settings', () => null)
   const bootstrapSyncInProgress = useState<boolean>('notifications-bootstrap-sync', () => false)
-  const reminderCheckTimer = useState<ReturnType<typeof setInterval> | null>(
-    'notifications-reminder-check-timer',
-    () => null
-  )
   const reminderCheckInFlight = useState<boolean>(
     'notifications-reminder-check-in-flight',
     () => false
   )
-  const reminderBootstrapped = useState<boolean>('notifications-reminder-bootstrapped', () => false)
   const audioCache = new Map<string, AudioBuffer>()
 
   const notificationSettings = computed(() => settings.value?.notifications)
@@ -93,7 +88,8 @@ export const useNotifications = () => {
   const isProductionBuild = import.meta.env.PROD
   const supportsImageNotifications = computed(() => {
     if (!isClient) return false
-    return ['macos', 'windows'].includes(navigator.platform?.toLowerCase?.() || '')
+    const platform = navigator.platform?.toLowerCase?.() || ''
+    return platform.includes('mac') || platform.includes('win')
   })
 
   const initAudioContext = () => {
@@ -332,6 +328,7 @@ export const useNotifications = () => {
 
     const options: Record<string, any> = {
       body,
+      autoCancel: true,
     }
 
     if (payload.tag?.trim()) {
@@ -342,8 +339,28 @@ export const useNotifications = () => {
       options.tag = `reminder-email:${payload.email.id}:${payload.email.remindAt}`
     }
 
-    if (payload.email?.avatarUrl) {
-      options.icon = payload.email.avatarUrl
+    const targetUrl = buildNotificationDeepLink(payload)
+    if (targetUrl) {
+      options.extra = {
+        targetUrl,
+      }
+    }
+
+    const avatarPath = payload.email?.avatarUrl?.trim()
+    if (avatarPath) {
+      const attachmentUrl =
+        avatarPath.startsWith('asset:') || avatarPath.startsWith('file:')
+          ? avatarPath
+          : convertFileSrc(avatarPath)
+
+      options.icon = attachmentUrl
+      options.attachments = [
+        {
+          id: `avatar:${payload.email?.id || payload.tag || payload.kind || 'notification'}`,
+          url: attachmentUrl,
+        },
+      ]
+
       if (supportsImageNotifications.value) {
         options.largeBody = snippet
         options.summary = `${sender} • ${subject}`
@@ -388,7 +405,8 @@ export const useNotifications = () => {
     const emailId = payload.email?.id?.trim()
 
     if (accountId && folderId && conversationId) {
-      return `ravn://mail/${accountId}/folders/${folderId}/conversations/${conversationId}`
+      const query = emailId ? `?email=${encodeURIComponent(emailId)}` : ''
+      return `ravn://mail/${accountId}/folders/${folderId}/conversations/${conversationId}${query}`
     }
 
     if (accountId && folderId && emailId) {
@@ -416,15 +434,10 @@ export const useNotifications = () => {
       const title = buildNotificationTitle(payload)
       const options = buildNotificationOptions(payload)
 
-      await sendNotification({
+      sendNotification({
         title,
         ...options,
       })
-
-      const targetUrl = buildNotificationDeepLink(payload)
-      if (targetUrl) {
-        console.debug('Notification target prepared:', targetUrl)
-      }
     } catch (error) {
       console.error('Failed to send native notification:', error)
     }
@@ -511,131 +524,81 @@ export const useNotifications = () => {
     }
   }
 
-  const startReminderPolling = async () => {
-    if (!isClient || reminderCheckTimer.value) {
-      return
-    }
-
-    await checkDueReminderNotifications()
-    reminderCheckTimer.value = window.setInterval(() => {
-      void checkDueReminderNotifications()
-    }, REMINDER_CHECK_INTERVAL_MS)
-  }
-
-  const stopReminderPolling = () => {
-    if (!isClient || !reminderCheckTimer.value) {
-      return
-    }
-
-    window.clearInterval(reminderCheckTimer.value)
-    reminderCheckTimer.value = null
-  }
-
-  const bootstrapReminderNotifications = async () => {
-    if (reminderBootstrapped.value) {
-      return
-    }
-
-    reminderBootstrapped.value = true
-    await checkDueReminderNotifications()
-  }
-
   const setupListeners = () => {
     if (initialized.value) {
       return
     }
 
-    listen<string>('play-sound', (event) => {
-      const soundName = event.payload
-      console.debug(`Received play-sound event: ${soundName}`)
-      void playSound(soundName)
-    })
+    initialized.value = true
+  }
 
-    listen<BadgeCount>('badge-count-updated', async (event) => {
-      await applyBadgeCount(event.payload.count)
-      console.debug(`Badge count updated: ${event.payload.count}`)
-    })
+  const ensureSetup = async () => {
+    if (!isClient) {
+      return
+    }
 
-    listen<NativeNotificationPayload>('native-notification', async (event) => {
-      await showNativeNotification(event.payload)
+    if (initialized.value) {
+      return
+    }
 
-      if (event.payload.playSound && !bootstrapSyncInProgress.value) {
-        const soundName =
-          event.payload.kind === 'reminder-email'
-            ? notificationSettings.value?.reminderSound
-            : notificationSettings.value?.incomingSound
+    if (!notificationSetupPromise) {
+      notificationSetupPromise = (async () => {
+        await listen<string>('play-sound', (event) => {
+          const soundName = event.payload
+          console.debug(`Received play-sound event: ${soundName}`)
+          void playSound(soundName)
+        })
 
-        if (soundName) {
-          await playSound(soundName)
-        }
-      }
-    })
+        await listen<BadgeCount>('badge-count-updated', async (event) => {
+          await applyBadgeCount(event.payload.count)
+          console.debug(`Badge count updated: ${event.payload.count}`)
+        })
 
-    listen<boolean>('notifications:bootstrap-sync-state', (event) => {
-      bootstrapSyncInProgress.value = !!event.payload
-    })
+        await listen<NativeNotificationPayload>('native-notification', async (event) => {
+          await showNativeNotification(event.payload)
+        })
 
-    listen<string>('notification:navigate', async (event) => {
-      const targetUrl = event.payload?.trim()
-      if (!targetUrl) {
-        return
-      }
+        await listen<boolean>('notifications:bootstrap-sync-state', (event) => {
+          bootstrapSyncInProgress.value = !!event.payload
+        })
+
+        await listen<string>('notification:navigate', async (event) => {
+          const targetUrl = event.payload?.trim()
+          if (!targetUrl) {
+            return
+          }
+
+          try {
+            await navigateToUrl(targetUrl)
+          } catch (error) {
+            console.error('Failed to navigate from notification click:', error)
+          }
+        })
+
+        setupListeners()
+        await getBadgeCount()
+      })()
 
       try {
-        await navigateToUrl(targetUrl)
-      } catch (error) {
-        console.error('Failed to navigate from notification click:', error)
+        await notificationSetupPromise
+      } finally {
+        notificationSetupPromise = null
       }
-    })
+      return
+    }
 
-    initialized.value = true
+    await notificationSetupPromise
   }
 
   watch(
     () => settings.value?.notifications,
     async () => {
       await applyBadgeCount(badgeCount.value)
-
-      if (notificationSettings.value?.enabled) {
-        await bootstrapReminderNotifications()
-        await startReminderPolling()
-      } else {
-        stopReminderPolling()
-      }
     },
     { deep: true }
   )
 
-  if (isClient) {
-    watch(
-      () => document.visibilityState,
-      async (state) => {
-        if (state === 'visible') {
-          await checkDueReminderNotifications()
-        }
-      }
-    )
-
-    window.addEventListener('focus', () => {
-      void checkDueReminderNotifications()
-    })
-  }
-
-  onMounted(async () => {
-    setupListeners()
-    await getBadgeCount()
-    await bootstrapReminderNotifications()
-    await startReminderPolling()
-  })
-
-  onUnmounted(() => {
-    stopReminderPolling()
-
-    if (audioContext.value) {
-      audioContext.value.close()
-      audioContext.value = null
-    }
-  })
+  void ensureSetup()
 
   return {
     badgeCount,

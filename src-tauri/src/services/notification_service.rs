@@ -1,7 +1,9 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
-use std::sync::Arc;
+use sqlx::{QueryBuilder, Sqlite, SqlitePool};
+use std::{collections::HashMap, sync::Arc};
 use tauri::{AppHandle, Emitter, Manager};
+#[cfg(not(target_os = "macos"))]
 use tauri_plugin_notification::{NotificationExt, PermissionState};
 use uuid::Uuid;
 
@@ -136,6 +138,84 @@ impl NotificationService {
         }
     }
 
+    fn can_dispatch_notifications_to_frontend(&self) -> bool {
+        #[cfg(target_os = "macos")]
+        {
+            false
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            self.app_handle
+                .as_ref()
+                .and_then(|app_handle| app_handle.get_webview_window("main"))
+                .is_some()
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn show_macos_notification(&self, payload: &NotificationEventPayload) -> Result<(), String> {
+        use mac_notification_sys::{Notification, NotificationResponse};
+
+        let Some(app_handle) = &self.app_handle else {
+            log::warn!("Cannot show macOS notification: AppHandle not available");
+            return Ok(());
+        };
+
+        let app_handle = app_handle.clone();
+        let title = payload.title.clone();
+        let body = payload.body.clone().unwrap_or_default();
+        let navigation_target = payload
+            .email
+            .as_ref()
+            .and_then(|email| email.navigation_target.clone());
+        let avatar_path = payload
+            .email
+            .as_ref()
+            .and_then(|email| email.avatar_url.clone());
+        let subtitle = payload
+            .email
+            .as_ref()
+            .and_then(|email| email.sender_name.clone().or(email.sender_address.clone()));
+
+        std::thread::spawn(move || {
+            let mut notification = Notification::new();
+            notification.title(&title).message(&body);
+            notification.maybe_subtitle(subtitle.as_deref());
+
+            if let Some(avatar_path) = avatar_path.as_deref() {
+                notification.content_image(avatar_path);
+            }
+
+            if navigation_target.is_some() {
+                notification.wait_for_click(true);
+            } else {
+                notification.asynchronous(true);
+            }
+
+            match notification.send() {
+                Ok(NotificationResponse::Click | NotificationResponse::ActionButton(_)) => {
+                    if let Some(target) = navigation_target {
+                        crate::navigation::dispatch_navigation_url(&app_handle, target);
+                    } else {
+                        crate::navigation::reveal_main_window(&app_handle);
+                    }
+                }
+                Ok(_) => {}
+                Err(error) => {
+                    log::warn!("Failed to show macOS notification: {}", error);
+                }
+            }
+        });
+
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    fn show_macos_notification(&self, _payload: &NotificationEventPayload) -> Result<(), String> {
+        Ok(())
+    }
+
     async fn apply_badge_count(&self, count: i64) -> Result<(), String> {
         let settings = self.get_notification_settings()?;
         let mode = self.badge_mode(&settings);
@@ -180,6 +260,7 @@ impl NotificationService {
         Ok(())
     }
 
+    #[cfg(not(target_os = "macos"))]
     async fn show_native_notification(&self, title: &str, body: &str) -> Result<(), String> {
         let settings = self.get_notification_settings()?;
         if !self.notifications_enabled(&settings) {
@@ -227,6 +308,28 @@ impl NotificationService {
             .map_err(|e| format!("Failed to show native notification: {}", e))?;
 
         Ok(())
+    }
+
+    async fn show_notification_payload(
+        &self,
+        payload: &NotificationEventPayload,
+        _fallback_body: &str,
+    ) -> Result<(), String> {
+        #[cfg(target_os = "macos")]
+        {
+            self.show_macos_notification(payload)?;
+            return Ok(());
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            if !self.can_dispatch_notifications_to_frontend() {
+                let body = payload.body.as_deref().unwrap_or(_fallback_body);
+                self.show_native_notification(&payload.title, body).await?;
+            }
+
+            Ok(())
+        }
     }
 
     fn emit_native_notification_event(
@@ -287,8 +390,8 @@ impl NotificationService {
         let conversation_id = email.conversation_id.clone();
         let navigation_target = if let Some(conversation_id) = &conversation_id {
             Some(format!(
-                "ravn://mail/{}/folders/{}/conversations/{}",
-                account_id, folder_id, conversation_id
+                "ravn://mail/{}/folders/{}/conversations/{}?email={}",
+                account_id, folder_id, conversation_id, email_id
             ))
         } else {
             Some(format!(
@@ -500,6 +603,55 @@ impl NotificationService {
         Ok(count)
     }
 
+    pub async fn latest_reminder_notification_map(
+        &self,
+        email_ids: &[Uuid],
+    ) -> Result<HashMap<Uuid, DateTime<Utc>>, String> {
+        if email_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let mut query_builder: QueryBuilder<'_, Sqlite> = QueryBuilder::new(
+            r#"
+            SELECT email_id, MAX(notified_at) AS notified_at
+            FROM notification_reminder_events
+            WHERE email_id IN (
+            "#,
+        );
+
+        let mut separated = query_builder.separated(", ");
+        for email_id in email_ids {
+            separated.push_bind(email_id.to_string());
+        }
+        separated.push_unseparated(")");
+        query_builder.push(" GROUP BY email_id");
+
+        let rows = query_builder
+            .build_query_as::<(String, String)>()
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|error| {
+                format!(
+                    "Failed to query latest reminder notification timestamps: {}",
+                    error
+                )
+            })?;
+
+        let mut notified_at_by_email = HashMap::new();
+        for (email_id, notified_at) in rows {
+            let Ok(email_id) = Uuid::parse_str(&email_id) else {
+                continue;
+            };
+            let Ok(notified_at) = DateTime::parse_from_rfc3339(&notified_at) else {
+                continue;
+            };
+
+            notified_at_by_email.insert(email_id, notified_at.with_timezone(&Utc));
+        }
+
+        Ok(notified_at_by_email)
+    }
+
     pub async fn update_badge_count(&self) -> Result<(), String> {
         let settings = self.get_notification_settings()?;
         let count = self.calculate_badge_count().await?;
@@ -541,15 +693,14 @@ impl NotificationService {
             let payload = self.build_incoming_notification_payload(email).await;
 
             if !self.suppress_notifications {
-                let body = payload
-                    .body
-                    .as_deref()
-                    .unwrap_or("You have received a new email.");
-                self.show_native_notification(&payload.title, body).await?;
+                self.show_notification_payload(&payload, "You have received a new email.")
+                    .await?;
                 self.play_incoming_sound().await?;
             }
 
-            self.emit_native_notification_event(&payload)?;
+            if self.can_dispatch_notifications_to_frontend() {
+                self.emit_native_notification_event(&payload)?;
+            }
         }
 
         self.update_badge_count().await?;
@@ -566,15 +717,14 @@ impl NotificationService {
         let payload = self.build_reminder_notification_payload(email).await;
 
         if !self.suppress_notifications {
-            let body = payload
-                .body
-                .as_deref()
-                .unwrap_or("A reminder is due for one of your emails.");
-            self.show_native_notification(&payload.title, body).await?;
+            self.show_notification_payload(&payload, "A reminder is due for one of your emails.")
+                .await?;
             self.play_reminder_sound().await?;
         }
 
-        self.emit_native_notification_event(&payload)?;
+        if self.can_dispatch_notifications_to_frontend() {
+            self.emit_native_notification_event(&payload)?;
+        }
         Ok(())
     }
 
@@ -582,13 +732,11 @@ impl NotificationService {
         let settings = self.get_notification_settings()?;
         if self.notifications_enabled(&settings) {
             let payload = self.build_outgoing_notification_payload();
-            let body = payload
-                .body
-                .as_deref()
-                .unwrap_or("Your email was sent successfully.");
-
-            self.show_native_notification(&payload.title, body).await?;
-            self.emit_native_notification_event(&payload)?;
+            self.show_notification_payload(&payload, "Your email was sent successfully.")
+                .await?;
+            if self.can_dispatch_notifications_to_frontend() {
+                self.emit_native_notification_event(&payload)?;
+            }
         }
         self.play_outgoing_sound().await?;
         Ok(())

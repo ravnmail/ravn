@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import ReminderIndicator from '~/components/Ravn/ReminderIndicator.vue'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
 import useFormatting from '~/composables/useFormatting'
 import type { EmailCategory, EmailListItem } from '~/types/email'
@@ -151,6 +152,10 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
                 v-if="has_attachments"
                 class="shrink-0"
                 name="lucide:paperclip"
+              />
+              <ReminderIndicator
+                :notified-at="notified_at"
+                :remind-at="remind_at"
               />
               <Icon
                 v-if="category"

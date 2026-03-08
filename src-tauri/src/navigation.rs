@@ -174,6 +174,31 @@ pub fn reveal_main_window<R: Runtime>(app: &AppHandle<R>) {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
+        return;
+    }
+
+    let Some(window_config) = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|config| config.label == "main")
+    else {
+        log::error!("[Navigation] Main window config not found");
+        return;
+    };
+
+    match tauri::WebviewWindowBuilder::from_config(app, window_config)
+        .and_then(|builder| builder.build())
+    {
+        Ok(window) => {
+            let _ = window.show();
+            let _ = window.unminimize();
+            let _ = window.set_focus();
+        }
+        Err(error) => {
+            log::error!("[Navigation] Failed to recreate main window: {}", error);
+        }
     }
 }
 

@@ -5381,6 +5381,7 @@ dependencies = [
  "keyring",
  "lettre",
  "log",
+ "mac-notification-sys",
  "mail-parser",
  "md5",
  "mid",

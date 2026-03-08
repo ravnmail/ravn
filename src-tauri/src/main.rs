@@ -34,8 +34,6 @@ use app_lib::{
 };
 
 use std::sync::Arc;
-#[cfg(target_os = "macos")]
-use tauri::TitleBarStyle;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
     Manager, WindowEvent,
@@ -742,26 +740,7 @@ fn main() {
             } = &event
             {
                 if !has_visible_windows {
-                    if let Some(window) = app_handle.get_webview_window("main") {
-                        // Window exists but is hidden — just bring it back.
-                        let _ = window.show();
-                        let _ = window.set_focus();
-                    } else {
-                        // Window was fully destroyed somehow — recreate it from
-                        // the same parameters as tauri.conf.json defines.
-                        let _ = tauri::WebviewWindowBuilder::new(
-                            app_handle,
-                            "main",
-                            tauri::WebviewUrl::App("/".into()),
-                        )
-                        .title("Ravn")
-                        .inner_size(1000.0, 720.0)
-                        .min_inner_size(640.0, 480.0)
-                        .hidden_title(true)
-                        .title_bar_style(TitleBarStyle::Overlay)
-                        .traffic_light_position(tauri::LogicalPosition::new(16.0, 20.0))
-                        .build();
-                    }
+                    app_lib::navigation::reveal_main_window(app_handle);
                 }
             }
 

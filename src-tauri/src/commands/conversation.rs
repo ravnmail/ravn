@@ -10,6 +10,7 @@ use crate::database::repositories::{
     SqliteAttachmentRepository, SqliteConversationRepository, SqliteEmailRepository,
     SqliteLabelRepository,
 };
+use crate::services::notification_service::NotificationService;
 use crate::state::AppState;
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -87,6 +88,15 @@ fn matches_scope_condition(
     } else {
         base_match
     }
+}
+
+async fn reminder_notification_map(
+    state: &State<'_, AppState>,
+    email_ids: &[Uuid],
+) -> Result<HashMap<Uuid, chrono::DateTime<chrono::Utc>>, String> {
+    NotificationService::new(state.db_pool.clone(), state.settings.clone())
+        .latest_reminder_notification_map(email_ids)
+        .await
 }
 
 fn matches_scope_condition_across_emails(
@@ -289,6 +299,10 @@ pub async fn get_conversations_for_label(
             .find_by_conversation_id(conversation.id)
             .await
             .map_err(|e| format!("Failed to fetch conversation emails: {}", e))?;
+        let conversation_email_ids: Vec<Uuid> =
+            conversation_emails.iter().map(|email| email.id).collect();
+        let notified_at_by_email =
+            reminder_notification_map(&state, &conversation_email_ids).await?;
 
         let mut email_list_items = Vec::new();
         for email in conversation_emails {
@@ -300,7 +314,9 @@ pub async fn get_conversations_for_label(
                 .map(LabelInfo::from)
                 .collect();
 
-            email_list_items.push(EmailListItem::from_email(&email, labels));
+            let mut email_list_item = EmailListItem::from_email(&email, labels);
+            email_list_item.notified_at = notified_at_by_email.get(&email.id).copied();
+            email_list_items.push(email_list_item);
         }
 
         conversation_map.insert(conversation.id, conversation.to_list_item(email_list_items));
@@ -377,6 +393,10 @@ pub async fn get_conversations_for_folder(
             .find_by_conversation_id(conversation.id)
             .await
             .map_err(|e| format!("Failed to fetch conversation emails: {}", e))?;
+        let conversation_email_ids: Vec<Uuid> =
+            conversation_emails.iter().map(|email| email.id).collect();
+        let notified_at_by_email =
+            reminder_notification_map(&state, &conversation_email_ids).await?;
 
         let mut email_list_items = Vec::new();
         for email in conversation_emails {
@@ -388,7 +408,9 @@ pub async fn get_conversations_for_folder(
                 .map(LabelInfo::from)
                 .collect();
 
-            email_list_items.push(EmailListItem::from_email(&email, labels));
+            let mut email_list_item = EmailListItem::from_email(&email, labels);
+            email_list_item.notified_at = notified_at_by_email.get(&email.id).copied();
+            email_list_items.push(email_list_item);
         }
 
         conversation_map.insert(conversation.id, conversation.to_list_item(email_list_items));
@@ -678,6 +700,10 @@ pub async fn get_conversations_for_scope(
             .find_by_conversation_id(conversation.id)
             .await
             .map_err(|e| format!("Failed to fetch scoped conversation emails: {}", e))?;
+        let conversation_email_ids: Vec<Uuid> =
+            conversation_emails.iter().map(|email| email.id).collect();
+        let notified_at_by_email =
+            reminder_notification_map(&state, &conversation_email_ids).await?;
 
         let mut email_list_items = Vec::new();
         for email in conversation_emails {
@@ -689,7 +715,9 @@ pub async fn get_conversations_for_scope(
                 .map(LabelInfo::from)
                 .collect();
 
-            email_list_items.push(EmailListItem::from_email(&email, labels));
+            let mut email_list_item = EmailListItem::from_email(&email, labels);
+            email_list_item.notified_at = notified_at_by_email.get(&email.id).copied();
+            email_list_items.push(email_list_item);
         }
 
         conversation_map.insert(conversation.id, conversation.to_list_item(email_list_items));
@@ -736,6 +764,9 @@ pub async fn get_conversation_for_message_id(
         .find_by_conversation_id(conversation_id)
         .await
         .map_err(|e| format!("Failed to fetch conversation emails: {}", e))?;
+    let conversation_email_ids: Vec<Uuid> =
+        conversation_emails.iter().map(|item| item.id).collect();
+    let notified_at_by_email = reminder_notification_map(&state, &conversation_email_ids).await?;
 
     let mut email_list_items = Vec::new();
     for email in conversation_emails {
@@ -747,7 +778,9 @@ pub async fn get_conversation_for_message_id(
             .map(LabelInfo::from)
             .collect();
 
-        email_list_items.push(EmailListItem::from_email(&email, labels));
+        let mut email_list_item = EmailListItem::from_email(&email, labels);
+        email_list_item.notified_at = notified_at_by_email.get(&email.id).copied();
+        email_list_items.push(email_list_item);
     }
 
     Ok(conversation.to_list_item(email_list_items))
@@ -774,6 +807,9 @@ pub async fn get_conversation_by_id(
         .find_by_conversation_id(conversation_id)
         .await
         .map_err(|e| format!("Failed to fetch conversation emails: {}", e))?;
+    let conversation_email_ids: Vec<Uuid> =
+        conversation_emails.iter().map(|item| item.id).collect();
+    let notified_at_by_email = reminder_notification_map(&state, &conversation_email_ids).await?;
 
     let mut email_details = Vec::new();
     for email in conversation_emails {
@@ -793,7 +829,9 @@ pub async fn get_conversation_by_id(
             .map(AttachmentInfo::from)
             .collect();
 
-        email_details.push(EmailDetail::from_email(&email, labels, attachments));
+        let mut email_detail = EmailDetail::from_email(&email, labels, attachments);
+        email_detail.notified_at = notified_at_by_email.get(&email.id).copied();
+        email_details.push(email_detail);
     }
 
     let all_attachments = attachment_repo

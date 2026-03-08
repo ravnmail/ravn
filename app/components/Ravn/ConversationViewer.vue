@@ -14,6 +14,7 @@ import type { EmailDetail } from '~/types/email'
 
 const props = defineProps<{
   conversationId: string
+  selectedEmailId?: string
   titleClass?: string
 }>()
 
@@ -27,9 +28,11 @@ const { data: folders } = useGetFolders()
 const { register, unregister, addContext, removeContext } = useActions()
 
 const conversationViewerRef = useTemplateRef<HTMLElement | null>('conversationViewerRef')
-const panelRef = useTemplateRef<HTMLElement | null>('panelRef')
+const panelRef = ref<any>(null)
 const conversationContainer = useTemplateRef<HTMLElement | null>('conversationContainer')
 const panelCollapsed = ref(false)
+const messageElements = new Map<string, HTMLElement>()
+const highlightedEmailId = ref<string | null>(null)
 
 const { focused } = useFocusWithin(conversationViewerRef)
 
@@ -62,6 +65,33 @@ const latestMessage = computed(() => {
 const subject = computed(() => {
   return latestMessage.value?.subject || t('components.emailViewer.noSubject')
 })
+
+const registerMessageElement = (messageId: string, element: unknown) => {
+  if (element instanceof HTMLElement) {
+    messageElements.set(messageId, element)
+    return
+  }
+
+  messageElements.delete(messageId)
+}
+
+const focusSelectedEmail = async () => {
+  if (!props.selectedEmailId) {
+    highlightedEmailId.value = null
+    return
+  }
+
+  await nextTick()
+
+  const messageElement = messageElements.get(props.selectedEmailId)
+  if (!messageElement) return
+
+  highlightedEmailId.value = props.selectedEmailId
+  messageElement.scrollIntoView({
+    behavior: 'smooth',
+    block: 'center',
+  })
+}
 
 const scrollToComposer = () => {
   nextTick(() => {
@@ -164,6 +194,14 @@ const isSentMessage = (message: EmailDetail) => {
   return sentfolderIds.value.includes(message.folder_id)
 }
 
+watch(
+  () => [conversation.value?.id, props.selectedEmailId],
+  async () => {
+    await focusSelectedEmail()
+  },
+  { immediate: true }
+)
+
 onMounted(() => {
   addContext('ConversationView', focused)
   register({
@@ -240,6 +278,7 @@ onBeforeUnmount(() => {
               :key="message.id"
             >
               <div
+                :ref="(element) => registerMessageElement(message.id, element)"
                 v-if="message.is_draft"
                 class="rounded-lg border border-border p-3"
               >
@@ -249,22 +288,27 @@ onBeforeUnmount(() => {
                   @sent="handleComposerSent"
                 />
               </div>
-              <MessageView
+              <div
                 v-else
-                :auto-analyze="true"
-                :class="[
-                  settings.email.conversation.insetOutgoing && isSentMessage(message)
-                    ? 'ml-12'
-                    : '',
-                ]"
-                :initial-reduced="settings.email.conversation.collapseMessages && index > 0"
-                :is-first="index === 0"
-                v-bind="message"
-                @forward="handleForward"
-                @reply="handleReply"
-                @reply-all="handleReplyAll"
-                @quick-reply="handleQuickReply"
-              />
+                :ref="(element) => registerMessageElement(message.id, element)"
+              >
+                <MessageView
+                  :auto-analyze="true"
+                  :class="[
+                    settings?.email?.conversation?.insetOutgoing && isSentMessage(message)
+                      ? 'ml-12'
+                      : '',
+                  ]"
+                  :initial-reduced="settings?.email?.conversation?.collapseMessages && index > 0"
+                  :is-first="index === 0"
+                  :is-highlighted="highlightedEmailId === message.id"
+                  v-bind="message"
+                  @forward="handleForward"
+                  @reply="handleReply"
+                  @reply-all="handleReplyAll"
+                  @quick-reply="handleQuickReply"
+                />
+              </div>
             </template>
           </div>
         </ScrollArea>

@@ -1,6 +1,9 @@
 import { invoke } from '@tauri-apps/api/core'
+import { getCurrentWindow } from '@tauri-apps/api/window'
+
 import { parseEmailAddress } from '~/lib/utils/email'
 import type { EmailAddress } from '~/types/email'
+
 import type { ComposerSeed } from './useComposerState'
 import { useComposerState } from './useComposerState'
 
@@ -19,8 +22,7 @@ async function parseNavigationUrl(url: string): Promise<string> {
     const routerPath = await invoke<string>('navigate_to_url', { url })
     console.log('[Navigation] Mapped to router path:', routerPath)
     return routerPath
-  }
-  catch (error) {
+  } catch (error) {
     console.error('[Navigation] Failed to parse navigation URL:', url, error)
     return '/'
   }
@@ -33,8 +35,7 @@ async function buildRavnUrl(path: string, query?: string): Promise<string> {
   try {
     const ravnUrl = await invoke<string>('build_ravn_url', { path, query: query || null })
     return ravnUrl
-  }
-  catch (error) {
+  } catch (error) {
     console.error('[Navigation] Failed to build RAVN URL:', error)
     return `ravn://${path}`
   }
@@ -48,7 +49,22 @@ export async function navigateToUrl(url: string) {
   const router = useRouter()
   const { openComposer } = useComposerState()
 
+  const ensureMainWindowVisible = async () => {
+    if (!import.meta.client) return
+
+    try {
+      const currentWindow = getCurrentWindow()
+      await currentWindow.show()
+      await currentWindow.unminimize()
+      await currentWindow.setFocus()
+    } catch (error) {
+      console.warn('[Navigation] Failed to restore window before navigation:', error)
+    }
+  }
+
   const handleInternalNavigation = async (target: string) => {
+    await ensureMainWindowVisible()
+
     if (target.startsWith('/compose')) {
       openComposer(parseComposeSeed(target))
       return
@@ -61,8 +77,7 @@ export async function navigateToUrl(url: string) {
     const routerPath = await parseNavigationUrl(url)
     console.log('[Navigation] Navigating to:', routerPath)
     await handleInternalNavigation(routerPath)
-  }
-  else {
+  } else {
     console.log('[Navigation] Direct path navigation:', url)
     await handleInternalNavigation(url)
   }
@@ -105,14 +120,13 @@ function parseComposeSeed(url: string): ComposerSeed {
 
 function parseRecipients(values: string[]): EmailAddress[] {
   return values
-    .flatMap(value => value.split(','))
-    .map(value => value.trim())
+    .flatMap((value) => value.split(','))
+    .map((value) => value.trim())
     .filter(Boolean)
     .map((value) => {
       try {
         return parseEmailAddress(value)
-      }
-      catch {
+      } catch {
         return { address: value }
       }
     })

@@ -3,6 +3,7 @@ import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/eleme
 import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview'
 
 import MailContextMenu from '~/components/Ravn/MailContextMenu.vue'
+import ReminderIndicator from '~/components/Ravn/ReminderIndicator.vue'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
 import { useDraggable } from '~/composables/useDragAndDrop'
 import { useRegionalFormat } from '~/composables/useFormatting'
@@ -160,8 +161,6 @@ const timeLabel = computed(() => {
   const raw = props.email.sent_at || props.email.received_at
   return formatTime(raw)
 })
-
-const hasReminder = computed(() => !!props.email.remind_at)
 </script>
 
 <template>
@@ -204,10 +203,9 @@ const hasReminder = computed(() => !!props.email.remind_at)
           {{ email.subject || t('components.emailViewer.noSubject') }}
         </span>
 
-        <Icon
-          v-if="hasReminder"
-          class="shrink-0 text-primary"
-          name="lucide:bell"
+        <ReminderIndicator
+          :notified-at="email.notified_at"
+          :remind-at="email.remind_at"
         />
         <Icon
           v-if="email.has_attachments"

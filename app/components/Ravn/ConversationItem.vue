@@ -2,6 +2,7 @@
 import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview'
 import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview'
 
+import ReminderIndicator from '~/components/Ravn/ReminderIndicator.vue'
 import { Badge } from '~/components/ui/badge'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
 import { useDraggable } from '~/composables/useDragAndDrop'
@@ -159,7 +160,21 @@ const hasUnread = computed(() => props.conversation.messages.some((m) => !m.is_r
 const hasAttachments = computed(() => props.conversation.messages.some((m) => m.has_attachments))
 
 // Check if any message has a reminder
-const hasReminder = computed(() => props.conversation.messages.some((m) => !!m.remind_at))
+const reminderMessage = computed(() => {
+  const reminderMessages = props.conversation.messages
+    .filter((message) => !!message.remind_at)
+    .sort((left, right) => {
+      const leftTimestamp = left.remind_at
+        ? new Date(left.remind_at).getTime()
+        : Number.MAX_SAFE_INTEGER
+      const rightTimestamp = right.remind_at
+        ? new Date(right.remind_at).getTime()
+        : Number.MAX_SAFE_INTEGER
+      return leftTimestamp - rightTimestamp
+    })
+
+  return reminderMessages[0]
+})
 
 const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = {
   personal: {
@@ -255,10 +270,9 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
           <div class="flex items-center gap-2">
             <span class="line-clamp-1 font-bold">{{ firstMessage.subject }}</span>
             <div class="ml-auto flex items-center gap-2">
-              <Icon
-                v-if="hasReminder"
-                class="shrink-0 text-primary"
-                name="lucide:bell"
+              <ReminderIndicator
+                :notified-at="reminderMessage?.notified_at"
+                :remind-at="reminderMessage?.remind_at"
               />
               <Icon
                 v-if="hasAttachments"

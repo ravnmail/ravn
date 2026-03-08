@@ -15,6 +15,7 @@ use crate::database::repositories::{
     SqliteLabelRepository,
 };
 use crate::services::email_service::{EmailAttachment, EmailData, EmailService};
+use crate::services::notification_service::NotificationService;
 use crate::state::AppState;
 use crate::sync::types::AccountSettings;
 use sqlx::types::Json;
@@ -98,6 +99,31 @@ fn emit_email_event<S: Serialize + Clone>(
     if let Err(e) = app_handle.emit(event_name, payload) {
         log::error!("Failed to emit email event '{}': {}", event_name, e);
     }
+}
+
+async fn reminder_notification_map(
+    state: &State<'_, AppState>,
+    email_ids: &[Uuid],
+) -> Result<std::collections::HashMap<Uuid, chrono::DateTime<chrono::Utc>>, String> {
+    NotificationService::new(state.db_pool.clone(), state.settings.clone())
+        .latest_reminder_notification_map(email_ids)
+        .await
+}
+
+fn apply_notified_at_to_list_item(
+    mut item: EmailListItem,
+    notified_at_by_email: &std::collections::HashMap<Uuid, chrono::DateTime<chrono::Utc>>,
+) -> EmailListItem {
+    item.notified_at = notified_at_by_email.get(&item.id).copied();
+    item
+}
+
+fn apply_notified_at_to_detail(
+    mut detail: EmailDetail,
+    notified_at_by_email: &std::collections::HashMap<Uuid, chrono::DateTime<chrono::Utc>>,
+) -> EmailDetail {
+    detail.notified_at = notified_at_by_email.get(&detail.id).copied();
+    detail
 }
 
 #[tauri::command]
@@ -714,7 +740,11 @@ pub async fn get_emails(state: State<'_, AppState>, id: Uuid) -> Result<EmailDet
         .map(AttachmentInfo::from)
         .collect();
 
-    let mut detail = EmailDetail::from_email(&email, labels, attachments);
+    let notified_at_by_email = reminder_notification_map(&state, &[email.id]).await?;
+    let mut detail = apply_notified_at_to_detail(
+        EmailDetail::from_email(&email, labels, attachments),
+        &notified_at_by_email,
+    );
 
     // Replace cid: references in body_html with Tauri asset:// URLs so inline
     // images (logos, signatures, etc.) render correctly in the email view.
@@ -778,6 +808,7 @@ pub async fn get_emails_for_folders(
         .find_by_emails(&email_ids)
         .await
         .map_err(|e| format!("Failed to fetch labels: {}", e))?;
+    let notified_at_by_email = reminder_notification_map(&state, &email_ids).await?;
 
     let list_items = emails
         .iter()
@@ -786,7 +817,10 @@ pub async fn get_emails_for_folders(
                 .get(&email.id)
                 .map(|labels| labels.iter().map(LabelInfo::from).collect())
                 .unwrap_or_default();
-            EmailListItem::from_email(email, labels)
+            apply_notified_at_to_list_item(
+                EmailListItem::from_email(email, labels),
+                &notified_at_by_email,
+            )
         })
         .collect();
 
@@ -817,6 +851,7 @@ pub async fn get_emails_for_labels(
         .find_by_emails(&email_ids)
         .await
         .map_err(|e| format!("Failed to fetch labels: {}", e))?;
+    let notified_at_by_email = reminder_notification_map(&state, &email_ids).await?;
 
     let list_items = emails
         .iter()
@@ -825,7 +860,10 @@ pub async fn get_emails_for_labels(
                 .get(&email.id)
                 .map(|labels| labels.iter().map(LabelInfo::from).collect())
                 .unwrap_or_default();
-            EmailListItem::from_email(email, labels)
+            apply_notified_at_to_list_item(
+                EmailListItem::from_email(email, labels),
+                &notified_at_by_email,
+            )
         })
         .collect();
 
@@ -1202,13 +1240,17 @@ pub async fn get_emails_for_calendar(
         .find_by_emails(&all_email_ids)
         .await
         .map_err(|e| format!("Failed to fetch labels: {}", e))?;
+    let notified_at_by_email = reminder_notification_map(&state, &all_email_ids).await?;
 
     let map_email = |email: &crate::database::models::email::Email| {
         let labels = labels_map
             .get(&email.id)
             .map(|labels| labels.iter().map(LabelInfo::from).collect())
             .unwrap_or_default();
-        EmailListItem::from_email(email, labels)
+        apply_notified_at_to_list_item(
+            EmailListItem::from_email(email, labels),
+            &notified_at_by_email,
+        )
     };
 
     Ok(CalendarEmailsResponse {
