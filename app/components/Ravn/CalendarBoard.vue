@@ -11,7 +11,7 @@ import { ToggleGroup, ToggleGroupItem } from '~/components/ui/toggle-group'
 import { useMultiSelect } from '~/composables/useDragAndDrop'
 import { useRegionalFormat } from '~/composables/useFormatting'
 import type { EmailListItem } from '~/types/email'
-import type { CalendarMode, CalendarViewConfig, View } from '~/types/view'
+import type { CalendarDateField, CalendarMode, CalendarViewConfig, View } from '~/types/view'
 
 const props = defineProps<{
   view: View
@@ -218,7 +218,44 @@ const activeDays = computed(() =>
 // ─── Email data fetching ──────────────────────────────────────────────────────
 
 const emailsByDate = ref<Record<string, EmailListItem[]>>({})
+const secondaryRemindEmailsByDate = ref<Record<string, EmailListItem[]>>({})
 const isLoadingEmails = ref(false)
+
+const shouldShowSecondaryRemindList = computed(
+  () => config.value.date_field !== 'remind_at' && config.value.show_secondary_remind_list === true
+)
+
+const getEmailDateForField = (
+  email: EmailListItem,
+  field: CalendarDateField
+): string | undefined => {
+  switch (field) {
+    case 'sent_at':
+      return email.sent_at
+    case 'remind_at':
+      return email.remind_at
+    default:
+      return email.received_at
+  }
+}
+
+const groupEmailsByDateField = (
+  emails: EmailListItem[],
+  field: CalendarDateField
+): Record<string, EmailListItem[]> => {
+  const grouped: Record<string, EmailListItem[]> = {}
+
+  for (const email of emails) {
+    const rawDate = getEmailDateForField(email, field)
+    if (!rawDate) continue
+
+    const key = toDateKey(dayjs(rawDate))
+    if (!grouped[key]) grouped[key] = []
+    grouped[key].push(email)
+  }
+
+  return grouped
+}
 
 const loadEmails = async () => {
   isLoadingEmails.value = true
@@ -229,27 +266,21 @@ const loadEmails = async () => {
     const start = dayjs(days[0]!.date).startOf('day')
     const end = dayjs(days[days.length - 1]!.date).endOf('day')
 
-    const emails = await fetchForCalendar(
-      config.value.folder_ids || [],
-      config.value.date_field || 'remind_at',
-      start.toISOString(),
-      end.toISOString()
-    )
+    const primaryDateField = config.value.date_field || 'remind_at'
 
-    const grouped: Record<string, EmailListItem[]> = {}
-    for (const email of emails) {
-      const rawDate =
-        config.value.date_field === 'sent_at'
-          ? email.sent_at
-          : config.value.date_field === 'remind_at'
-            ? email.remind_at
-            : email.received_at
-      if (!rawDate) continue
-      const key = toDateKey(dayjs(rawDate))
-      if (!grouped[key]) grouped[key] = []
-      grouped[key].push(email)
-    }
-    emailsByDate.value = grouped
+    const response = await fetchForCalendar({
+      folderIds: config.value.folder_ids || [],
+      dateField: primaryDateField,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      includeRemindAt: shouldShowSecondaryRemindList.value,
+    })
+
+    emailsByDate.value = groupEmailsByDateField(response.primary || [], primaryDateField)
+    secondaryRemindEmailsByDate.value = groupEmailsByDateField(
+      response.remind_at || [],
+      'remind_at'
+    )
   } finally {
     isLoadingEmails.value = false
   }
@@ -258,7 +289,10 @@ const loadEmails = async () => {
 watch([anchorDate, mode, startOfWeek], () => loadEmails(), { immediate: true })
 
 const getAllEmails = () => {
-  return Object.values(emailsByDate.value).flat()
+  return [
+    ...Object.values(emailsByDate.value).flat(),
+    ...Object.values(secondaryRemindEmailsByDate.value).flat(),
+  ]
 }
 
 const getSelectedEmails = () => {
@@ -393,6 +427,8 @@ const dateFieldLabel = computed(() => {
 const formatDayNumber = (date: Date): string => dayjs(date).format('D')
 
 const formatDayMonthShort = (date: Date): string => dayjs(date).format('MMM')
+
+const secondaryRemindLabel = computed(() => t('components.calendar.dateField.remindAt'))
 </script>
 
 <template>
@@ -507,37 +543,81 @@ const formatDayMonthShort = (date: Date): string => dayjs(date).format('MMM')
             </span>
             <span
               v-if="(emailsByDate[day.dateKey] || []).length > 0"
-              class="text-muted-foreground text-[10px] tabular-nums"
+              class="text-muted-foreground text-2xs tabular-nums"
             >
               {{ (emailsByDate[day.dateKey] || []).length }}
             </span>
           </div>
 
-          <div class="min-h-0 flex-1 overflow-y-auto px-1 pb-1">
-            <MailContextMenu
-              :active-email="activeContextEmail"
-              :selected-email-ids="selectedEmailIds"
-              :on-execute-action="executeAction"
-            >
-              <div class="flex flex-col gap-1">
-                <CalendarEmailItem
-                  v-for="email in emailsByDate[day.dateKey] || []"
-                  :key="email.id"
-                  :email="email"
-                  :is-selected="
-                    multiSelect.isSelected(email.id).value ||
-                    email.conversation_id === selectedConversationId
-                  "
-                  :selected-ids="selectedEmailIds"
-                  @click="handleSelect(email, $event)"
-                  @action="handleEmailAction"
-                  @contextmenu.capture="ensureContextSelection(email)"
-                />
-              </div>
-            </MailContextMenu>
+          <div class="flex min-h-0 flex-1 flex-col px-1 pb-1">
+            <div class="min-h-0 flex-1 overflow-y-auto">
+              <MailContextMenu
+                :active-email="activeContextEmail"
+                :selected-email-ids="selectedEmailIds"
+                :on-execute-action="executeAction"
+              >
+                <div class="flex flex-col gap-1">
+                  <CalendarEmailItem
+                    v-for="email in emailsByDate[day.dateKey] || []"
+                    :key="email.id"
+                    :email="email"
+                    :is-selected="
+                      multiSelect.isSelected(email.id).value ||
+                      email.conversation_id === selectedConversationId
+                    "
+                    :selected-ids="selectedEmailIds"
+                    @click="handleSelect(email, $event)"
+                    @action="handleEmailAction"
+                    @contextmenu.capture="ensureContextSelection(email)"
+                  />
+                </div>
+              </MailContextMenu>
+            </div>
+
             <div
-              v-if="day.isToday && !(emailsByDate[day.dateKey] || []).length"
-              class="text-muted-foreground/40 flex min-h-6 items-center justify-center text-[10px]"
+              v-if="
+                shouldShowSecondaryRemindList &&
+                (secondaryRemindEmailsByDate[day.dateKey] || []).length
+              "
+              class="mt-2 min-h-0 shrink-0 border-t pt-2"
+            >
+              <div
+                class="text-muted-foreground mb-1 px-1 text-2xs font-medium tracking-wide uppercase"
+              >
+                {{ secondaryRemindLabel }}
+              </div>
+              <div class="max-h-32 overflow-y-auto">
+                <MailContextMenu
+                  :active-email="activeContextEmail"
+                  :selected-email-ids="selectedEmailIds"
+                  :on-execute-action="executeAction"
+                >
+                  <div class="flex flex-col gap-1">
+                    <CalendarEmailItem
+                      v-for="email in secondaryRemindEmailsByDate[day.dateKey] || []"
+                      :key="`${day.dateKey}-remind-${email.id}`"
+                      :email="email"
+                      :is-selected="
+                        multiSelect.isSelected(email.id).value ||
+                        email.conversation_id === selectedConversationId
+                      "
+                      :selected-ids="selectedEmailIds"
+                      @click="handleSelect(email, $event)"
+                      @action="handleEmailAction"
+                      @contextmenu.capture="ensureContextSelection(email)"
+                    />
+                  </div>
+                </MailContextMenu>
+              </div>
+            </div>
+
+            <div
+              v-if="
+                day.isToday &&
+                !(emailsByDate[day.dateKey] || []).length &&
+                !(secondaryRemindEmailsByDate[day.dateKey] || []).length
+              "
+              class="text-muted-foreground/40 flex min-h-6 items-center justify-center text-2xs"
             >
               {{ t('components.calendar.noItems') }}
             </div>
@@ -575,28 +655,63 @@ const formatDayMonthShort = (date: Date): string => dayjs(date).format('MMM')
             </span>
           </div>
 
-          <div class="min-h-0 flex-1 overflow-y-auto p-1.5">
-            <MailContextMenu
-              :active-email="activeContextEmail"
-              :selected-email-ids="selectedEmailIds"
-              :on-execute-action="executeAction"
+          <div class="flex min-h-0 flex-1 flex-col p-1.5">
+            <div class="min-h-0 flex-1 overflow-y-auto">
+              <MailContextMenu
+                :active-email="activeContextEmail"
+                :selected-email-ids="selectedEmailIds"
+                :on-execute-action="executeAction"
+              >
+                <div class="flex flex-col gap-1.5">
+                  <CalendarEmailItem
+                    v-for="email in emailsByDate[day.dateKey] || []"
+                    :key="email.id"
+                    :email="email"
+                    :is-selected="
+                      multiSelect.isSelected(email.id).value ||
+                      email.conversation_id === selectedConversationId
+                    "
+                    :selected-ids="selectedEmailIds"
+                    @click="handleSelect(email, $event)"
+                    @action="handleEmailAction"
+                    @contextmenu.capture="ensureContextSelection(email)"
+                  />
+                </div>
+              </MailContextMenu>
+            </div>
+
+            <div
+              v-if="
+                shouldShowSecondaryRemindList &&
+                (secondaryRemindEmailsByDate[day.dateKey] || []).length
+              "
+              class="mt-2 shrink-0 border-t pt-2"
             >
-              <div class="flex flex-col gap-1.5">
-                <CalendarEmailItem
-                  v-for="email in emailsByDate[day.dateKey] || []"
-                  :key="email.id"
-                  :email="email"
-                  :is-selected="
-                    multiSelect.isSelected(email.id).value ||
-                    email.conversation_id === selectedConversationId
-                  "
-                  :selected-ids="selectedEmailIds"
-                  @click="handleSelect(email, $event)"
-                  @action="handleEmailAction"
-                  @contextmenu.capture="ensureContextSelection(email)"
-                />
+              <div class="text-muted-foreground mb-1 text-2xs font-medium tracking-wide uppercase">
+                {{ secondaryRemindLabel }}
               </div>
-            </MailContextMenu>
+              <MailContextMenu
+                :active-email="activeContextEmail"
+                :selected-email-ids="selectedEmailIds"
+                :on-execute-action="executeAction"
+              >
+                <div class="flex flex-col gap-1.5">
+                  <CalendarEmailItem
+                    v-for="email in secondaryRemindEmailsByDate[day.dateKey] || []"
+                    :key="`${day.dateKey}-remind-${email.id}`"
+                    :email="email"
+                    :is-selected="
+                      multiSelect.isSelected(email.id).value ||
+                      email.conversation_id === selectedConversationId
+                    "
+                    :selected-ids="selectedEmailIds"
+                    @click="handleSelect(email, $event)"
+                    @action="handleEmailAction"
+                    @contextmenu.capture="ensureContextSelection(email)"
+                  />
+                </div>
+              </MailContextMenu>
+            </div>
           </div>
         </div>
       </div>

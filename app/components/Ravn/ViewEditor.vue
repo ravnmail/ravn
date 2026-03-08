@@ -88,16 +88,47 @@ const calendarDateFieldOptions = computed(() => [
   { value: 'sent_at', label: t('components.viewWizard.calendar.dateFields.sentAt') },
 ])
 
+const calendarSecondaryListOptions = computed(() => [
+  { value: 'false', label: t('components.viewWizard.calendar.secondaryList.options.none') },
+  {
+    value: 'true',
+    label: t('components.viewWizard.calendar.secondaryList.options.remindAt'),
+  },
+])
+
 const calendarDateFieldModel = computed({
   get: () =>
     ((formData.value.config as CalendarViewConfig).date_field || 'remind_at') as CalendarDateField,
   set: (value: string) => {
     if (formData.value.config.type !== 'calendar') return
+
+    const nextDateField = value as CalendarDateField
+    const currentConfig = formData.value.config as CalendarViewConfig
+
     formData.value.config = {
-      ...(formData.value.config as CalendarViewConfig),
-      date_field: value as CalendarDateField,
+      ...currentConfig,
+      date_field: nextDateField,
+      show_secondary_remind_list:
+        nextDateField === 'remind_at' ? false : (currentConfig.show_secondary_remind_list ?? false),
     }
   },
+})
+
+const calendarSecondaryListFieldModel = computed({
+  get: () =>
+    String((formData.value.config as CalendarViewConfig).show_secondary_remind_list ?? false),
+  set: (value: string) => {
+    if (formData.value.config.type !== 'calendar') return
+    formData.value.config = {
+      ...(formData.value.config as CalendarViewConfig),
+      show_secondary_remind_list: value === 'true',
+    }
+  },
+})
+
+const shouldShowCalendarSecondaryListOption = computed(() => {
+  if (formData.value.config.type !== 'calendar') return false
+  return (formData.value.config as CalendarViewConfig).date_field !== 'remind_at'
 })
 
 const createEmptyListFilterGroup = (): ListFilterGroup => ({
@@ -491,6 +522,34 @@ const handleDeleteLabel = async (label: Label) => {
                 </SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div
+            v-if="shouldShowCalendarSecondaryListOption"
+            class="space-y-2"
+          >
+            <label class="text-sm font-medium">
+              {{ t('components.viewWizard.calendar.secondaryList.label') }}
+            </label>
+            <Select v-model="calendarSecondaryListFieldModel">
+              <SelectTrigger class="w-full">
+                <SelectValue
+                  :placeholder="t('components.viewWizard.calendar.secondaryList.label')"
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  v-for="option in calendarSecondaryListOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p class="text-muted-foreground text-xs">
+              {{ t('components.viewWizard.calendar.secondaryList.hint') }}
+            </p>
           </div>
 
           <div class="space-y-2">

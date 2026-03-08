@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select'
-import type { ListFilterGroup, View } from '~/types/view'
+import type { CalendarDateField, ListFilterGroup, View } from '~/types/view'
 import type { ViewTemplate } from '~/types/viewTemplate'
 
 const props = defineProps<{
@@ -39,6 +39,7 @@ const {
   availableTemplates,
   isProcessing,
   calendarDateField,
+  calendarShowRemindAtList,
   calendarFolderIds,
   listFilterGroups,
   reset,
@@ -101,7 +102,21 @@ const calendarDateFieldOptions = computed(() => [
 const calendarDateFieldModel = computed({
   get: () => calendarDateField.value,
   set: (v: string) => {
-    calendarDateField.value = v as 'received_at' | 'sent_at' | 'remind_at'
+    const nextValue = v as CalendarDateField
+    calendarDateField.value = nextValue
+
+    if (nextValue === 'remind_at') {
+      calendarShowRemindAtList.value = false
+    }
+  },
+})
+
+const showSecondaryRemindAtListOption = computed(() => calendarDateField.value !== 'remind_at')
+
+const calendarShowRemindAtListModel = computed({
+  get: () => calendarShowRemindAtList.value,
+  set: (value: boolean) => {
+    calendarShowRemindAtList.value = value
   },
 })
 
@@ -223,7 +238,7 @@ const dialogDescription = computed(() => {
           >
             <div class="flex items-center gap-3">
               <div
-                class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-muted/20"
+                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted/20"
               >
                 <Icon
                   :name="viewType.icon"
@@ -260,7 +275,7 @@ const dialogDescription = computed(() => {
           >
             <div class="flex items-start gap-4">
               <div
-                class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-muted/20"
+                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted/20"
               >
                 <Icon
                   class="text-muted-foreground h-6 w-6"
@@ -286,7 +301,7 @@ const dialogDescription = computed(() => {
           >
             <div class="flex items-start gap-4">
               <div
-                class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-muted/20"
+                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted/20"
               >
                 <Icon
                   class="h-6 w-6 text-primary"
@@ -356,6 +371,40 @@ const dialogDescription = computed(() => {
                 </p>
               </div>
 
+              <div
+                v-if="showSecondaryRemindAtListOption"
+                class="space-y-3 rounded-md border border-dashed bg-background/70 p-3"
+              >
+                <div class="flex items-start gap-2">
+                  <Icon
+                    name="lucide:bell-ring"
+                    class="text-muted-foreground mt-0.5 h-4 w-4 shrink-0"
+                  />
+                  <div class="space-y-1">
+                    <p class="text-sm font-medium">Also show `remind_at` emails</p>
+                    <p class="text-muted-foreground text-xs leading-relaxed">
+                      When the primary calendar date is not `remind_at`, this view can also render
+                      reminder-based emails in a separate list below the main calendar items for
+                      each day.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2 rounded-md border bg-background px-3 py-2">
+                  <Checkbox
+                    id="calendar-show-remind-at-list"
+                    :checked="calendarShowRemindAtListModel"
+                    @update:checked="calendarShowRemindAtListModel = $event === true"
+                  />
+                  <label
+                    for="calendar-show-remind-at-list"
+                    class="flex-1 cursor-pointer text-sm"
+                  >
+                    Render `remind_at` emails in a separate reminder list
+                  </label>
+                </div>
+              </div>
+
               <!-- Mailbox / folder selector -->
               <div class="space-y-1.5">
                 <label class="text-sm font-medium">
@@ -384,7 +433,7 @@ const dialogDescription = computed(() => {
                     >
                       <Icon
                         :name="folder.icon || 'lucide:folder'"
-                        class="text-muted-foreground h-3.5 w-3.5 flex-shrink-0"
+                        class="text-muted-foreground h-3.5 w-3.5 shrink-0"
                       />
                       {{ folder.name }}
                     </label>
@@ -446,7 +495,7 @@ const dialogDescription = computed(() => {
                     :color="swimlane.color"
                     :icon="swimlane.icon"
                     :name="swimlane.name"
-                    class="flex-shrink-0"
+                    class="shrink-0"
                   />
                   <div
                     v-if="swimlane.labelIds?.length > 0"

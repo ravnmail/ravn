@@ -2,6 +2,8 @@ export type ViewType = 'kanban' | 'calendar' | 'list' | 'smart' | 'unified'
 
 export type CalendarDateField = 'received_at' | 'sent_at' | 'remind_at'
 
+export type CalendarSecondaryListField = 'none' | 'remind_at'
+
 export type CalendarMode = 'month' | 'week'
 
 export type SwimlaneState = 'open' | 'closed'
@@ -50,6 +52,8 @@ export type CalendarViewConfig = {
   date_field: CalendarDateField
   folder_ids: string[]
   mode: CalendarMode
+  show_secondary_remind_list?: boolean
+  secondary_list_field?: CalendarSecondaryListField
 }
 
 export type ListViewConfig = {

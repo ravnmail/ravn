@@ -72,6 +72,10 @@ pub enum ViewConfig {
         /// The date field to use for positioning emails on the calendar
         #[serde(default = "default_calendar_date_field")]
         date_field: CalendarDateField,
+        /// When the primary date field is not remind_at, optionally render emails with remind_at
+        /// in a secondary list below the primary calendar items.
+        #[serde(default)]
+        show_secondary_remind_list: bool,
         /// Optional folder IDs to filter emails shown in this calendar view
         #[serde(default)]
         folder_ids: Vec<Uuid>,

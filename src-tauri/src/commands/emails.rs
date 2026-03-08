@@ -1141,6 +1141,12 @@ pub async fn set_remind_at(
     Ok(())
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct CalendarEmailsResponse {
+    pub primary: Vec<EmailListItem>,
+    pub remind_at: Vec<EmailListItem>,
+}
+
 #[tauri::command]
 pub async fn get_emails_for_calendar(
     state: State<'_, AppState>,
@@ -1148,33 +1154,49 @@ pub async fn get_emails_for_calendar(
     date_field: String,
     start: chrono::DateTime<chrono::Utc>,
     end: chrono::DateTime<chrono::Utc>,
-) -> Result<Vec<EmailListItem>, String> {
+    include_remind_at: Option<bool>,
+) -> Result<CalendarEmailsResponse, String> {
     let email_repo = SqliteEmailRepository::new(state.db_pool.clone());
     let label_repo = SqliteLabelRepository::new(state.db_pool.clone());
 
-    let emails = email_repo
+    let primary_emails = email_repo
         .find_for_calendar(&folder_ids, &date_field, start, end)
         .await
         .map_err(|e| format!("Failed to fetch emails for calendar: {}", e))?;
 
-    let email_ids: Vec<Uuid> = emails.iter().map(|e| e.id).collect();
+    let remind_emails = if include_remind_at.unwrap_or(false) && date_field != "remind_at" {
+        email_repo
+            .find_for_calendar(&folder_ids, "remind_at", start, end)
+            .await
+            .map_err(|e| format!("Failed to fetch remind_at emails for calendar: {}", e))?
+    } else {
+        Vec::new()
+    };
+
+    let mut all_email_ids: Vec<Uuid> = primary_emails.iter().map(|email| email.id).collect();
+    for email in &remind_emails {
+        if !all_email_ids.contains(&email.id) {
+            all_email_ids.push(email.id);
+        }
+    }
+
     let labels_map = label_repo
-        .find_by_emails(&email_ids)
+        .find_by_emails(&all_email_ids)
         .await
         .map_err(|e| format!("Failed to fetch labels: {}", e))?;
 
-    let list_items = emails
-        .iter()
-        .map(|email| {
-            let labels = labels_map
-                .get(&email.id)
-                .map(|labels| labels.iter().map(LabelInfo::from).collect())
-                .unwrap_or_default();
-            EmailListItem::from_email(email, labels)
-        })
-        .collect();
+    let map_email = |email: &crate::database::models::email::Email| {
+        let labels = labels_map
+            .get(&email.id)
+            .map(|labels| labels.iter().map(LabelInfo::from).collect())
+            .unwrap_or_default();
+        EmailListItem::from_email(email, labels)
+    };
 
-    Ok(list_items)
+    Ok(CalendarEmailsResponse {
+        primary: primary_emails.iter().map(map_email).collect(),
+        remind_at: remind_emails.iter().map(map_email).collect(),
+    })
 }
 
 #[tauri::command]

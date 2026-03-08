@@ -1,6 +1,7 @@
 import { VIEW_TEMPLATES } from '~/data/viewTemplates'
 import type {
   CalendarDateField,
+  CalendarViewConfig,
   CreateViewRequest,
   KanbanSwimlane,
   ListFilterGroup,
@@ -29,6 +30,7 @@ export function useViewWizard() {
     'wizardCalendarDateField',
     () => 'remind_at'
   )
+  const calendarShowRemindAtList = useState<boolean>('wizardCalendarShowRemindAtList', () => true)
   const calendarFolderIds = useState<string[]>('wizardCalendarFolderIds', () => [])
 
   const createEmptyListFilterGroup = (): ListFilterGroup => ({
@@ -79,6 +81,7 @@ export function useViewWizard() {
     processedTemplate.value = null
     isProcessing.value = false
     calendarDateField.value = 'remind_at'
+    calendarShowRemindAtList.value = false
     calendarFolderIds.value = []
     listFilterGroups.value = [createEmptyListFilterGroup()]
   }
@@ -93,6 +96,11 @@ export function useViewWizard() {
         viewType,
         labels: [],
         swimlanes: [],
+      }
+      if (viewType === 'calendar') {
+        calendarDateField.value = 'remind_at'
+        calendarShowRemindAtList.value = true
+        calendarFolderIds.value = []
       }
       if (viewType === 'list') {
         listFilterGroups.value = [createEmptyListFilterGroup()]
@@ -186,17 +194,21 @@ export function useViewWizard() {
 
       // Calendar views have their own config structure
       if (selectedViewType.value === 'calendar') {
+        const config: CalendarViewConfig = {
+          type: 'calendar',
+          date_field: calendarDateField.value,
+          folder_ids: calendarFolderIds.value,
+          mode: 'month',
+          show_secondary_remind_list:
+            calendarDateField.value !== 'remind_at' ? calendarShowRemindAtList.value : false,
+        }
+
         const viewRequest: CreateViewRequest = {
           name: customizations.name || template.title,
           icon: customizations.icon,
           color: customizations.color,
           view_type: 'calendar',
-          config: {
-            type: 'calendar',
-            date_field: calendarDateField.value,
-            folder_ids: calendarFolderIds.value,
-            mode: 'month' as const,
-          },
+          config,
           folders: calendarFolderIds.value,
         }
         const view = await createView(viewRequest)
@@ -313,6 +325,7 @@ export function useViewWizard() {
     availableTemplates,
     isProcessing: readonly(isProcessing),
     calendarDateField,
+    calendarShowRemindAtList,
     calendarFolderIds,
     listFilterGroups,
     reset,

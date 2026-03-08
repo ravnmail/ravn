@@ -80,6 +80,13 @@ pub trait EmailRepository {
         start: chrono::DateTime<chrono::Utc>,
         end: chrono::DateTime<chrono::Utc>,
     ) -> Result<Vec<Email>, DatabaseError>;
+
+    async fn find_for_calendar_secondary_remind_at(
+        &self,
+        folder_ids: &[Uuid],
+        start: chrono::DateTime<chrono::Utc>,
+        end: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<Email>, DatabaseError>;
     async fn update_remind_at(
         &self,
         id: Uuid,
@@ -878,11 +885,55 @@ impl EmailRepository for SqliteEmailRepository {
             WHERE e.is_deleted = 0
               AND {col} IS NOT NULL
               AND {col} >= ?
-              AND {col} < ?
+              AND {col} <= ?
               {folder_filter}
             ORDER BY {col} ASC
             "#,
             col = col,
+            folder_filter = folder_filter
+        );
+
+        let mut query = sqlx::query_as::<_, Email>(&sql).bind(start).bind(end);
+
+        for id in folder_ids {
+            query = query.bind(id.to_string());
+        }
+
+        query
+            .fetch_all(&self.pool)
+            .await
+            .map_err(DatabaseError::ConnectionError)
+    }
+
+    async fn find_for_calendar_secondary_remind_at(
+        &self,
+        folder_ids: &[Uuid],
+        start: chrono::DateTime<chrono::Utc>,
+        end: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<Email>, DatabaseError> {
+        // Build folder filter: if no folders specified, fetch from all folders
+        let folder_filter = if folder_ids.is_empty() {
+            String::new()
+        } else {
+            let placeholders = folder_ids
+                .iter()
+                .map(|_| "?")
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("AND e.folder_id IN ({})", placeholders)
+        };
+
+        let sql = format!(
+            r#"
+            SELECT e.*
+            FROM emails e
+            WHERE e.is_deleted = 0
+              AND e.remind_at IS NOT NULL
+              AND e.remind_at >= ?
+              AND e.remind_at <= ?
+              {folder_filter}
+            ORDER BY e.remind_at ASC
+            "#,
             folder_filter = folder_filter
         );
 
@@ -1012,6 +1063,7 @@ mod tests {
             received_at: Utc::now(),
             sent_at: Some(Utc::now()),
             scheduled_send_at: None,
+            remind_at: None,
             is_read: false,
             is_flagged: false,
             is_draft: false,
@@ -1024,6 +1076,8 @@ mod tests {
             last_body_fetch_attempt: None,
             change_key: None,
             last_modified_at: None,
+            deleted_at: None,
+            deletion_source: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

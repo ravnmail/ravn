@@ -1,9 +1,17 @@
-import { useQueryClient } from '@tanstack/vue-query'
 import type { InfiniteData } from '@tanstack/vue-query'
+import { useQueryClient } from '@tanstack/vue-query'
 import { invoke } from '@tauri-apps/api/core'
 
 import type { EmailDetail, EmailListItem } from '~/types/email'
 import type { CalendarDateField } from '~/types/view'
+
+export interface FetchForCalendarRequest {
+  folderIds: string[]
+  dateField: CalendarDateField
+  start: string
+  end: string
+  includeRemindAt?: boolean
+}
 
 interface EmailUpdatedEvent {
   id: string
@@ -378,26 +386,37 @@ export function useEmails() {
     }
   }
 
-  const fetchForCalendar = async (
-    folderIds: string[],
-    dateField: CalendarDateField,
-    start: string,
-    end: string
-  ): Promise<EmailListItem[]> => {
+  const fetchForCalendar = async ({
+    folderIds,
+    dateField,
+    start,
+    end,
+    includeRemindAt = false,
+  }: FetchForCalendarRequest): Promise<{
+    primary: EmailListItem[]
+    remind_at: EmailListItem[]
+  }> => {
     isLoading.value = true
     error.value = null
     try {
-      return await invoke<EmailListItem[]>('get_emails_for_calendar', {
+      return await invoke<{
+        primary: EmailListItem[]
+        remind_at: EmailListItem[]
+      }>('get_emails_for_calendar', {
         folderIds,
         dateField,
         start,
         end,
+        includeRemindAt,
       })
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       error.value = errorMessage
       console.error('Failed to fetch emails for calendar:', errorMessage)
-      return []
+      return {
+        primary: [],
+        remind_at: [],
+      }
     } finally {
       isLoading.value = false
     }
