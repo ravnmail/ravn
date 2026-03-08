@@ -15,6 +15,7 @@ const isEnterLicenseDialogOpen = ref(false)
 const { setupKeybindings, setupContext, register } = useActions()
 const { getKeybindings, onKeybindingsChanged } = useKeybindings()
 const { initPlatform } = usePlatform()
+const { fetchSettings } = useSettings()
 useNotifications()
 
 async function loadKeybindings() {
@@ -28,6 +29,7 @@ async function loadKeybindings() {
 
 onMounted(async () => {
   initPlatform()
+  await fetchSettings()
   setupContext([{ name: 'global', focused: computed(() => true) }])
   await loadKeybindings()
 

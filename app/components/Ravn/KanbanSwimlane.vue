@@ -207,6 +207,12 @@ const executeAction = async (actionId: string, arg?: unknown) => {
         emit('refresh')
       }
       break
+    case 'removeLabel':
+      if (typeof arg === 'string') {
+        await Promise.all(targetEmailIds.map((emailId) => removeLabelFromEmail(emailId, arg)))
+        emit('refresh')
+      }
+      break
     case 'setRemindAt':
       await Promise.all(targetEmailIds.map((emailId) => setRemindAt(emailId, arg as string | null)))
       if (targetEmailIds.includes(email.id)) {

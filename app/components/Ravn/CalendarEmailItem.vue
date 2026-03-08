@@ -21,7 +21,8 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { archive, trash, move, updateRead, addLabelToEmail, setRemindAt } = useEmails()
+const { archive, trash, move, updateRead, addLabelToEmail, removeLabelFromEmail, setRemindAt } =
+  useEmails()
 const { formatTime } = useRegionalFormat()
 
 const itemRef = ref<HTMLElement | null>(null)
@@ -95,34 +96,50 @@ const { isDragging } = useDraggable(itemRef, getDragData, {
 })
 
 const executeAction = async (actionId: string, arg?: unknown) => {
-  const email = props.email
+  const targetEmailIds =
+    props.selectedIds?.length && props.selectedIds.includes(props.email.id)
+      ? props.selectedIds
+      : [props.email.id]
+
   switch (actionId) {
     case 'archiveEmail':
-      await archive(email.id)
+      await Promise.all(targetEmailIds.map((emailId) => archive(emailId)))
       emit('action', 'archiveEmail')
       break
     case 'deleteEmail':
-      await trash(email.id)
+      await Promise.all(targetEmailIds.map((emailId) => trash(emailId)))
       emit('action', 'deleteEmail')
       break
     case 'moveEmail':
-      await move(email.id, arg as string)
+      await Promise.all(targetEmailIds.map((emailId) => move(emailId, arg as string)))
       emit('action', 'moveEmail', arg)
       break
     case 'markRead':
-      await updateRead(email.id, true)
+      await Promise.all(targetEmailIds.map((emailId) => updateRead(emailId, true)))
       emit('action', 'markRead')
       break
     case 'markUnread':
-      await updateRead(email.id, false)
+      await Promise.all(targetEmailIds.map((emailId) => updateRead(emailId, false)))
       emit('action', 'markUnread')
       break
     case 'assignLabel':
-      await addLabelToEmail({ email_id: email.id, label_id: arg as string })
+      await Promise.all(
+        targetEmailIds.map((emailId) =>
+          addLabelToEmail({ email_id: emailId, label_id: arg as string })
+        )
+      )
       emit('action', 'assignLabel', arg)
       break
+    case 'removeLabel':
+      await Promise.all(
+        targetEmailIds.map((emailId) => removeLabelFromEmail(emailId, arg as string))
+      )
+      emit('action', 'removeLabel', arg)
+      break
     case 'setRemindAt':
-      await setRemindAt(email.id, (arg as string | null) ?? null)
+      await Promise.all(
+        targetEmailIds.map((emailId) => setRemindAt(emailId, (arg as string | null) ?? null))
+      )
       emit('action', 'setRemindAt', arg)
       break
   }
@@ -203,6 +220,7 @@ const hasReminder = computed(() => !!props.email.remind_at)
 
 <template>
   <MailContextMenu
+    :active-email="email"
     :selected-email-ids="selectedIds?.length ? selectedIds : [email.id]"
     :on-execute-action="executeAction"
   >

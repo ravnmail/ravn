@@ -18,8 +18,16 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const { fetchForCalendar, archive, trash, move, updateRead, addLabelToEmail, setRemindAt } =
-  useEmails()
+const {
+  fetchForCalendar,
+  archive,
+  trash,
+  move,
+  updateRead,
+  addLabelToEmail,
+  removeLabelFromEmail,
+  setRemindAt,
+} = useEmails()
 const { updateView } = useViews()
 const { startOfWeek, weekdayOrder, formatWeekday, offsetToStartOfWeek } = useRegionalFormat()
 const multiSelect = useMultiSelect<EmailListItem>()
@@ -336,6 +344,9 @@ const executeAction = async (actionId: string, arg?: unknown) => {
       await Promise.all(
         emails.map((email) => addLabelToEmail({ email_id: email.id, label_id: arg as string }))
       )
+      break
+    case 'removeLabel':
+      await Promise.all(emails.map((email) => removeLabelFromEmail(email.id, arg as string)))
       break
     case 'setRemindAt':
       await Promise.all(

@@ -30,7 +30,6 @@ const closeMenu = () => {
 }
 
 const isProcessingFolderChange = ref(false)
-const isProcessingLabelChange = ref(false)
 const optimisticSelectedFolderIds = ref<string[] | null>(null)
 const optimisticSelectedLabelIds = ref<string[] | null>(null)
 
@@ -53,7 +52,6 @@ watch(
     optimisticSelectedFolderIds.value = null
     optimisticSelectedLabelIds.value = null
     isProcessingFolderChange.value = false
-    isProcessingLabelChange.value = false
   }
 )
 
@@ -77,7 +75,6 @@ watch(
     const optimisticKey = optimisticSelectedLabelIds.value?.slice().sort().join('|') ?? ''
     if (optimisticSelectedLabelIds.value && optimisticKey === labelKey) {
       optimisticSelectedLabelIds.value = null
-      isProcessingLabelChange.value = false
     }
   }
 )
@@ -103,7 +100,7 @@ const handleFolderSelect = async (v: string | string[]) => {
 }
 
 const handleLabelToggle = async (payload: { labelId: string; selected: boolean }) => {
-  if (!props.activeEmail?.id || isProcessingLabelChange.value) return
+  if (!props.activeEmail?.id) return
 
   const { labelId, selected } = payload
   const previousSelected = selectedLabelIds.value
@@ -112,13 +109,11 @@ const handleLabelToggle = async (payload: { labelId: string; selected: boolean }
     : previousSelected.filter((currentLabelId) => currentLabelId !== labelId)
 
   optimisticSelectedLabelIds.value = nextSelected
-  isProcessingLabelChange.value = true
 
   try {
     await props.onExecuteAction?.(selected ? 'assignLabel' : 'removeLabel', labelId)
   } catch (error) {
-    optimisticSelectedLabelIds.value = null
-    isProcessingLabelChange.value = false
+    optimisticSelectedLabelIds.value = previousSelected
     throw error
   }
 }

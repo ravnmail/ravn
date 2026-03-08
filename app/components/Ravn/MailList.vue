@@ -460,6 +460,23 @@ const getContextConversation = () => {
   return getStableConversation(contextMenuTarget.value.conversationId)
 }
 
+const getSelectedContextConversations = () => {
+  const selectedIds = new Set(selectedConversationIds.value)
+
+  if (
+    contextMenuTarget.value &&
+    selectedIds.size > 0 &&
+    selectedIds.has(contextMenuTarget.value.conversationId)
+  ) {
+    return conversations.value
+      .filter((conversation) => selectedIds.has(conversation.id))
+      .map((conversation) => getStableConversation(conversation.id) ?? conversation)
+  }
+
+  const contextConversation = getContextConversation()
+  return contextConversation ? [contextConversation] : []
+}
+
 const getContextMenuActiveEmail = () => {
   const conversation = getContextConversation()
   if (!conversation || !contextMenuTarget.value) return null
@@ -470,8 +487,42 @@ const getContextMenuActiveEmail = () => {
   )
 }
 
+const getContextMenuSelectedMessageIds = (): string[] => {
+  const selectedConversations = getSelectedContextConversations()
+
+  if (normalizedScope.value.type === 'folder') {
+    return selectedConversations.flatMap((conversation) =>
+      conversation.messages
+        .filter((message) => message.folder_id === normalizedScope.value.folderId)
+        .map((message) => message.id)
+    )
+  }
+
+  if (normalizedScope.value.type === 'combined' && normalizedScope.value.folderIds.length > 0) {
+    return selectedConversations.flatMap((conversation) =>
+      conversation.messages
+        .filter((message) => normalizedScope.value.folderIds.includes(message.folder_id))
+        .map((message) => message.id)
+    )
+  }
+
+  if (normalizedScope.value.type === 'combined' && normalizedScope.value.labelIds.length > 0) {
+    return selectedConversations.flatMap((conversation) =>
+      conversation.messages
+        .filter((message) =>
+          message.labels.some((label) => normalizedScope.value.labelIds.includes(label.id))
+        )
+        .map((message) => message.id)
+    )
+  }
+
+  return selectedConversations.flatMap((conversation) =>
+    conversation.messages.map((message) => message.id)
+  )
+}
+
 const getContextMenuFirstMessageId = (): string | null => {
-  return getContextMenuActiveEmail()?.id ?? null
+  return getContextMenuSelectedMessageIds()[0] ?? getContextMenuActiveEmail()?.id ?? null
 }
 
 const setContextMenuTarget = (conversationId: string) => {
@@ -529,28 +580,51 @@ const toggleLabelForContextEmail = async (labelId: string) => {
   const activeEmail = getContextMenuActiveEmail()
   if (!target || !activeEmail) return
 
+  const targetMessageIds = getContextMenuSelectedMessageIds()
+  if (targetMessageIds.length === 0) return
+
   const existingLabel = activeEmail.labels.find((label) => label.id === labelId)
   const availableLabel = labels.value.find((label) => label.id === labelId)
   if (!existingLabel && !availableLabel) return
 
-  const previousConversation = cloneConversation(getContextConversation()!)
-  const nextLabels = existingLabel
-    ? activeEmail.labels.filter((label) => label.id !== labelId)
-    : [...activeEmail.labels, availableLabel!]
+  const previousConversations = getSelectedContextConversations().map((conversation) =>
+    cloneConversation(conversation)
+  )
 
-  updateEmailInConversation(target.conversationId, target.emailId, (email) => ({
-    ...email,
-    labels: nextLabels,
-  }))
+  for (const conversation of getSelectedContextConversations()) {
+    updateConversationById(conversation.id, (currentConversation) => ({
+      ...currentConversation,
+      messages: currentConversation.messages.map((email) =>
+        targetMessageIds.includes(email.id)
+          ? {
+              ...email,
+              labels: existingLabel
+                ? email.labels.filter((label) => label.id !== labelId)
+                : email.labels.some((label) => label.id === labelId)
+                  ? email.labels
+                  : [...email.labels, availableLabel!],
+            }
+          : email
+      ),
+    }))
+  }
 
   try {
     if (existingLabel) {
-      await removeLabelFromEmail(target.emailId, labelId)
+      await Promise.all(
+        targetMessageIds.map((messageId) => removeLabelFromEmail(messageId, labelId))
+      )
     } else {
-      await addLabelToEmail({ email_id: target.emailId, label_id: labelId })
+      await Promise.all(
+        targetMessageIds.map((messageId) =>
+          addLabelToEmail({ email_id: messageId, label_id: labelId })
+        )
+      )
     }
   } catch (error) {
-    replaceContextConversation(previousConversation)
+    for (const conversation of previousConversations) {
+      replaceContextConversation(conversation)
+    }
     throw error
   }
 }
@@ -900,8 +974,9 @@ onMounted(async () => {
     id: 'archiveEmail',
     icon: 'lucide:archive',
     handler: async () => {
-      const id = getContextMenuFirstMessageId()
-      if (id) await archive(id)
+      const ids = getContextMenuSelectedMessageIds()
+      if (ids.length === 0) return
+      await Promise.all(ids.map((id) => archive(id)))
     },
   })
   register({
@@ -909,8 +984,9 @@ onMounted(async () => {
     id: 'deleteEmail',
     icon: 'lucide:trash-2',
     handler: async () => {
-      const id = getContextMenuFirstMessageId()
-      if (id) await trash(id)
+      const ids = getContextMenuSelectedMessageIds()
+      if (ids.length === 0) return
+      await Promise.all(ids.map((id) => trash(id)))
     },
   })
   register({
@@ -919,19 +995,33 @@ onMounted(async () => {
     icon: 'lucide:mail-open',
     handler: async () => {
       const target = contextMenuTarget.value
-      const id = getContextMenuFirstMessageId()
-      if (!id || !target) return
+      const ids = getContextMenuSelectedMessageIds()
+      if (!target || ids.length === 0) return
 
-      const previousConversation = cloneConversation(getContextConversation()!)
-      updateEmailInConversation(target.conversationId, target.emailId, (email) => ({
-        ...email,
-        is_read: true,
-      }))
+      const previousConversations = getSelectedContextConversations().map((conversation) =>
+        cloneConversation(conversation)
+      )
+
+      for (const conversation of getSelectedContextConversations()) {
+        updateConversationById(conversation.id, (currentConversation) => ({
+          ...currentConversation,
+          messages: currentConversation.messages.map((email) =>
+            ids.includes(email.id)
+              ? {
+                  ...email,
+                  is_read: true,
+                }
+              : email
+          ),
+        }))
+      }
 
       try {
-        await updateRead(id, true)
+        await Promise.all(ids.map((id) => updateRead(id, true)))
       } catch (error) {
-        replaceContextConversation(previousConversation)
+        for (const conversation of previousConversations) {
+          replaceContextConversation(conversation)
+        }
         throw error
       }
     },
@@ -942,19 +1032,33 @@ onMounted(async () => {
     icon: 'lucide:mail',
     handler: async () => {
       const target = contextMenuTarget.value
-      const id = getContextMenuFirstMessageId()
-      if (!id || !target) return
+      const ids = getContextMenuSelectedMessageIds()
+      if (!target || ids.length === 0) return
 
-      const previousConversation = cloneConversation(getContextConversation()!)
-      updateEmailInConversation(target.conversationId, target.emailId, (email) => ({
-        ...email,
-        is_read: false,
-      }))
+      const previousConversations = getSelectedContextConversations().map((conversation) =>
+        cloneConversation(conversation)
+      )
+
+      for (const conversation of getSelectedContextConversations()) {
+        updateConversationById(conversation.id, (currentConversation) => ({
+          ...currentConversation,
+          messages: currentConversation.messages.map((email) =>
+            ids.includes(email.id)
+              ? {
+                  ...email,
+                  is_read: false,
+                }
+              : email
+          ),
+        }))
+      }
 
       try {
-        await updateRead(id, false)
+        await Promise.all(ids.map((id) => updateRead(id, false)))
       } catch (error) {
-        replaceContextConversation(previousConversation)
+        for (const conversation of previousConversations) {
+          replaceContextConversation(conversation)
+        }
         throw error
       }
     },
@@ -965,20 +1069,34 @@ onMounted(async () => {
     icon: 'lucide:folder-input',
     handler: async (arg) => {
       const target = contextMenuTarget.value
-      const id = getContextMenuFirstMessageId()
+      const ids = getContextMenuSelectedMessageIds()
       const nextFolderId = arg as string | undefined
-      if (!id || !target || !nextFolderId) return
+      if (!target || ids.length === 0 || !nextFolderId) return
 
-      const previousConversation = cloneConversation(getContextConversation()!)
-      updateEmailInConversation(target.conversationId, target.emailId, (email) => ({
-        ...email,
-        folder_id: nextFolderId,
-      }))
+      const previousConversations = getSelectedContextConversations().map((conversation) =>
+        cloneConversation(conversation)
+      )
+
+      for (const conversation of getSelectedContextConversations()) {
+        updateConversationById(conversation.id, (currentConversation) => ({
+          ...currentConversation,
+          messages: currentConversation.messages.map((email) =>
+            ids.includes(email.id)
+              ? {
+                  ...email,
+                  folder_id: nextFolderId,
+                }
+              : email
+          ),
+        }))
+      }
 
       try {
-        await move(id, nextFolderId)
+        await Promise.all(ids.map((id) => move(id, nextFolderId)))
       } catch (error) {
-        replaceContextConversation(previousConversation)
+        for (const conversation of previousConversations) {
+          replaceContextConversation(conversation)
+        }
         throw error
       }
     },
@@ -1206,7 +1324,9 @@ const route = useRoute()
     >
       <MailContextMenu
         :active-email="getContextMenuActiveEmail()"
-        :selected-email-ids="contextMenuTarget ? [contextMenuTarget.emailId] : selectedMessageIds"
+        :selected-email-ids="
+          contextMenuTarget ? getContextMenuSelectedMessageIds() : selectedMessageIds
+        "
         :on-execute-action="(id, arg) => executeAction('mailList', id, arg)"
       >
         <div
