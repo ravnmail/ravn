@@ -47,7 +47,7 @@ if [[ -f README.md ]]; then
     sed -i '' "s/badge\/version-[0-9]\{1,\}\.[0-9]\{1,\}\.[0-9]\{1,\}/badge\/version-${version}/" README.md
 fi
 
-git add package.json src-tauri/Cargo.toml
+git add package.json src-tauri/Cargo.toml README.md src-tauri/Cargo.lock
 git commit -m "🚀 release ${version_tag}"
 
 git tag "$version_tag"
