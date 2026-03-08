@@ -3,10 +3,12 @@ import dayjs from 'dayjs'
 
 import CalendarEmailItem from '~/components/Ravn/CalendarEmailItem.vue'
 import ConversationViewer from '~/components/Ravn/ConversationViewer.vue'
+import MailContextMenu from '~/components/Ravn/MailContextMenu.vue'
 import { useSelectedConversation } from '~/components/Ravn/view/useSelectedConversation'
 import { Button } from '~/components/ui/button'
 import { UnobstrusiveSheetContent } from '~/components/ui/sheet'
 import { ToggleGroup, ToggleGroupItem } from '~/components/ui/toggle-group'
+import { useMultiSelect } from '~/composables/useDragAndDrop'
 import { useRegionalFormat } from '~/composables/useFormatting'
 import type { EmailListItem } from '~/types/email'
 import type { CalendarMode, CalendarViewConfig, View } from '~/types/view'
@@ -16,9 +18,11 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const { fetchForCalendar } = useEmails()
+const { fetchForCalendar, archive, trash, move, updateRead, addLabelToEmail, setRemindAt } =
+  useEmails()
 const { updateView } = useViews()
 const { startOfWeek, weekdayOrder, formatWeekday, offsetToStartOfWeek } = useRegionalFormat()
+const multiSelect = useMultiSelect<EmailListItem>()
 
 const config = computed(() => props.view.config as CalendarViewConfig)
 
@@ -245,19 +249,118 @@ const loadEmails = async () => {
 
 watch([anchorDate, mode, startOfWeek], () => loadEmails(), { immediate: true })
 
-const handleEmailAction = (actionId: string) => {
+const getAllEmails = () => {
+  return Object.values(emailsByDate.value).flat()
+}
+
+const getSelectedEmails = () => {
+  const selectedIds = multiSelect.selectedIds.value
+  if (selectedIds.length === 0) return []
+
+  const selectedIdSet = new Set(selectedIds)
+  return getAllEmails().filter((email) => selectedIdSet.has(email.id))
+}
+
+const selectedEmailIds = computed(() => {
+  const ids = new Set(multiSelect.selectedIds.value)
+
+  if (selectedConversationId.value) {
+    const primarySelectedEmail = getAllEmails().find(
+      (email) => email.conversation_id === selectedConversationId.value
+    )
+    if (primarySelectedEmail) {
+      ids.add(primarySelectedEmail.id)
+    }
+  }
+
+  return Array.from(ids)
+})
+
+const activeContextEmail = computed(() => {
+  if (selectedEmailIds.value.length !== 1) return null
+  return getAllEmails().find((email) => email.id === selectedEmailIds.value[0]) ?? null
+})
+
+const handleSelect = (email: EmailListItem, event?: MouseEvent) => {
+  if (event?.metaKey || event?.ctrlKey || event?.shiftKey) {
+    if (selectedConversationId.value && !multiSelect.selectedIds.value.includes(email.id)) {
+      const primarySelectedEmail = getAllEmails().find(
+        (candidate) => candidate.conversation_id === selectedConversationId.value
+      )
+      if (
+        primarySelectedEmail &&
+        !multiSelect.selectedIds.value.includes(primarySelectedEmail.id)
+      ) {
+        multiSelect.toggleSelect(primarySelectedEmail)
+      }
+    }
+
+    multiSelect.toggleSelect(email, event)
+    selectConversation(email.conversation_id)
+  } else {
+    multiSelect.clearSelection()
+    selectConversation(email.conversation_id)
+  }
+}
+
+const ensureContextSelection = (email: EmailListItem) => {
+  if (!selectedEmailIds.value.includes(email.id)) {
+    multiSelect.clearSelection()
+    multiSelect.toggleSelect(email)
+    selectConversation(email.conversation_id)
+  }
+}
+
+const executeAction = async (actionId: string, arg?: unknown) => {
+  const selectedIdSet = new Set(selectedEmailIds.value)
+  const emails = getAllEmails().filter((email) => selectedIdSet.has(email.id))
+  if (emails.length === 0) return
+
+  switch (actionId) {
+    case 'archiveEmail':
+      await Promise.all(emails.map((email) => archive(email.id)))
+      break
+    case 'deleteEmail':
+      await Promise.all(emails.map((email) => trash(email.id)))
+      break
+    case 'moveEmail':
+      await Promise.all(emails.map((email) => move(email.id, arg as string)))
+      break
+    case 'markRead':
+      await Promise.all(emails.map((email) => updateRead(email.id, true)))
+      break
+    case 'markUnread':
+      await Promise.all(emails.map((email) => updateRead(email.id, false)))
+      break
+    case 'assignLabel':
+      await Promise.all(
+        emails.map((email) => addLabelToEmail({ email_id: email.id, label_id: arg as string }))
+      )
+      break
+    case 'setRemindAt':
+      await Promise.all(
+        emails.map((email) => setRemindAt(email.id, (arg as string | null) ?? null))
+      )
+      break
+  }
+
   const mutating = ['archiveEmail', 'deleteEmail', 'moveEmail', 'setRemindAt']
-  if (mutating.includes(actionId)) loadEmails()
+  if (mutating.includes(actionId)) {
+    await loadEmails()
+  }
+}
+
+const handleEmailAction = async (actionId: string) => {
+  const mutating = ['archiveEmail', 'deleteEmail', 'moveEmail', 'setRemindAt']
+  if (mutating.includes(actionId)) {
+    await loadEmails()
+  }
 }
 
 // ─── Conversation sheet ───────────────────────────────────────────────────────
 
 const { selectedConversationId, selectConversation, clearSelectedConversation } =
   useSelectedConversation()
-
-const select = (email: EmailListItem) => {
-  selectConversation(email.conversation_id)
-}
 
 const onSheetClose = () => {
   clearSelectedConversation()
@@ -400,16 +503,27 @@ const formatDayMonthShort = (date: Date): string => dayjs(date).format('MMM')
           </div>
 
           <div class="min-h-0 flex-1 overflow-y-auto px-1 pb-1">
-            <div class="flex flex-col gap-1">
-              <CalendarEmailItem
-                v-for="email in emailsByDate[day.dateKey] || []"
-                :key="email.id"
-                :email="email"
-                :is-selected="email.conversation_id === selectedConversationId"
-                @click="select(email)"
-                @action="handleEmailAction"
-              />
-            </div>
+            <MailContextMenu
+              :active-email="activeContextEmail"
+              :selected-email-ids="selectedEmailIds"
+              :on-execute-action="executeAction"
+            >
+              <div class="flex flex-col gap-1">
+                <CalendarEmailItem
+                  v-for="email in emailsByDate[day.dateKey] || []"
+                  :key="email.id"
+                  :email="email"
+                  :is-selected="
+                    multiSelect.isSelected(email.id).value ||
+                    email.conversation_id === selectedConversationId
+                  "
+                  :selected-ids="selectedEmailIds"
+                  @click="handleSelect(email, $event)"
+                  @action="handleEmailAction"
+                  @contextmenu.capture="ensureContextSelection(email)"
+                />
+              </div>
+            </MailContextMenu>
             <div
               v-if="day.isToday && !(emailsByDate[day.dateKey] || []).length"
               class="text-muted-foreground/40 flex min-h-6 items-center justify-center text-[10px]"
@@ -451,16 +565,27 @@ const formatDayMonthShort = (date: Date): string => dayjs(date).format('MMM')
           </div>
 
           <div class="min-h-0 flex-1 overflow-y-auto p-1.5">
-            <div class="flex flex-col gap-1.5">
-              <CalendarEmailItem
-                v-for="email in emailsByDate[day.dateKey] || []"
-                :key="email.id"
-                :email="email"
-                :is-selected="email.conversation_id === selectedConversationId"
-                @click="select(email)"
-                @action="handleEmailAction"
-              />
-            </div>
+            <MailContextMenu
+              :active-email="activeContextEmail"
+              :selected-email-ids="selectedEmailIds"
+              :on-execute-action="executeAction"
+            >
+              <div class="flex flex-col gap-1.5">
+                <CalendarEmailItem
+                  v-for="email in emailsByDate[day.dateKey] || []"
+                  :key="email.id"
+                  :email="email"
+                  :is-selected="
+                    multiSelect.isSelected(email.id).value ||
+                    email.conversation_id === selectedConversationId
+                  "
+                  :selected-ids="selectedEmailIds"
+                  @click="handleSelect(email, $event)"
+                  @action="handleEmailAction"
+                  @contextmenu.capture="ensureContextSelection(email)"
+                />
+              </div>
+            </MailContextMenu>
           </div>
         </div>
       </div>

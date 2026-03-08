@@ -1,27 +1,31 @@
 <script lang="ts" setup>
+import { invoke } from '@tauri-apps/api/core'
+import { toast } from 'vue-sonner'
+
+import { Button } from '~/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu'
-import IconNameField from '~/components/ui/IconNameField.vue'
-import type { DragData } from '~/composables/useDragAndDrop'
-import { useDraggable, useDropTarget } from '~/composables/useDragAndDrop'
-import { invoke } from '@tauri-apps/api/core'
-import { Button } from '~/components/ui/button'
-import { PopoverContent, Popover, PopoverAnchor } from '~/components/ui/popover'
-import { SimpleTooltip } from '~/components/ui/tooltip'
-import type { SidebarNavigationItem, SidebarSectionItem } from '~/composables/useSidebarNavigation'
 import DropdownMenuItemRich from '~/components/ui/dropdown-menu/DropdownMenuItemRich.vue'
 import IconName from '~/components/ui/IconName.vue'
-import { toast } from 'vue-sonner'
+import IconNameField from '~/components/ui/IconNameField.vue'
+import { PopoverContent, Popover, PopoverAnchor } from '~/components/ui/popover'
+import { SimpleTooltip } from '~/components/ui/tooltip'
+import type { DragData } from '~/composables/useDragAndDrop'
+import { useDraggable, useDropTarget } from '~/composables/useDragAndDrop'
+import type { SidebarNavigationItem, SidebarSectionItem } from '~/composables/useSidebarNavigation'
 
 const emits = defineEmits<{
   (e: 'expanded', isExpanded: boolean): void
 }>()
 
-const props = withDefaults(defineProps<(SidebarNavigationItem | SidebarSectionItem) & { isExpanded: boolean }>(), {})
+const props = withDefaults(
+  defineProps<(SidebarNavigationItem | SidebarSectionItem) & { isExpanded: boolean }>(),
+  {}
+)
 
 const { t } = useI18n()
 const { updateHidden, updateFolderProperties, initSync } = useFolders()
@@ -71,7 +75,7 @@ const handleFolderDrop = async (data: DragData) => {
         account_id: props.account_id,
         folder_id: data.id,
         new_parent_id: props.id || null,
-      }
+      },
     })
   } catch (error) {
     console.error('Failed to move folder:', error)
@@ -81,29 +85,35 @@ const handleFolderDrop = async (data: DragData) => {
 const handleEmailDrop = async (data: DragData) => {
   try {
     if (data.type === 'conversation' && data.messageIds && data.messageIds.length > 0) {
-      for (const emailId of data.messageIds) {
-        try {
-          move(emailId, props.id)
-        } catch (error) {
-          console.error(`Failed to move email ${emailId}:`, error)
-        }
-      }
+      await Promise.all(
+        data.messageIds.map(async (emailId) => {
+          try {
+            await move(emailId, props.id)
+          } catch (error) {
+            console.error(`Failed to move email ${emailId}:`, error)
+          }
+        })
+      )
       console.log(`Moved ${data.messageIds.length} message(s) to folder ${props.name}`)
     }
     // Handle multi-drag scenario for emails
     else if (data.isMultiDrag && data.selectedIds && data.selectedIds.length > 1) {
-      for (const emailId of data.selectedIds) {
-        try {
-          move(emailId, props.id)
-        } catch (error) {
-          console.error(`Failed to move email ${emailId}:`, error)
-        }
-      }
-      console.log(`Moved ${data.selectedIds.length} items to folder ${props.name}`)
+      const emailIds =
+        data.messageIds && data.messageIds.length > 0 ? data.messageIds : data.selectedIds
+      await Promise.all(
+        emailIds.map(async (emailId) => {
+          try {
+            await move(emailId, props.id)
+          } catch (error) {
+            console.error(`Failed to move email ${emailId}:`, error)
+          }
+        })
+      )
+      console.log(`Moved ${emailIds.length} items to folder ${props.name}`)
     }
     // Single email drag
     else {
-      move(data.id, props.id)
+      await move(data.id, props.id)
     }
   } catch (error) {
     console.error('Failed to move email to folder:', error)
@@ -143,7 +153,7 @@ const saveEdit = async () => {
         name: editValue.value.name,
         icon: editValue.value.icon,
         color: editValue.value.color,
-      }
+      },
     })
     isEditing.value = false
   } catch (err) {
@@ -164,15 +174,14 @@ const handleEmpty = async () => {
     {
       title: t('components.verticalNavItem.actions.emptyFolder'),
       variant: 'destructive',
-    },
+    }
   )
   if (!confirmed) return
 
   try {
     await emptyFolder(props.id)
     toast(t('components.verticalNavItem.actions.emptyFolderSuccess'))
-  }
-  catch (err) {
+  } catch (err) {
     console.error('Failed to empty folder:', err)
   }
 }
@@ -181,15 +190,20 @@ const handleEmpty = async () => {
 <template>
   <div
     :class="[
-      isOver && canDrop ? 'ring-1 ring-primary ring-offset-1 bg-selection' : '',
-      isOver && !canDrop ? 'ring-1 ring-destructive ring-offset-1' : '']"
+      isOver && canDrop ? 'bg-selection ring-1 ring-primary ring-offset-1' : '',
+      isOver && !canDrop ? 'ring-1 ring-destructive ring-offset-1' : '',
+    ]"
     class="relative"
   >
     <Popover
       :open="isEditing"
-      @update:open="(v: boolean) => { isEditing = v }"
+      @update:open="
+        (v: boolean) => {
+          isEditing = v
+        }
+      "
     >
-      <PopoverAnchor/>
+      <PopoverAnchor />
       <PopoverContent
         :align-offset="8"
         :side-offset="28"
@@ -230,18 +244,15 @@ const handleEmpty = async () => {
     <DropdownMenu v-slot="{ open }">
       <div
         ref="folderRef"
-        :class="[
-          'flex items-center py-0.5',
-          isDragging ? 'opacity-50 cursor-grabbing' : '',
-        ]"
+        :class="['flex items-center py-0.5', isDragging ? 'cursor-grabbing opacity-50' : '']"
       >
         <div
           v-if="children?.length"
-          class="w-5 pl-1 h-full opacity-50 hover:opacity-100 text-primary transition-opacity"
+          class="h-full w-5 pl-1 text-primary opacity-50 transition-opacity hover:opacity-100"
           @click.stop.prevent="toggleExpanded"
         >
           <Icon
-            :class="['transition-transform opacity-50', isExpanded ? 'transform rotate-90' : '']"
+            :class="['opacity-50 transition-transform', isExpanded ? 'rotate-90 transform' : '']"
             :size="14"
             name="lucide:chevron-right"
           />
@@ -259,14 +270,21 @@ const handleEmpty = async () => {
         />
         <span
           v-if="unread_count"
-          :class="['ml-auto font-semibold text-xs text-muted mr-2', open ? 'opacity-0' : 'group-hover:opacity-0']"
-        >{{ unread_count }}</span>
+          :class="[
+            'mr-2 ml-auto text-xs font-semibold text-muted',
+            open ? 'opacity-0' : 'group-hover:opacity-0',
+          ]"
+          >{{ unread_count }}</span
+        >
         <DropdownMenuTrigger
           v-if="folder_type"
           as-child
         >
           <Icon
-            :class="['absolute right-2 opacity-0 transition-opacity', open ? 'opacity-100' : ' group-hover:opacity-50 hover:opacity-100']"
+            :class="[
+              'absolute right-2 opacity-0 transition-opacity',
+              open ? 'opacity-100' : 'group-hover:opacity-50 hover:opacity-100',
+            ]"
             name="lucide:ellipsis"
             @click.stop.prevent
           />

@@ -11,10 +11,12 @@ import type { EmailListItem } from '~/types/email'
 const props = defineProps<{
   email: EmailListItem
   isSelected?: boolean
+  isMultiSelected?: boolean
+  selectedIds?: string[]
 }>()
 
 const emit = defineEmits<{
-  (e: 'click'): void
+  (e: 'click', event: MouseEvent): void
   (e: 'action', actionId: string, arg?: unknown): void
 }>()
 
@@ -24,11 +26,20 @@ const { formatTime } = useRegionalFormat()
 
 const itemRef = ref<HTMLElement | null>(null)
 
-const getDragData = () => ({
-  type: 'email' as const,
-  id: props.email.id,
-  folderId: props.email.folder_id,
-})
+const getDragData = () => {
+  const isMultiDrag =
+    !!props.selectedIds?.length &&
+    props.selectedIds.length > 0 &&
+    props.selectedIds.includes(props.email.id)
+
+  return {
+    type: 'email' as const,
+    id: props.email.id,
+    folderId: props.email.folder_id,
+    selectedIds: isMultiDrag ? props.selectedIds : undefined,
+    isMultiDrag,
+  }
+}
 
 const { isDragging } = useDraggable(itemRef, getDragData, {
   onGenerateDragPreview: ({ nativeSetDragImage }) => {
@@ -36,11 +47,13 @@ const { isDragging } = useDraggable(itemRef, getDragData, {
       nativeSetDragImage,
       getOffset: pointerOutsideOfPreview({ x: '16px', y: '8px' }),
       render({ container }) {
-        const label =
-          props.email.subject?.trim() ||
-          props.email.from.name ||
-          props.email.from.address ||
-          'Email'
+        const isMulti = !!getDragData().isMultiDrag && (props.selectedIds?.length || 0) > 1
+        const label = isMulti
+          ? `${props.selectedIds!.length} emails`
+          : props.email.subject?.trim() ||
+            props.email.from.name ||
+            props.email.from.address ||
+            'Email'
 
         const el = document.createElement('div')
         el.style.cssText = [
@@ -61,6 +74,14 @@ const { isDragging } = useDraggable(itemRef, getDragData, {
           'border:1px solid var(--color-border,#e5e7eb)',
           'pointer-events:none',
         ].join(';')
+
+        if (isMulti) {
+          const badge = document.createElement('span')
+          badge.style.cssText =
+            'background:var(--color-accent,#6366f1);color:#fff;border-radius:999px;padding:1px 7px;font-size:11px;font-weight:700;flex-shrink:0'
+          badge.textContent = String(props.selectedIds!.length)
+          el.appendChild(badge)
+        }
 
         const text = document.createElement('span')
         text.style.cssText = 'overflow:hidden;text-overflow:ellipsis'
@@ -182,7 +203,7 @@ const hasReminder = computed(() => !!props.email.remind_at)
 
 <template>
   <MailContextMenu
-    :selected-email-ids="[email.id]"
+    :selected-email-ids="selectedIds?.length ? selectedIds : [email.id]"
     :on-execute-action="executeAction"
   >
     <div
@@ -192,8 +213,9 @@ const hasReminder = computed(() => !!props.email.remind_at)
         'cursor-pointer transition-colors select-none',
         isDragging ? 'cursor-grabbing opacity-30' : '',
         isSelected ? 'bg-selection text-selection-foreground' : email.is_read ? '' : 'text-primary',
+        isMultiSelected ? 'bg-primary/10 ring-1 ring-primary' : '',
       ]"
-      @click="emit('click')"
+      @click="emit('click', $event)"
     >
       <div class="flex items-center gap-1.5 text-sm">
         <div

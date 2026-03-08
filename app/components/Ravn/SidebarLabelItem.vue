@@ -33,20 +33,20 @@ const { isOver, canDrop } = useDropTarget(itemRef, {
   canDrop: (data: DragData) => data.type === 'email' || data.type === 'conversation',
   onDrop: async (data: DragData) => {
     try {
-      if (data.type === 'conversation' && data.messageIds && data.messageIds.length > 0) {
-        await Promise.all(
-          data.messageIds.map((emailId) =>
-            addLabelToEmail({ email_id: emailId, label_id: props.id })
-          )
+      const emailIds =
+        data.type === 'conversation' && data.messageIds && data.messageIds.length > 0
+          ? data.messageIds
+          : data.isMultiDrag && data.messageIds && data.messageIds.length > 0
+            ? data.messageIds
+            : data.isMultiDrag && data.selectedIds && data.selectedIds.length > 0
+              ? data.selectedIds
+              : [data.id]
+
+      await Promise.all(
+        Array.from(new Set(emailIds)).map((emailId) =>
+          addLabelToEmail({ email_id: emailId, label_id: props.id })
         )
-      } else if (data.isMultiDrag && data.selectedIds && data.selectedIds.length > 1) {
-        const emailIds = data.messageIds ?? [data.id]
-        await Promise.all(
-          emailIds.map((emailId) => addLabelToEmail({ email_id: emailId, label_id: props.id }))
-        )
-      } else {
-        await addLabelToEmail({ email_id: data.id, label_id: props.id })
-      }
+      )
     } catch (err) {
       console.error('[SidebarLabelItem] Failed to assign label on drop:', err)
     }

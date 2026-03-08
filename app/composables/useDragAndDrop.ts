@@ -16,6 +16,7 @@ export interface DragData {
   isMultiDrag?: boolean
   // Message IDs for conversation drag (contains email IDs to move)
   messageIds?: string[]
+  fromSwimlaneId?: string
 
   [key: string]: unknown
 }
@@ -25,7 +26,7 @@ export interface DropTargetData {
   id: string
   accepts?: string[]
 
-  [key: string]: unknown
+  [key: string | symbol]: unknown
 }
 
 export function useDraggable(
@@ -134,6 +135,29 @@ export function useDropTarget(
   return {
     isOver: readonly(isOver),
     canDrop: readonly(canDrop),
+  }
+}
+
+export function getEmailDragData(args: {
+  emailId: string
+  folderId?: string
+  accountId?: string
+  selectedIds?: string[]
+  fromSwimlaneId?: string
+}) {
+  const normalizedSelectedIds = Array.from(new Set((args.selectedIds || []).filter(Boolean)))
+  const isMultiDrag =
+    normalizedSelectedIds.length > 1 && normalizedSelectedIds.includes(args.emailId)
+
+  return {
+    type: 'email' as const,
+    id: args.emailId,
+    accountId: args.accountId,
+    folderId: args.folderId,
+    fromSwimlaneId: args.fromSwimlaneId,
+    selectedIds: isMultiDrag ? normalizedSelectedIds : undefined,
+    messageIds: isMultiDrag ? normalizedSelectedIds : undefined,
+    isMultiDrag,
   }
 }
 

@@ -1,8 +1,7 @@
 <script lang="ts" setup>
-
-import type { EmailCategory, EmailListItem } from '~/types/email'
-import useFormatting from '~/composables/useFormatting'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
+import useFormatting from '~/composables/useFormatting'
+import type { EmailCategory, EmailListItem } from '~/types/email'
 
 interface Props extends EmailListItem {
   leftActions?: SwipeAction[]
@@ -10,6 +9,7 @@ interface Props extends EmailListItem {
   excludeLabels?: string[]
   message_count?: number
   isSelected?: boolean
+  isMultiSelected?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -17,7 +17,8 @@ const props = withDefaults(defineProps<Props>(), {
   rightActions: () => [],
   excludeLabels: () => [],
   message_count: 0,
-  isSelected: false
+  isSelected: false,
+  isMultiSelected: false,
 })
 
 const emit = defineEmits<{
@@ -28,31 +29,25 @@ const { formatEmailDate } = useFormatting()
 
 const itemRef = ref<HTMLElement | null>(null)
 
-
 const mappedLeftActions = computed(() =>
-  props.leftActions.map(action => ({
+  props.leftActions.map((action) => ({
     ...action,
-    handler: () => emit('action', action.id, props.id)
+    handler: () => emit('action', action.id, props.id),
   }))
 )
 
 const mappedRightActions = computed(() =>
-  props.rightActions.map(action => ({
+  props.rightActions.map((action) => ({
     ...action,
-    handler: () => emit('action', action.id, props.id)
+    handler: () => emit('action', action.id, props.id),
   }))
 )
 
-const {
-  swipeOffset,
-  activeActionSide,
-  visibleSide,
-  activeActionIndex,
-  handleActionClick
-} = useSwipeActions(itemRef, {
-  leftActions: mappedLeftActions.value,
-  rightActions: mappedRightActions.value
-})
+const { swipeOffset, activeActionSide, visibleSide, activeActionIndex, handleActionClick } =
+  useSwipeActions(itemRef, {
+    leftActions: mappedLeftActions.value,
+    rightActions: mappedRightActions.value,
+  })
 
 const contentTransform = computed(() => `translateX(${swipeOffset.value}px)`)
 
@@ -62,7 +57,7 @@ const rightActionsWidth = computed(() => props.rightActions.length * actionWidth
 
 const filteredLabels = computed(() => {
   if (props.excludeLabels && props.excludeLabels.length > 0) {
-    return props.labels.filter(l => !props.excludeLabels!.includes(l.id))
+    return props.labels.filter((l) => !props.excludeLabels!.includes(l.id))
   }
   return props.labels
 })
@@ -85,13 +80,12 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
     color: '#f44336',
   },
 }
-
 </script>
 
 <template>
   <div
     ref="itemRef"
-    class="relative overflow-hidden touch-pan-x rounded"
+    class="relative touch-pan-x overflow-hidden rounded"
   >
     <div
       v-if="props.leftActions.length > 0"
@@ -126,26 +120,32 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
 
     <div :style="{ transform: contentTransform }">
       <div
-        :class="['flex p-2 transition-transform duration-200 ease-out', is_read ? '' : 'text-primary', isSelected ? 'bg-selection text-selection-foreground' : '']"
+        :class="[
+          'flex p-2 transition-transform duration-200 ease-out',
+          is_read ? '' : 'text-primary',
+          isSelected || isMultiSelected ? 'bg-selection text-selection-foreground' : '',
+        ]"
       >
         <RavnAvatar
           v-if="from.address"
           :email="from.address"
           :name="from.name"
-          class="mr-4 pointer-events-none"
+          class="pointer-events-none mr-4"
           size="lg"
         />
         <div class="flex-grow">
           <div class="flex items-center gap-2">
             <div
               v-if="!is_read"
-              class="w-2 h-2 bg-accent rounded-full"
+              class="h-2 w-2 rounded-full bg-accent"
             />
             <span class="line-clamp-1 text-sm">{{ from.name || from.address }}</span>
-            <span class="ml-auto text-sm opacity-60 text-nowrap">{{ formatEmailDate($props, 2) }}</span>
+            <span class="ml-auto text-sm text-nowrap opacity-60">{{
+              formatEmailDate($props, 2)
+            }}</span>
           </div>
           <div class="flex items-center gap-2">
-            <span class="font-bold line-clamp-1">{{ subject }}</span>
+            <span class="line-clamp-1 font-bold">{{ subject }}</span>
             <div class="ml-auto flex items-center gap-2">
               <Icon
                 v-if="has_attachments"
@@ -160,12 +160,13 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
               />
               <span
                 v-if="message_count"
-                class="text-xs font-bold px-2 py-0.5 rounded"
-              >{{ message_count }}</span>
+                class="rounded px-2 py-0.5 text-xs font-bold"
+                >{{ message_count }}</span
+              >
             </div>
           </div>
-          <div class="text-sm opacity-50 line-clamp-2">{{ snippet }}</div>
-          <div class="flex mt-2 gap-1 flex-wrap">
+          <div class="line-clamp-2 text-sm opacity-50">{{ snippet }}</div>
+          <div class="mt-2 flex flex-wrap gap-1">
             <EmailLabel
               v-for="l in filteredLabels"
               :key="l.id"

@@ -11,6 +11,8 @@ const props = defineProps<{
   swimlaneId: string
   excludeLabels?: string[]
   isSelected?: boolean
+  isMultiSelected?: boolean
+  selectedIds?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -19,13 +21,20 @@ const emit = defineEmits<{
 
 const emailRef = ref<HTMLElement | null>(null)
 
-const getDragData = () => ({
-  type: 'email' as const,
-  id: props.email.id,
-  accountId: props.email.account_id,
-  folderId: props.email.folder_id,
-  fromSwimlaneId: props.swimlaneId,
-})
+const getDragData = () => {
+  const isMultiDrag =
+    props.selectedIds && props.selectedIds.length > 0 && props.selectedIds.includes(props.email.id)
+
+  return {
+    type: 'email' as const,
+    id: props.email.id,
+    accountId: props.email.account_id,
+    folderId: props.email.folder_id,
+    fromSwimlaneId: props.swimlaneId,
+    selectedIds: isMultiDrag ? props.selectedIds : undefined,
+    isMultiDrag,
+  }
+}
 
 const { isDragging } = useDraggable(emailRef, getDragData, {
   onGenerateDragPreview: ({ nativeSetDragImage }) => {
@@ -33,6 +42,12 @@ const { isDragging } = useDraggable(emailRef, getDragData, {
       nativeSetDragImage,
       getOffset: pointerOutsideOfPreview({ x: '16px', y: '8px' }),
       render({ container }) {
+        const data = getDragData()
+        const isMulti = data.isMultiDrag && props.selectedIds && props.selectedIds.length > 1
+        const label = isMulti
+          ? `${props.selectedIds!.length} emails`
+          : props.email.subject?.trim() || props.email.from?.name || 'Email'
+
         const el = document.createElement('div')
         el.style.cssText = [
           'display:flex',
@@ -53,9 +68,17 @@ const { isDragging } = useDraggable(emailRef, getDragData, {
           'pointer-events:none',
         ].join(';')
 
+        if (isMulti) {
+          const badge = document.createElement('span')
+          badge.style.cssText =
+            'background:var(--color-accent,#6366f1);color:#fff;border-radius:999px;padding:1px 7px;font-size:11px;font-weight:700;flex-shrink:0'
+          badge.textContent = String(props.selectedIds!.length)
+          el.appendChild(badge)
+        }
+
         const text = document.createElement('span')
         text.style.cssText = 'overflow:hidden;text-overflow:ellipsis'
-        text.textContent = props.email.subject?.trim() || props.email.from?.name || 'Email'
+        text.textContent = label
         el.appendChild(text)
 
         container.appendChild(el)
@@ -71,12 +94,14 @@ const { isDragging } = useDraggable(emailRef, getDragData, {
     :class="[
       'cursor-pointer transition-opacity select-none',
       isDragging ? 'cursor-grabbing opacity-30' : '',
+      isSelected || isMultiSelected ? 'rounded bg-selection text-selection-foreground' : '',
     ]"
-    @click="emit('click', $event)"
+    @mousedown.stop
+    @click.stop="emit('click', $event)"
   >
     <EmailItem
       :exclude-labels="excludeLabels"
-      :is-selected="isSelected"
+      :is-selected="false"
       v-bind="email"
     />
   </div>

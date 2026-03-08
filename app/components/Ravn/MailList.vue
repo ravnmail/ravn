@@ -810,7 +810,15 @@ watch(virtualItems, (items) => {
 
 const handleSelect = (conversation: ConversationListItem, event?: MouseEvent) => {
   if (event?.metaKey || event?.ctrlKey || event?.shiftKey) {
+    if (props.conversationId && !multiSelect.selectedIds.value.includes(props.conversationId)) {
+      const primaryConversation = conversations.value.find((c) => c.id === props.conversationId)
+      if (primaryConversation) {
+        multiSelect.toggleSelect(primaryConversation)
+      }
+    }
+
     multiSelect.toggleSelect(conversation, event)
+    handleConversationSelect(conversation.id)
     return
   }
 
@@ -831,11 +839,19 @@ const handleSelect = (conversation: ConversationListItem, event?: MouseEvent) =>
   handleConversationSelect(conversation.id)
 }
 
+const selectedConversationIds = computed(() => {
+  const ids = new Set(multiSelect.selectedIds.value)
+
+  if (props.conversationId) {
+    ids.add(props.conversationId)
+  }
+
+  return Array.from(ids)
+})
+
 const selectedMessageIds = computed(() => {
-  const selectedConvIds = multiSelect.selectedIds.value
-  const selectedConversations = conversations.value.filter(
-    (c) => selectedConvIds.includes(c.id) || props.conversationId === c.id
-  )
+  const selectedConvIds = selectedConversationIds.value
+  const selectedConversations = conversations.value.filter((c) => selectedConvIds.includes(c.id))
 
   if (normalizedScope.value.type === 'folder') {
     return selectedConversations.flatMap((conv) =>
@@ -1241,13 +1257,16 @@ const route = useRoute()
                   ''
                 "
                 :is-multi-selected="
-                  multiSelect.isSelected((virtualRows[virtualItem.index] as any).conversation.id)
-                    .value
+                  selectedConversationIds.includes(
+                    (virtualRows[virtualItem.index] as any).conversation.id
+                  ) && selectedConversationIds.length > 1
                 "
                 :is-selected="
-                  props.conversationId === (virtualRows[virtualItem.index] as any).conversation.id
+                  selectedConversationIds.includes(
+                    (virtualRows[virtualItem.index] as any).conversation.id
+                  )
                 "
-                :selected-ids="multiSelect.selectedIds.value"
+                :selected-ids="selectedConversationIds"
                 :selected-message-ids="selectedMessageIds"
                 @action="handleAction"
                 @click="handleSelect((virtualRows[virtualItem.index] as any).conversation, $event)"

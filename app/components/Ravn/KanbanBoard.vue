@@ -7,6 +7,7 @@ import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import { ScrollArea } from '~/components/ui/scroll-area'
 import { UnobstrusiveSheetContent } from '~/components/ui/sheet'
 import type { DragData } from '~/composables/useDragAndDrop'
+import { useMultiSelect } from '~/composables/useDragAndDrop'
 import type { EmailListItem } from '~/types/email'
 import type { KanbanSwimlane as KanbanSwimlaneType, KanbanViewConfig, View } from '~/types/view'
 
@@ -28,6 +29,18 @@ const {
 const swimlaneEmails = ref<Record<string, EmailListItem[]>>({})
 const swimlanes = computed(() => (props.view.config as KanbanViewConfig).swimlanes || [])
 const usedLabelIds = computed(() => swimlanes.value.flatMap((s) => s.label_ids || []))
+const multiSelect = useMultiSelect<EmailListItem>()
+const primarySelectedEmailId = ref<string | null>(null)
+
+const effectiveSelectedEmailIds = computed(() => {
+  const ids = new Set(multiSelect.selectedIds.value)
+
+  if (primarySelectedEmailId.value) {
+    ids.add(primarySelectedEmailId.value)
+  }
+
+  return Array.from(ids)
+})
 
 const REFRESH_INTERVAL = 30000
 const swimlaneRefreshIntervals = new Map<string, NodeJS.Timeout>()
@@ -104,55 +117,67 @@ const loadEmailsForSwimlane = async (swimlaneId: string) => {
 const handleEmailDrop = async (dragData: DragData, targetSwimlaneId: string) => {
   if (dragData.type !== 'email') return
 
-  const email = swimlaneEmails.value[dragData.fromSwimlaneId]?.find(
-    (e) => e.id === dragData.id
-  ) as EmailListItem
-  if (!email) return
-
-  const fromSwimlane = swimlanes.value.find((s) => s.id === dragData.fromSwimlaneId)
   const toSwimlane = swimlanes.value.find((s) => s.id === targetSwimlaneId)
-
   if (!toSwimlane || dragData.fromSwimlaneId === targetSwimlaneId) {
     return
   }
 
+  const draggedEmailIds =
+    dragData.isMultiDrag && dragData.selectedIds && dragData.selectedIds.length > 1
+      ? dragData.selectedIds
+      : [dragData.id]
+
+  const draggedEmails = Object.values(swimlaneEmails.value)
+    .flat()
+    .filter((email) => draggedEmailIds.includes(email.id))
+
+  if (!draggedEmails.length) return
+
   try {
     const isToSwimlaneFolder = toSwimlane.folder_ids && toSwimlane.folder_ids.length > 0
     const isToSwimlaneLabel = toSwimlane.label_ids && toSwimlane.label_ids.length > 0
-    const emailLabelIds = email.labels.map(({ id }) => id)
 
-    if (isToSwimlaneFolder) {
-      for (const labelId of emailLabelIds) {
-        if (usedLabelIds.value.includes(labelId)) {
-          await removeLabelFromEmail(email.id, labelId)
-        }
-      }
+    for (const email of draggedEmails) {
+      const fromSwimlane = swimlanes.value.find((s) =>
+        (swimlaneEmails.value[s.id] || []).some((candidate) => candidate.id === email.id)
+      )
+      const emailLabelIds = email.labels.map(({ id }) => id)
 
-      const targetFolderId = toSwimlane.folder_ids[0]
-      if (email.folder_id !== targetFolderId) {
-        await move(email.id, targetFolderId)
-      }
-    } else if (isToSwimlaneLabel) {
-      if (fromSwimlane && fromSwimlane.label_ids && fromSwimlane.label_ids.length > 0) {
-        for (const labelId of fromSwimlane.label_ids) {
-          await removeLabelFromEmail(email.id, labelId)
+      if (isToSwimlaneFolder) {
+        for (const labelId of emailLabelIds) {
+          if (usedLabelIds.value.includes(labelId)) {
+            await removeLabelFromEmail(email.id, labelId)
+          }
         }
-      }
 
-      for (const labelId of toSwimlane.label_ids) {
-        if (!emailLabelIds.includes(labelId)) {
-          await addLabelToEmail({ email_id: email.id, label_id: labelId })
+        const targetFolderId = toSwimlane.folder_ids[0]
+        if (email.folder_id !== targetFolderId) {
+          await move(email.id, targetFolderId)
         }
-      }
-    } else {
-      for (const labelId of emailLabelIds) {
-        if (usedLabelIds.value.includes(labelId)) {
-          await removeLabelFromEmail(email.id, labelId)
+      } else if (isToSwimlaneLabel) {
+        if (fromSwimlane && fromSwimlane.label_ids && fromSwimlane.label_ids.length > 0) {
+          for (const labelId of fromSwimlane.label_ids) {
+            await removeLabelFromEmail(email.id, labelId)
+          }
+        }
+
+        for (const labelId of toSwimlane.label_ids) {
+          if (!emailLabelIds.includes(labelId)) {
+            await addLabelToEmail({ email_id: email.id, label_id: labelId })
+          }
+        }
+      } else {
+        for (const labelId of emailLabelIds) {
+          if (usedLabelIds.value.includes(labelId)) {
+            await removeLabelFromEmail(email.id, labelId)
+          }
         }
       }
     }
 
     await loadEmails()
+    multiSelect.clearSelection()
+    primarySelectedEmailId.value = null
   } catch (error) {
     console.error('Failed to move email:', error)
   }
@@ -184,7 +209,24 @@ const handleSwimlaneUpdate = async (updatedSwimlane: KanbanSwimlaneType) => {
   }
 }
 
-const select = (email: EmailListItem) => {
+const select = (email: EmailListItem, event?: MouseEvent) => {
+  if (event?.metaKey || event?.ctrlKey || event?.shiftKey) {
+    if (primarySelectedEmailId.value && primarySelectedEmailId.value !== email.id) {
+      const primaryEmail = Object.values(swimlaneEmails.value)
+        .flat()
+        .find((candidate) => candidate.id === primarySelectedEmailId.value)
+
+      if (primaryEmail && !multiSelect.selectedIds.value.includes(primaryEmail.id)) {
+        multiSelect.toggleSelect(primaryEmail)
+      }
+    }
+
+    multiSelect.toggleSelect(email, event)
+  } else {
+    multiSelect.clearSelection()
+    primarySelectedEmailId.value = email.id
+  }
+
   selectConversation(email.conversation_id)
 }
 
@@ -216,6 +258,7 @@ const onSheetClose = () => {
           :key="swimlane.id"
           :emails="swimlaneEmails[swimlane.id] || []"
           :selected-conversation-id="selectedConversationId"
+          :selected-email-ids="effectiveSelectedEmailIds"
           :swimlane="swimlane"
           @drop="handleEmailDrop"
           @update="handleSwimlaneUpdate"

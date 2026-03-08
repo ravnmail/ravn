@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+defineOptions({
+  inheritAttrs: false,
+})
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,11 +21,12 @@ interface Props extends EmailAddress {
   showAvatar?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   isLast: false,
   showAvatar: false,
 })
 
+const attrs = useAttrs()
 const aiNotesOpen = ref(false)
 </script>
 
@@ -29,7 +34,11 @@ const aiNotesOpen = ref(false)
   <DropdownMenu v-slot="{ open }">
     <DropdownMenuTrigger
       as="button"
-      class="group relative -mx-1 -my-0.5 inline-flex items-center space-x-2 rounded py-0.5 pr-3 pl-1 text-foreground select-text hover:z-10 hover:bg-selection hover:text-selection-foreground data-[state=open]:bg-selection data-[state=open]:text-selection-foreground"
+      v-bind="attrs"
+      :class="[
+        'group relative -mx-1 -my-0.5 inline-flex items-center space-x-2 rounded py-0.5 pr-3 pl-1 text-foreground select-text hover:z-10 hover:bg-selection hover:text-selection-foreground data-[state=open]:bg-selection data-[state=open]:text-selection-foreground',
+        attrs.class,
+      ]"
     >
       <RavnAvatar
         v-if="showAvatar"
@@ -38,12 +47,12 @@ const aiNotesOpen = ref(false)
         size="xs"
       />
       <p>
-        {{ name || address
+        {{ props.name || props.address
         }}<span
           v-if="name"
           class="sr-only"
         >
-          &lt;{{ address }}&gt;</span
+          &lt;{{ props.address }}&gt;</span
         >
       </p>
       <Icon
@@ -54,14 +63,14 @@ const aiNotesOpen = ref(false)
     <DropdownMenuContent align="start">
       <DropdownMenuGroup>
         <DropdownMenuItemRich
-          :label="`Compose email to ${name || address}`"
+          :label="`Compose email to ${props.name || props.address}`"
           icon="lucide:pen-square"
-          @click="$emit('compose', address)"
+          @click="$emit('compose', props.address)"
         />
         <DropdownMenuItemRich
-          :label="`Search for emails from ${name || address}`"
+          :label="`Search for emails from ${props.name || props.address}`"
           icon="lucide:search"
-          @click="() => $router.push({ name: 'search', query: { q: `from:${address}` } })"
+          @click="() => $router.push({ name: 'search', query: { q: `from:${props.address}` } })"
         />
         <DropdownMenuSeparator />
         <DropdownMenuItemRich
@@ -73,21 +82,21 @@ const aiNotesOpen = ref(false)
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Copy</DropdownMenuLabel>
         <DropdownMenuItemRich
-          :label="`${address}`"
+          :label="`${props.address}`"
           icon="lucide:copy"
-          @click="copy(address)"
+          @click="copy(props.address)"
         />
         <DropdownMenuItemRich
-          v-if="name"
-          :label="`${name}`"
+          v-if="props.name"
+          :label="`${props.name}`"
           icon="lucide:copy"
-          @click="copy(name)"
+          @click="copy(props.name)"
         />
         <DropdownMenuItemRich
-          v-if="name"
-          :label="`${name} <${address}>`"
+          v-if="props.name"
+          :label="`${props.name} <${props.address}>`"
           icon="lucide:copy"
-          @click="copy(`${name} <${address}>`)"
+          @click="copy(`${props.name} <${props.address}>`)"
         />
       </DropdownMenuGroup>
     </DropdownMenuContent>
@@ -95,7 +104,7 @@ const aiNotesOpen = ref(false)
 
   <RavnContactAINotesDialog
     v-model:open="aiNotesOpen"
-    :email="address"
-    :name="name"
+    :email="props.address"
+    :name="props.name"
   />
 </template>

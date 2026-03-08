@@ -5,6 +5,7 @@ import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import IconName from '~/components/ui/IconName.vue'
+import IconNameField from '~/components/ui/IconNameField.vue'
 import { Popover, PopoverAnchor, PopoverContent } from '~/components/ui/popover'
 import { SimpleTooltip } from '~/components/ui/tooltip'
 import type { DragData } from '~/composables/useDragAndDrop'
@@ -16,6 +17,7 @@ const props = defineProps<{
   swimlane: KanbanSwimlane
   emails: EmailListItem[]
   selectedConversationId?: string
+  selectedEmailIds?: string[]
 }>()
 
 const editValue = ref<{ icon?: string | null; name: string; color?: string | null } | null>(null)
@@ -23,7 +25,7 @@ const editValue = ref<{ icon?: string | null; name: string; color?: string | nul
 const emit = defineEmits<{
   (e: 'update', value: KanbanSwimlane): void
   (e: 'drop', dragData: DragData, targetSwimlaneId: string): void
-  (e: 'emailClick', email: EmailListItem): void
+  (e: 'emailClick', email: EmailListItem, event: MouseEvent): void
   (e: 'refresh'): void
 }>()
 
@@ -58,6 +60,10 @@ const dropStateClass = computed(() => {
 const swimlaneBaseStyle = computed(() => ({
   backgroundColor: props.swimlane.color ? `${props.swimlane.color}15` : 'transparent',
 }))
+
+const backgroundColor = computed(() =>
+  props.swimlane.color ? `${props.swimlane.color}15` : 'transparent'
+)
 
 const collapsed = computed(() => props.swimlane.state === 'closed')
 
@@ -148,48 +154,67 @@ const toggleLabelOptimistically = async (email: EmailListItem, labelId: string) 
   }
 }
 
+const getEffectiveSelectedEmailIds = () => {
+  const selectedIds = props.selectedEmailIds || []
+  if (contextEmail.value && selectedIds.includes(contextEmail.value.id)) {
+    return selectedIds
+  }
+  return contextEmail.value ? [contextEmail.value.id] : selectedIds
+}
+
 const executeAction = async (actionId: string, arg?: unknown) => {
   const email = contextEmail.value
-  if (!email) return
+  const targetEmailIds = getEffectiveSelectedEmailIds()
+
+  if (!email || targetEmailIds.length === 0) return
+
   switch (actionId) {
     case 'archiveEmail':
-      await archive(email.id)
+      await Promise.all(targetEmailIds.map((emailId) => archive(emailId)))
       emit('refresh')
       break
     case 'deleteEmail':
-      await trash(email.id)
+      await Promise.all(targetEmailIds.map((emailId) => trash(emailId)))
       emit('refresh')
       break
     case 'moveEmail':
-      await move(email.id, arg as string)
+      await Promise.all(targetEmailIds.map((emailId) => move(emailId, arg as string)))
       emit('refresh')
       break
     case 'markRead':
-      await updateRead(email.id, true)
-      replaceContextEmail((currentEmail) => ({
-        ...currentEmail,
-        is_read: true,
-      }))
+      await Promise.all(targetEmailIds.map((emailId) => updateRead(emailId, true)))
+      if (targetEmailIds.includes(email.id)) {
+        replaceContextEmail((currentEmail) => ({
+          ...currentEmail,
+          is_read: true,
+        }))
+      }
       break
     case 'markUnread':
-      await updateRead(email.id, false)
-      replaceContextEmail((currentEmail) => ({
-        ...currentEmail,
-        is_read: false,
-      }))
+      await Promise.all(targetEmailIds.map((emailId) => updateRead(emailId, false)))
+      if (targetEmailIds.includes(email.id)) {
+        replaceContextEmail((currentEmail) => ({
+          ...currentEmail,
+          is_read: false,
+        }))
+      }
       break
     case 'assignLabel':
       if (typeof arg === 'string') {
-        await toggleLabelOptimistically(email, arg)
+        await Promise.all(
+          targetEmailIds.map((emailId) => addLabelToEmail({ email_id: emailId, label_id: arg }))
+        )
         emit('refresh')
       }
       break
     case 'setRemindAt':
-      await setRemindAt(email.id, arg as string | null)
-      replaceContextEmail((currentEmail) => ({
-        ...currentEmail,
-        remind_at: (arg as string | null) ?? undefined,
-      }))
+      await Promise.all(targetEmailIds.map((emailId) => setRemindAt(emailId, arg as string | null)))
+      if (targetEmailIds.includes(email.id)) {
+        replaceContextEmail((currentEmail) => ({
+          ...currentEmail,
+          remind_at: (arg as string | null) ?? undefined,
+        }))
+      }
       emit('refresh')
       break
   }
@@ -330,7 +355,7 @@ const executeAction = async (actionId: string, arg?: unknown) => {
       class="min-h-0 flex-1 rounded-lg p-2 transition-all duration-200"
     >
       <MailContextMenu
-        :selected-email-ids="contextEmail ? [contextEmail.id] : []"
+        :selected-email-ids="getEffectiveSelectedEmailIds()"
         :active-email="contextEmail"
         :on-execute-action="executeAction"
       >
@@ -340,10 +365,12 @@ const executeAction = async (actionId: string, arg?: unknown) => {
             :key="email.id"
             :email="email"
             :exclude-labels="swimlane.label_ids"
-            :is-selected="email.conversation_id === selectedConversationId"
+            :is-selected="(selectedEmailIds || []).includes(email.id)"
+            :is-multi-selected="false"
+            :selected-ids="selectedEmailIds || []"
             :swimlane-id="swimlane.id"
             @contextmenu.capture="contextEmail = email"
-            @click="emit('emailClick', email)"
+            @click="emit('emailClick', email, $event)"
           />
         </div>
       </MailContextMenu>
