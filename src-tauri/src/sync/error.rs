@@ -84,9 +84,9 @@ impl SyncError {
     pub fn category(&self) -> ErrorCategory {
         match self {
             SyncError::NetworkError(_) | SyncError::ReqwestError(_) => ErrorCategory::Transient,
-            SyncError::GmailError(_)
-            | SyncError::Office365Error(_)
-            | SyncError::ImapError(_) => ErrorCategory::Provider,
+            SyncError::GmailError(_) | SyncError::Office365Error(_) | SyncError::ImapError(_) => {
+                ErrorCategory::Provider
+            }
             SyncError::ParseError(_) | SyncError::JsonError(_) => ErrorCategory::DataCorruption,
             SyncError::AuthenticationError(_)
             | SyncError::OAuth2Error(_)

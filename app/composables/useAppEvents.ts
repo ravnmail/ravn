@@ -1,4 +1,5 @@
 import { listen } from '@tauri-apps/api/event'
+import { invoke } from '@tauri-apps/api/core'
 import { navigateToUrl } from './useUrlNavigation'
 import { useAuth } from './useAuth'
 
@@ -48,6 +49,11 @@ export function useAppEvents() {
     // Listen for URL navigation events from menu/shortcuts
     unlistenUrl = await listen<string>('navigate-to-url', handleUrlNavigation)
     console.log('[AppEvents] Listening for navigate-to-url events')
+
+    const pendingUrls = await invoke<string[]>('navigation_frontend_ready')
+    for (const url of pendingUrls) {
+      await handleUrlNavigation({ payload: url })
+    }
 
     // Listen for Office365 auth-required events
     unlistenOffice365Auth = await listen('office365:auth-required', handleOffice365AuthRequired)

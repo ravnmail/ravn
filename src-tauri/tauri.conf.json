@@ -85,7 +85,7 @@
     },
     "deep-link": {
       "desktop": {
-        "schemes": ["ravn"]
+        "schemes": ["ravn", "mailto"]
       }
     }
   }

@@ -35,12 +35,15 @@ interface Props {
   isReplyAll?: boolean
   forward?: EmailDetail
   initialAccountId?: string
+  initialTo?: EmailAddress[]
+  initialCc?: EmailAddress[]
+  initialBcc?: EmailAddress[]
+  initialSubject?: string
+  initialBodyText?: string
   initialContent?: string
 }
 
 const props = defineProps<Props>()
-
-console.log(props.initialContent, props.draft)
 
 const emit = defineEmits<{
   sent: []
@@ -103,12 +106,37 @@ const scheduleResolveNotes = () => {
 }
 
 const selectedAccountId = ref<string | null>(null)
+
+function plainTextToHtml(text?: string): string {
+  if (!text) return ''
+
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+  return escaped
+    .split(/\r\n|\r|\n/)
+    .map(line => `<p>${line || '<br>'}</p>`)
+    .join('')
+}
+
+const initialBodyHtml = computed(() => {
+  if (props.initialBodyText) {
+    return plainTextToHtml(props.initialBodyText)
+  }
+
+  return props.initialContent || '\n'
+})
+
 const draft = ref<Partial<EmailDetail>>({
-  to: [],
-  cc: [],
-  bcc: [],
-  subject: '',
-  body_html: props.initialContent || '\n',
+  to: [...(props.initialTo ?? [])],
+  cc: [...(props.initialCc ?? [])],
+  bcc: [...(props.initialBcc ?? [])],
+  subject: props.initialSubject || '',
+  body_html: initialBodyHtml.value,
   conversation_id: undefined,
 })
 
@@ -200,6 +228,9 @@ onMounted(async () => {
       selectedAccountId.value = String(firstAccount.id)
     }
   }
+
+  showCc.value = (draft.value.cc?.length ?? 0) > 0
+  showBcc.value = (draft.value.bcc?.length ?? 0) > 0
 
   startAutoSave()
 

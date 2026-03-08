@@ -120,9 +120,7 @@ impl OperationQueue {
             let _ = pending_repo.mark_in_progress(op_id).await;
 
             let payload = op.parsed_payload();
-            let result = self
-                .execute_operation(&*provider, &op_type, &payload)
-                .await;
+            let result = self.execute_operation(&*provider, &op_type, &payload).await;
 
             match result {
                 Ok(()) => {
@@ -217,9 +215,7 @@ impl OperationQueue {
             Some(PendingOperationType::MarkUnread) => {
                 provider.mark_as_read(remote_id, &folder, false).await
             }
-            Some(PendingOperationType::Flag) => {
-                provider.set_flag(remote_id, &folder, true).await
-            }
+            Some(PendingOperationType::Flag) => provider.set_flag(remote_id, &folder, true).await,
             Some(PendingOperationType::Unflag) => {
                 provider.set_flag(remote_id, &folder, false).await
             }
@@ -258,8 +254,8 @@ impl OperationQueue {
             .get("folder_id")
             .and_then(|v| v.as_str())
             .unwrap_or_default();
-        let folder_id = Uuid::parse_str(folder_id_str)
-            .map_err(|e| SyncError::DatabaseError(e.to_string()))?;
+        let folder_id =
+            Uuid::parse_str(folder_id_str).map_err(|e| SyncError::DatabaseError(e.to_string()))?;
         self.get_folder_by_id(folder_id).await
     }
 

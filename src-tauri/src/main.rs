@@ -38,8 +38,10 @@ use std::sync::Arc;
 use tauri::TitleBarStyle;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
-    Emitter, Manager, WindowEvent,
+    Manager, WindowEvent,
 };
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_notification::NotificationExt;
 
 fn create_menu(app: &tauri::App) -> Result<Menu<tauri::Wry>, tauri::Error> {
@@ -186,11 +188,12 @@ fn main() {
         env_logger::init();
     }
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_deep_link::init())
         // ── macOS window-lifecycle ────────────────────────────────────────────
         // Intercept the red traffic-light button (and any other OS-level "close
         // window" signal) so the window is merely *hidden* rather than destroyed.
@@ -217,9 +220,17 @@ fn main() {
             // Suppress unused-variable warnings on non-macOS targets.
             #[cfg(not(target_os = "macos"))]
             let _ = (window, event);
-        })
+        });
+
+    #[cfg(any(target_os = "linux", target_os = "macos", windows))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _, _| {
+        app_lib::navigation::reveal_main_window(app);
+    }));
+
+    builder
         .setup(|app| {
             let app_handle = app.handle().clone();
+            app_handle.manage(app_lib::navigation::NavigationDispatchState::default());
 
             let app_data_dir = app_handle
                 .path()
@@ -438,6 +449,33 @@ fn main() {
                 log::warn!("Failed to request notification permission: {}", error);
             }
 
+            #[cfg(any(target_os = "linux", target_os = "macos", windows))]
+            {
+                let deep_link_app = app_handle.clone();
+                app_handle.deep_link().on_open_url(move |event| {
+                    for url in event.urls() {
+                        app_lib::navigation::dispatch_navigation_url(
+                            &deep_link_app,
+                            url.to_string(),
+                        );
+                    }
+                });
+
+                if let Ok(Some(urls)) = app_handle.deep_link().get_current() {
+                    for url in urls {
+                        app_lib::navigation::dispatch_navigation_url(&app_handle, url.to_string());
+                    }
+                }
+
+                #[cfg(any(windows, target_os = "linux"))]
+                if let Err(error) = app_handle.deep_link().register_all() {
+                    log::warn!(
+                        "[Deep Link] Failed to register configured schemes with the OS: {}",
+                        error
+                    );
+                }
+            }
+
             // Reset any folders stuck in 'syncing' state from a previous unclean shutdown
             {
                 use app_lib::database::repositories::{
@@ -527,14 +565,11 @@ fn main() {
                 log::debug!("[Menu] Menu event received: {}", menu_id);
 
                 if menu_id.starts_with("ravn://") {
-                    log::debug!("[Menu] Emitting navigation event for: {}", menu_id);
-                    if let Some(window) = app.get_webview_window("main") {
-                        if let Err(e) = window.emit("navigate-to-url", menu_id) {
-                            log::error!("[Menu] Failed to emit navigation event: {}", e);
-                        }
-                    } else {
-                        log::error!("[Menu] Main window not found");
-                    }
+                    log::debug!("[Menu] Dispatching navigation event for: {}", menu_id);
+                    app_lib::navigation::dispatch_navigation_url(
+                        app.app_handle(),
+                        menu_id.to_string(),
+                    );
                     return;
                 }
 
@@ -592,6 +627,7 @@ fn main() {
             nav_commands::navigate_to_url,
             nav_commands::build_ravn_url,
             nav_commands::open_external_url,
+            nav_commands::navigation_frontend_ready,
             emails::send_email,
             emails::test_smtp_connection,
             emails::send_email_from_account,

@@ -129,7 +129,11 @@ impl EmailBodySplitter {
     }
 
     /// Split by detecting quote header patterns in text
-    fn split_by_quote_patterns(_document: &Html, html_text: &str, full_html: &str) -> Option<SplitEmailBody> {
+    fn split_by_quote_patterns(
+        _document: &Html,
+        html_text: &str,
+        full_html: &str,
+    ) -> Option<SplitEmailBody> {
         if QUOTE_HEADER_REGEX.is_match(html_text)
             || FORWARD_HEADER_REGEX.is_match(html_text)
             || SENT_HEADER_REGEX.is_match(html_text)

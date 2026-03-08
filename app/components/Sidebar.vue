@@ -31,7 +31,7 @@ import type { SidebarNavigationItem, SidebarSectionItem } from '~/composables/us
 dayjs.extend(relativeTime)
 
 const route = useRoute()
-const showComposer = ref(false)
+const { closeComposer, isOpen: showComposer, openComposer, seed, sessionKey } = useComposerState()
 
 const lastUpdated = computed(() => {
   const buildDate = '2025-12-15T13:00:00Z'
@@ -110,16 +110,16 @@ const onSelect = (item: SidebarNavigationItem | SidebarSectionItem, level: numbe
 
 const onComposerSheetChange = (e) => {
   if (!e) {
-    showComposer.value = false
+    closeComposer()
   }
 }
 
 const handleComposerSent = async () => {
-  showComposer.value = false
+  closeComposer()
 }
 
 const handleComposerDiscarded = () => {
-  showComposer.value = false
+  closeComposer()
 }
 
 const scrollContentRef = useTemplateRef('scrollContentRef')
@@ -156,7 +156,7 @@ onMounted(() => {
     namespace: 'global',
     icon: 'square-pen',
     handler: () => {
-      showComposer.value = true
+      openComposer()
     },
   })
   register({
@@ -413,7 +413,13 @@ const checkForUpdate = async () => {
     @close="onComposerSheetChange"
   >
     <Composer
+      :key="sessionKey"
       class="p-3"
+      :initial-bcc="seed.bcc"
+      :initial-body-text="seed.body"
+      :initial-cc="seed.cc"
+      :initial-subject="seed.subject"
+      :initial-to="seed.to"
       @discarded="handleComposerDiscarded"
       @sent="handleComposerSent"
     />

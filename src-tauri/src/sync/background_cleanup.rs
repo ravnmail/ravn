@@ -96,8 +96,7 @@ impl BackgroundCleanup {
         pool: &SqlitePool,
         storage: &Arc<LocalFileStorage>,
     ) -> SyncResult<()> {
-        let cutoff =
-            chrono::Utc::now() - chrono::Duration::days(TOMBSTONE_RETENTION_DAYS);
+        let cutoff = chrono::Utc::now() - chrono::Duration::days(TOMBSTONE_RETENTION_DAYS);
 
         let emails = sqlx::query!(
             r#"
@@ -227,8 +226,7 @@ impl BackgroundCleanup {
 
     /// Clean up completed/cancelled pending operations older than COMPLETED_OPS_RETENTION_DAYS
     async fn cleanup_completed_operations(pool: &SqlitePool) -> SyncResult<()> {
-        let cutoff =
-            chrono::Utc::now() - chrono::Duration::days(COMPLETED_OPS_RETENTION_DAYS);
+        let cutoff = chrono::Utc::now() - chrono::Duration::days(COMPLETED_OPS_RETENTION_DAYS);
 
         let result = sqlx::query!(
             r#"

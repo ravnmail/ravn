@@ -1,4 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
+import { parseEmailAddress } from '~/lib/utils/email'
+import type { EmailAddress } from '~/types/email'
+import type { ComposerSeed } from './useComposerState'
+import { useComposerState } from './useComposerState'
 
 export interface RavnUrl {
   scheme: string
@@ -7,17 +11,17 @@ export interface RavnUrl {
 }
 
 /**
- * Parse a RAVN URL and return the frontend router path
+ * Parse an incoming navigation URL and return the frontend router path
  */
-async function parseRavnUrl(url: string): Promise<string> {
+async function parseNavigationUrl(url: string): Promise<string> {
   try {
-    console.log('[Navigation] Parsing RAVN URL:', url)
+    console.log('[Navigation] Parsing navigation URL:', url)
     const routerPath = await invoke<string>('navigate_to_url', { url })
     console.log('[Navigation] Mapped to router path:', routerPath)
     return routerPath
   }
   catch (error) {
-    console.error('[Navigation] Failed to parse RAVN URL:', url, error)
+    console.error('[Navigation] Failed to parse navigation URL:', url, error)
     return '/'
   }
 }
@@ -42,17 +46,25 @@ async function buildRavnUrl(path: string, query?: string): Promise<string> {
  */
 export async function navigateToUrl(url: string) {
   const router = useRouter()
+  const { openComposer } = useComposerState()
 
-  // If it's a ravn:// URL, parse it first
-  if (url.startsWith('ravn://')) {
-    const routerPath = await parseRavnUrl(url)
-    console.log('[Navigation] Navigating to:', routerPath)
-    router.push(routerPath)
+  const handleInternalNavigation = async (target: string) => {
+    if (target.startsWith('/compose')) {
+      openComposer(parseComposeSeed(target))
+      return
+    }
+
+    await router.push(target)
   }
-  // If it's already a path, navigate directly
+
+  if (url.startsWith('ravn://') || url.startsWith('mailto:')) {
+    const routerPath = await parseNavigationUrl(url)
+    console.log('[Navigation] Navigating to:', routerPath)
+    await handleInternalNavigation(routerPath)
+  }
   else {
     console.log('[Navigation] Direct path navigation:', url)
-    router.push(url)
+    await handleInternalNavigation(url)
   }
 }
 
@@ -77,4 +89,31 @@ export const navigate = {
   toAccountFolder: (accountId: string, folderId: string) =>
     navigateToUrl(`ravn://accounts/${accountId}/folders/${folderId}`),
   toEmail: (emailId: string) => navigateToUrl(`ravn://mail/${emailId}`),
+}
+
+function parseComposeSeed(url: string): ComposerSeed {
+  const params = new URLSearchParams(url.split('?')[1] || '')
+
+  return {
+    to: parseRecipients(params.getAll('to')),
+    cc: parseRecipients(params.getAll('cc')),
+    bcc: parseRecipients(params.getAll('bcc')),
+    subject: params.get('subject') || '',
+    body: params.get('body') || '',
+  }
+}
+
+function parseRecipients(values: string[]): EmailAddress[] {
+  return values
+    .flatMap(value => value.split(','))
+    .map(value => value.trim())
+    .filter(Boolean)
+    .map((value) => {
+      try {
+        return parseEmailAddress(value)
+      }
+      catch {
+        return { address: value }
+      }
+    })
 }

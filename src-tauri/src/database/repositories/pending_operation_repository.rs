@@ -228,10 +228,7 @@ impl SqlitePendingOperationRepository {
     }
 
     /// Delete completed operations older than the given duration
-    pub async fn delete_completed_older_than(
-        &self,
-        days: i64,
-    ) -> Result<u64, DatabaseError> {
+    pub async fn delete_completed_older_than(&self, days: i64) -> Result<u64, DatabaseError> {
         let cutoff = Utc::now() - Duration::days(days);
 
         let result = sqlx::query!(

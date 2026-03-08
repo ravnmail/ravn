@@ -1,4 +1,5 @@
-use crate::navigation::NavigationUrl;
+use crate::navigation::{NavigationDispatchState, NavigationUrl};
+use tauri::State;
 
 /// Navigate to a RAVN URL
 #[tauri::command]
@@ -32,4 +33,12 @@ pub async fn open_external_url(url: String) -> Result<(), String> {
     log::debug!("[Navigation Command] Opening external URL: {}", url);
     opener::open(&url).map_err(|e| format!("Failed to open URL: {}", e))?;
     Ok(())
+}
+
+/// Mark the frontend navigation listeners as ready and return queued URLs.
+#[tauri::command]
+pub async fn navigation_frontend_ready(
+    state: State<'_, NavigationDispatchState>,
+) -> Result<Vec<String>, String> {
+    Ok(state.mark_frontend_ready())
 }
