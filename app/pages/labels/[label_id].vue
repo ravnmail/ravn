@@ -3,11 +3,21 @@ import MailList from '~/components/Ravn/MailList.vue'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '~/components/ui/resizable'
 
 const route = useRoute()
+const router = useRouter()
 const labelId = computed(() => route.params.label_id as string)
 const conversationId = computed(() => route.params.conversation as string)
 
 const { useGetLabel } = useLabels()
 const { data: labelData } = useGetLabel(labelId)
+
+const handleConversationSelect = (nextConversationId?: string) => {
+  if (nextConversationId) {
+    router.push(`/labels/${labelId.value}/conversations/${nextConversationId}`)
+    return
+  }
+
+  router.push(`/labels/${labelId.value}`)
+}
 
 const labelView = computed(() => {
   const label = labelData.value
@@ -52,6 +62,7 @@ const labelView = computed(() => {
         :folder-id="''"
         :view="labelView"
         class="h-full shrink-0"
+        @select-conversation="handleConversationSelect"
       />
     </ResizablePanel>
     <ResizableHandle />

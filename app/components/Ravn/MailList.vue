@@ -633,6 +633,45 @@ const handleConversationSelect = (conversationId?: string) => {
   emit('select-conversation', conversationId)
 }
 
+const previousConversationIds = ref<string[]>([])
+const isApplyingFallbackSelection = ref(false)
+
+const findNextConversationId = (
+  previousIds: string[],
+  currentIds: string[],
+  removedConversationId?: string
+) => {
+  if (currentIds.length === 0) return undefined
+
+  if (!removedConversationId) {
+    return currentIds[0]
+  }
+
+  const previousIndex = previousIds.findIndex(
+    (conversationId) => conversationId === removedConversationId
+  )
+
+  if (previousIndex === -1) {
+    return currentIds[0]
+  }
+
+  for (let index = previousIndex + 1; index < previousIds.length; index += 1) {
+    const candidateId = previousIds[index]
+    if (candidateId && currentIds.includes(candidateId)) {
+      return candidateId
+    }
+  }
+
+  for (let index = previousIndex - 1; index >= 0; index -= 1) {
+    const candidateId = previousIds[index]
+    if (candidateId && currentIds.includes(candidateId)) {
+      return candidateId
+    }
+  }
+
+  return currentIds[0]
+}
+
 const handleAction = async (actionId: string, conversationId: string) => {
   const conversation = getStableConversation(conversationId) || null
   if (!conversation || !conversation.messages[0]) {
@@ -957,8 +996,61 @@ watch(
   () => {
     multiSelect.clearSelection()
     contextMenuTarget.value = null
+    previousConversationIds.value = conversations.value.map((conversation) => conversation.id)
+    isApplyingFallbackSelection.value = false
   },
   { deep: true }
+)
+
+watch(
+  () => conversations.value.map((conversation) => conversation.id),
+  (currentIds, previousIds) => {
+    const priorIds = previousIds ?? previousConversationIds.value
+    previousConversationIds.value = [...currentIds]
+
+    const selectedConversationId = props.conversationId
+    if (!selectedConversationId) return
+    if (currentIds.includes(selectedConversationId)) {
+      isApplyingFallbackSelection.value = false
+      return
+    }
+    if (isApplyingFallbackSelection.value) return
+
+    const nextConversationId = findNextConversationId(priorIds, currentIds, selectedConversationId)
+
+    if (!nextConversationId) {
+      isApplyingFallbackSelection.value = true
+      multiSelect.clearSelection()
+      contextMenuTarget.value = null
+      handleConversationSelect(undefined)
+      return
+    }
+
+    if (nextConversationId === selectedConversationId) return
+
+    isApplyingFallbackSelection.value = true
+    multiSelect.clearSelection()
+    contextMenuTarget.value = null
+    handleConversationSelect(nextConversationId)
+  }
+)
+
+watch(
+  () => props.conversationId,
+  (conversationId) => {
+    if (
+      !conversationId ||
+      !conversations.value.some((conversation) => conversation.id === conversationId)
+    ) {
+      multiSelect.clearSelection()
+      contextMenuTarget.value = null
+    }
+
+    if (isApplyingFallbackSelection.value && conversationId) {
+      isApplyingFallbackSelection.value = false
+    }
+  },
+  { immediate: true }
 )
 
 onMounted(async () => {
@@ -976,6 +1068,7 @@ onMounted(async () => {
     handler: async () => {
       const ids = getContextMenuSelectedMessageIds()
       if (ids.length === 0) return
+
       await Promise.all(ids.map((id) => archive(id)))
     },
   })
@@ -986,6 +1079,7 @@ onMounted(async () => {
     handler: async () => {
       const ids = getContextMenuSelectedMessageIds()
       if (ids.length === 0) return
+
       await Promise.all(ids.map((id) => trash(id)))
     },
   })
