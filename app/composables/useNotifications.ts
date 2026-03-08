@@ -7,6 +7,8 @@ import {
   sendNotification,
 } from '@tauri-apps/plugin-notification'
 
+import { navigateToUrl } from './useUrlNavigation'
+
 interface BadgeCount {
   count: number
   visible?: boolean
@@ -17,50 +19,191 @@ interface NotificationEmailPreview {
   id?: string
   accountId?: string
   folderId?: string
+  conversationId?: string | null
   senderName?: string | null
   senderAddress?: string | null
   subject?: string | null
   snippet?: string | null
+  avatarUrl?: string | null
+  remindAt?: string | null
+  navigationTarget?: string | null
 }
 
 interface NativeNotificationPayload {
-  kind?: 'incoming-email' | 'outgoing-email' | 'system'
+  kind?: 'incoming-email' | 'outgoing-email' | 'reminder-email' | 'system'
   title?: string
   body?: string
   email?: NotificationEmailPreview
   playSound?: boolean
   suppressDuringBootstrap?: boolean
+  tag?: string
+  deepLink?: string | null
 }
 
 type BadgeType = 'count' | 'dot' | null
+
+type ReminderNotificationCandidate = {
+  id: string
+  account_id: string
+  folder_id: string
+  from: {
+    address: string
+    name?: string
+  }
+  subject?: string
+  snippet?: string
+  remind_at?: string
+}
+
+type ReminderCheckResult = {
+  due: ReminderNotificationCandidate[]
+  nextReminderAt: string | null
+}
+
+type ReminderNotificationRecord = {
+  notifiedAt: string
+  remindAt: string
+}
+
+const REMINDER_CHECK_INTERVAL_MS = 30_000
+const REMINDER_DEDUP_STORAGE_KEY = 'ravn.notifications.reminders.sent'
+const MAX_REMINDER_RECORDS = 500
 
 export const useNotifications = () => {
   const initialized = useState<boolean>('notifications-initialized', () => false)
   const badgeCount = useState<number>('notifications-badge-count', () => 0)
   const audioContext = useState<AudioContext | null>('notifications-audio-context', () => null)
   const settings = useState<any | null>('settings', () => null)
+  const bootstrapSyncInProgress = useState<boolean>('notifications-bootstrap-sync', () => false)
+  const reminderCheckTimer = useState<ReturnType<typeof setInterval> | null>(
+    'notifications-reminder-check-timer',
+    () => null
+  )
+  const reminderCheckInFlight = useState<boolean>(
+    'notifications-reminder-check-in-flight',
+    () => false
+  )
+  const reminderBootstrapped = useState<boolean>('notifications-reminder-bootstrapped', () => false)
   const audioCache = new Map<string, AudioBuffer>()
 
   const notificationSettings = computed(() => settings.value?.notifications)
   const badgeType = computed<BadgeType>(() => notificationSettings.value?.badgeType ?? 'count')
-  const bootstrapSyncInProgress = useState<boolean>('notifications-bootstrap-sync', () => false)
 
-  // Initialize audio context on first interaction (for browser autoplay policy)
+  const isClient = typeof window !== 'undefined'
+  const isProductionBuild = import.meta.env.PROD
+  const supportsImageNotifications = computed(() => {
+    if (!isClient) return false
+    return ['macos', 'windows'].includes(navigator.platform?.toLowerCase?.() || '')
+  })
+
   const initAudioContext = () => {
     if (!audioContext.value) {
       audioContext.value = new AudioContext()
     }
   }
 
-  // Load and cache audio file
+  const normalizeText = (value?: string | null) => value?.replace(/\s+/g, ' ').trim() || undefined
+
+  const truncate = (value?: string | null, max = 160) => {
+    const normalized = normalizeText(value)
+    if (!normalized) return undefined
+    if (normalized.length <= max) return normalized
+    return `${normalized.slice(0, max - 1).trimEnd()}…`
+  }
+
+  const buildSenderLabel = (email?: NotificationEmailPreview | null) =>
+    normalizeText(email?.senderName) || normalizeText(email?.senderAddress) || 'Unknown sender'
+
+  const buildSubjectLabel = (email?: NotificationEmailPreview | null) =>
+    normalizeText(email?.subject) || '(no subject)'
+
+  const buildSnippetLabel = (email?: NotificationEmailPreview | null) =>
+    truncate(email?.snippet, 180)
+
+  const buildReminderStorageKey = (emailId: string, remindAt: string) => `${emailId}:${remindAt}`
+
+  const readReminderRecords = (): Record<string, ReminderNotificationRecord> => {
+    if (!isClient) return {}
+
+    try {
+      const raw = window.localStorage.getItem(REMINDER_DEDUP_STORAGE_KEY)
+      if (!raw) return {}
+      const parsed = JSON.parse(raw)
+      if (!parsed || typeof parsed !== 'object') return {}
+      return parsed
+    } catch (error) {
+      console.error('Failed to read reminder notification records:', error)
+      return {}
+    }
+  }
+
+  const writeReminderRecords = (records: Record<string, ReminderNotificationRecord>) => {
+    if (!isClient) return
+
+    try {
+      const entries = Object.entries(records)
+        .sort((a, b) => {
+          const aTs = new Date(a[1]?.notifiedAt || 0).getTime()
+          const bTs = new Date(b[1]?.notifiedAt || 0).getTime()
+          return bTs - aTs
+        })
+        .slice(0, MAX_REMINDER_RECORDS)
+
+      window.localStorage.setItem(
+        REMINDER_DEDUP_STORAGE_KEY,
+        JSON.stringify(Object.fromEntries(entries))
+      )
+    } catch (error) {
+      console.error('Failed to persist reminder notification records:', error)
+    }
+  }
+
+  const pruneReminderRecords = () => {
+    const now = Date.now()
+    const maxAgeMs = 1000 * 60 * 60 * 24 * 14
+    const existing = readReminderRecords()
+    const next: Record<string, ReminderNotificationRecord> = {}
+
+    for (const [key, value] of Object.entries(existing)) {
+      const remindAtTs = new Date(value.remindAt).getTime()
+      const notifiedAtTs = new Date(value.notifiedAt).getTime()
+
+      if (Number.isFinite(remindAtTs) && remindAtTs >= now - maxAgeMs) {
+        next[key] = value
+        continue
+      }
+
+      if (Number.isFinite(notifiedAtTs) && notifiedAtTs >= now - maxAgeMs) {
+        next[key] = value
+      }
+    }
+
+    writeReminderRecords(next)
+  }
+
+  const hasReminderNotificationBeenSent = (emailId?: string, remindAt?: string | null) => {
+    if (!emailId || !remindAt) return false
+    const records = readReminderRecords()
+    return !!records[buildReminderStorageKey(emailId, remindAt)]
+  }
+
+  const markReminderNotificationSent = (emailId?: string, remindAt?: string | null) => {
+    if (!emailId || !remindAt) return
+
+    const records = readReminderRecords()
+    records[buildReminderStorageKey(emailId, remindAt)] = {
+      remindAt,
+      notifiedAt: new Date().toISOString(),
+    }
+    writeReminderRecords(records)
+  }
+
   const loadSound = async (soundName: string): Promise<AudioBuffer | null> => {
     try {
-      // Check cache first
       if (audioCache.has(soundName)) {
         return audioCache.get(soundName)!
       }
 
-      // Load from resources/sounds/
       const soundPath = `/sounds/${soundName}.mp3`
       const response = await fetch(soundPath)
 
@@ -78,8 +221,6 @@ export const useNotifications = () => {
       }
 
       const audioBuffer = await audioContext.value.decodeAudioData(arrayBuffer)
-
-      // Cache the audio buffer
       audioCache.set(soundName, audioBuffer)
 
       return audioBuffer
@@ -89,7 +230,6 @@ export const useNotifications = () => {
     }
   }
 
-  // Play a sound
   const playSound = async (soundName: string) => {
     try {
       initAudioContext()
@@ -99,7 +239,6 @@ export const useNotifications = () => {
         return
       }
 
-      // Resume audio context if suspended (browser autoplay policy)
       if (audioContext.value.state === 'suspended') {
         await audioContext.value.resume()
       }
@@ -111,7 +250,6 @@ export const useNotifications = () => {
         return
       }
 
-      // Create buffer source
       const source = audioContext.value.createBufferSource()
       source.buffer = audioBuffer
       source.connect(audioContext.value.destination)
@@ -149,15 +287,75 @@ export const useNotifications = () => {
     }
 
     if (payload.kind === 'incoming-email' && payload.email) {
-      const sender =
-        payload.email.senderName?.trim() || payload.email.senderAddress?.trim() || 'Unknown sender'
-      const subject = payload.email.subject?.trim() || '(no subject)'
-      const snippet = payload.email.snippet?.trim()
+      const sender = buildSenderLabel(payload.email)
+      const subject = buildSubjectLabel(payload.email)
+      const snippet = buildSnippetLabel(payload.email)
 
       return snippet ? `${sender} — ${subject}\n${snippet}` : `${sender} — ${subject}`
     }
 
+    if (payload.kind === 'reminder-email' && payload.email) {
+      const sender = buildSenderLabel(payload.email)
+      const subject = buildSubjectLabel(payload.email)
+      const snippet = buildSnippetLabel(payload.email)
+
+      return snippet
+        ? `Reminder for ${sender} — ${subject}\n${snippet}`
+        : `Reminder for ${sender} — ${subject}`
+    }
+
     return undefined
+  }
+
+  const buildNotificationTitle = (payload: NativeNotificationPayload) => {
+    if (payload.title?.trim()) {
+      return payload.title
+    }
+
+    switch (payload.kind) {
+      case 'incoming-email':
+        return buildSenderLabel(payload.email)
+      case 'outgoing-email':
+        return 'Email sent'
+      case 'reminder-email':
+        return `Reminder: ${buildSubjectLabel(payload.email)}`
+      default:
+        return 'Ravn'
+    }
+  }
+
+  const buildNotificationOptions = (payload: NativeNotificationPayload) => {
+    const body = buildNotificationBody(payload)
+    const sender = buildSenderLabel(payload.email)
+    const subject = buildSubjectLabel(payload.email)
+    const snippet = buildSnippetLabel(payload.email)
+
+    const options: Record<string, any> = {
+      body,
+    }
+
+    if (payload.tag?.trim()) {
+      options.tag = payload.tag.trim()
+    } else if (payload.kind === 'incoming-email' && payload.email?.id) {
+      options.tag = `incoming-email:${payload.email.id}`
+    } else if (payload.kind === 'reminder-email' && payload.email?.id && payload.email?.remindAt) {
+      options.tag = `reminder-email:${payload.email.id}:${payload.email.remindAt}`
+    }
+
+    if (payload.email?.avatarUrl) {
+      options.icon = payload.email.avatarUrl
+      if (supportsImageNotifications.value) {
+        options.largeBody = snippet
+        options.summary = `${sender} • ${subject}`
+      }
+    }
+
+    if (payload.kind === 'reminder-email') {
+      options.title = buildNotificationTitle(payload)
+      options.subtitle = sender
+    }
+
+    return options
   }
 
   const ensureNotificationPermission = async () => {
@@ -172,6 +370,32 @@ export const useNotifications = () => {
       console.error('Failed to resolve notification permission:', error)
       return false
     }
+  }
+
+  const buildNotificationDeepLink = (payload: NativeNotificationPayload) => {
+    if (payload.deepLink?.trim()) {
+      return payload.deepLink.trim()
+    }
+
+    const navigationTarget = payload.email?.navigationTarget?.trim()
+    if (navigationTarget) {
+      return navigationTarget
+    }
+
+    const accountId = payload.email?.accountId?.trim()
+    const folderId = payload.email?.folderId?.trim()
+    const conversationId = payload.email?.conversationId?.trim()
+    const emailId = payload.email?.id?.trim()
+
+    if (accountId && folderId && conversationId) {
+      return `ravn://mail/${accountId}/folders/${folderId}/conversations/${conversationId}`
+    }
+
+    if (accountId && folderId && emailId) {
+      return `ravn://mail/${accountId}/folders/${folderId}/emails/${emailId}`
+    }
+
+    return null
   }
 
   const showNativeNotification = async (payload: NativeNotificationPayload) => {
@@ -189,22 +413,23 @@ export const useNotifications = () => {
     }
 
     try {
+      const title = buildNotificationTitle(payload)
+      const options = buildNotificationOptions(payload)
+
       await sendNotification({
-        title:
-          payload.title ??
-          (payload.kind === 'incoming-email'
-            ? 'New email'
-            : payload.kind === 'outgoing-email'
-              ? 'Email sent'
-              : 'Ravn'),
-        body: buildNotificationBody(payload),
+        title,
+        ...options,
       })
+
+      const targetUrl = buildNotificationDeepLink(payload)
+      if (targetUrl) {
+        console.debug('Notification target prepared:', targetUrl)
+      }
     } catch (error) {
       console.error('Failed to send native notification:', error)
     }
   }
 
-  // Update badge count
   const updateBadgeCount = async () => {
     try {
       const result = await invoke<BadgeCount>('update_badge_count')
@@ -214,7 +439,6 @@ export const useNotifications = () => {
     }
   }
 
-  // Get current badge count
   const getBadgeCount = async () => {
     try {
       const result = await invoke<BadgeCount>('get_badge_count')
@@ -226,7 +450,6 @@ export const useNotifications = () => {
     }
   }
 
-  // Test a notification sound
   const testNotificationSound = async (soundName: string) => {
     try {
       await invoke('test_notification_sound', { soundName })
@@ -236,7 +459,87 @@ export const useNotifications = () => {
     }
   }
 
-  // Setup event listeners
+  const checkDueReminderNotifications = async () => {
+    if (!notificationSettings.value?.enabled || reminderCheckInFlight.value) {
+      return
+    }
+
+    reminderCheckInFlight.value = true
+
+    try {
+      pruneReminderRecords()
+
+      const result = await invoke<ReminderCheckResult>('get_due_reminder_notifications')
+      const due = result?.due || []
+
+      for (const email of due) {
+        const remindAt = email.remind_at || null
+        if (!email.id || !remindAt || hasReminderNotificationBeenSent(email.id, remindAt)) {
+          continue
+        }
+
+        const payload: NativeNotificationPayload = {
+          kind: 'reminder-email',
+          email: {
+            id: email.id,
+            accountId: email.account_id,
+            folderId: email.folder_id,
+            senderName: email.from?.name || null,
+            senderAddress: email.from?.address || null,
+            subject: email.subject || null,
+            snippet: email.snippet || null,
+            remindAt,
+          },
+          playSound: true,
+          suppressDuringBootstrap: false,
+          tag: `reminder-email:${email.id}:${remindAt}`,
+        }
+
+        await showNativeNotification(payload)
+
+        const reminderSound = notificationSettings.value?.reminderSound
+        if (reminderSound) {
+          await playSound(reminderSound)
+        }
+
+        markReminderNotificationSent(email.id, remindAt)
+      }
+    } catch (error) {
+      console.error('Failed to check reminder notifications:', error)
+    } finally {
+      reminderCheckInFlight.value = false
+    }
+  }
+
+  const startReminderPolling = async () => {
+    if (!isClient || reminderCheckTimer.value) {
+      return
+    }
+
+    await checkDueReminderNotifications()
+    reminderCheckTimer.value = window.setInterval(() => {
+      void checkDueReminderNotifications()
+    }, REMINDER_CHECK_INTERVAL_MS)
+  }
+
+  const stopReminderPolling = () => {
+    if (!isClient || !reminderCheckTimer.value) {
+      return
+    }
+
+    window.clearInterval(reminderCheckTimer.value)
+    reminderCheckTimer.value = null
+  }
+
+  const bootstrapReminderNotifications = async () => {
+    if (reminderBootstrapped.value) {
+      return
+    }
+
+    reminderBootstrapped.value = true
+    await checkDueReminderNotifications()
+  }
+
   const setupListeners = () => {
     if (initialized.value) {
       return
@@ -257,7 +560,11 @@ export const useNotifications = () => {
       await showNativeNotification(event.payload)
 
       if (event.payload.playSound && !bootstrapSyncInProgress.value) {
-        const soundName = notificationSettings.value?.incomingSound
+        const soundName =
+          event.payload.kind === 'reminder-email'
+            ? notificationSettings.value?.reminderSound
+            : notificationSettings.value?.incomingSound
+
         if (soundName) {
           await playSound(soundName)
         }
@@ -268,6 +575,19 @@ export const useNotifications = () => {
       bootstrapSyncInProgress.value = !!event.payload
     })
 
+    listen<string>('notification:navigate', async (event) => {
+      const targetUrl = event.payload?.trim()
+      if (!targetUrl) {
+        return
+      }
+
+      try {
+        await navigateToUrl(targetUrl)
+      } catch (error) {
+        console.error('Failed to navigate from notification click:', error)
+      }
+    })
+
     initialized.value = true
   }
 
@@ -275,16 +595,42 @@ export const useNotifications = () => {
     () => settings.value?.notifications,
     async () => {
       await applyBadgeCount(badgeCount.value)
+
+      if (notificationSettings.value?.enabled) {
+        await bootstrapReminderNotifications()
+        await startReminderPolling()
+      } else {
+        stopReminderPolling()
+      }
     },
     { deep: true }
   )
 
+  if (isClient) {
+    watch(
+      () => document.visibilityState,
+      async (state) => {
+        if (state === 'visible') {
+          await checkDueReminderNotifications()
+        }
+      }
+    )
+
+    window.addEventListener('focus', () => {
+      void checkDueReminderNotifications()
+    })
+  }
+
   onMounted(async () => {
     setupListeners()
     await getBadgeCount()
+    await bootstrapReminderNotifications()
+    await startReminderPolling()
   })
 
   onUnmounted(() => {
+    stopReminderPolling()
+
     if (audioContext.value) {
       audioContext.value.close()
       audioContext.value = null
@@ -294,10 +640,12 @@ export const useNotifications = () => {
   return {
     badgeCount,
     bootstrapSyncInProgress,
+    isProductionBuild,
     playSound,
     updateBadgeCount,
     getBadgeCount,
     testNotificationSound,
     showNativeNotification,
+    checkDueReminderNotifications,
   }
 }

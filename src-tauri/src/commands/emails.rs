@@ -1132,6 +1132,24 @@ pub async fn set_remind_at(
         .await
         .map_err(|e| format!("Failed to set remind_at: {}", e))?;
 
+    if let Some(remind_at_value) = remind_at {
+        if remind_at_value <= chrono::Utc::now() {
+            if let Some(email) = email_repo
+                .find_by_id(email_id)
+                .await
+                .map_err(|e| format!("Failed to load email for reminder notification: {}", e))?
+            {
+                if let Err(e) = state
+                    .notification_service
+                    .notify_reminder_email(&email)
+                    .await
+                {
+                    log::warn!("Failed to trigger reminder notification: {}", e);
+                }
+            }
+        }
+    }
+
     emit_email_event(
         &state.app_handle,
         "email:updated",

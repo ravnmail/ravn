@@ -28,7 +28,7 @@ use app_lib::{
     services::corvus::CorvusService,
     sync::{
         BackgroundAiAnalyzer, BackgroundAvatarFetcher, BackgroundBodyFetcher, BackgroundCleanup,
-        BackgroundSyncManager, OAuthStateManager, OperationQueue,
+        BackgroundReminderNotifier, BackgroundSyncManager, OAuthStateManager, OperationQueue,
     },
     AppState,
 };
@@ -69,9 +69,12 @@ fn create_menu(app: &tauri::App) -> Result<Menu<tauri::Wry>, tauri::Error> {
         )?;
         app_menu.append(&keyboard_shortcuts_item)?;
 
-        let debug_item =
-            MenuItem::with_id(app, "ravn://debugging", "Beta tools...", true, None::<&str>)?;
-        app_menu.append(&debug_item)?;
+        #[cfg(debug_assertions)]
+        {
+            let debug_item =
+                MenuItem::with_id(app, "ravn://debugging", "Beta tools...", true, None::<&str>)?;
+            app_menu.append(&debug_item)?;
+        }
 
         let update_item = MenuItem::with_id(
             app,
@@ -382,6 +385,11 @@ fn main() {
                 SearchManager::new(search_index_dir).expect("Failed to initialize search manager"),
             );
 
+            let background_reminder_notifier = Arc::new(BackgroundReminderNotifier::new(
+                db.get_pool().clone(),
+                Arc::clone(&notification_service),
+            ));
+
             let sync_coordinator = Arc::new(
                 app_lib::sync::SyncCoordinator::new(
                     db.get_pool().clone(),
@@ -410,6 +418,7 @@ fn main() {
                 background_ai_analyzer: Arc::clone(&background_ai_analyzer),
                 background_avatar_fetcher: Arc::clone(&background_avatar_fetcher),
                 background_cleanup: Arc::clone(&background_cleanup),
+                background_reminder_notifier: Arc::clone(&background_reminder_notifier),
                 sync_coordinator,
                 credential_store,
                 search_manager,
@@ -491,6 +500,18 @@ fn main() {
                     }
                     Err(e) => {
                         log::error!("Failed to start background cleanup worker: {}", e);
+                    }
+                }
+            });
+
+            let reminder_notifier_clone = Arc::clone(&background_reminder_notifier);
+            tauri::async_runtime::spawn(async move {
+                match reminder_notifier_clone.start().await {
+                    Ok(_) => {
+                        log::info!("Background reminder notifier started successfully");
+                    }
+                    Err(e) => {
+                        log::error!("Failed to start background reminder notifier: {}", e);
                     }
                 }
             });
@@ -658,6 +679,7 @@ fn main() {
             notification::update_badge_count,
             notification::get_badge_count,
             notification::test_notification_sound,
+            notification::get_due_reminder_notifications,
             themes::list_themes,
             themes::get_theme,
             themes::switch_theme,

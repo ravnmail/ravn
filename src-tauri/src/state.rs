@@ -7,7 +7,7 @@ use crate::services::notification_service::NotificationService;
 use crate::sync::auth::CredentialStore;
 use crate::sync::{
     BackgroundAiAnalyzer, BackgroundAvatarFetcher, BackgroundBodyFetcher, BackgroundCleanup,
-    BackgroundSyncManager, OAuthStateManager, SyncCoordinator,
+    BackgroundReminderNotifier, BackgroundSyncManager, OAuthStateManager, SyncCoordinator,
 };
 use sqlx::SqlitePool;
 use std::path::PathBuf;
@@ -25,6 +25,7 @@ pub struct AppState {
     pub background_ai_analyzer: Arc<BackgroundAiAnalyzer>,
     pub background_avatar_fetcher: Arc<BackgroundAvatarFetcher>,
     pub background_cleanup: Arc<BackgroundCleanup>,
+    pub background_reminder_notifier: Arc<BackgroundReminderNotifier>,
     pub sync_coordinator: Arc<SyncCoordinator>,
     pub credential_store: Arc<CredentialStore>,
     pub search_manager: Arc<SearchManager>,

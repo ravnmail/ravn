@@ -484,6 +484,19 @@ export const settingsManifest: SettingsManifest = [
               ],
             },
           },
+          {
+            id: 'notifications.reminderSound',
+            name: 'settings.notifications.reminderSound.name',
+            description: 'settings.notifications.reminderSound.description',
+            is: 'Select',
+            props: {
+              options: [
+                { label: 'Disabled', value: null },
+                { label: 'Incoming 1', value: 'incoming_01' },
+                { label: 'Incoming 2', value: 'incoming_02' },
+              ],
+            },
+          },
         ],
       },
     ],

@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { pointerOutsideOfPreview } from '@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview'
 import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview'
+
 import { Badge } from '~/components/ui/badge'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
 import { useDraggable } from '~/composables/useDragAndDrop'
@@ -76,7 +77,7 @@ const { isDragging } = useDraggable(itemRef, getDragData, {
         const isMulti = data.isMultiDrag && props.selectedIds && props.selectedIds.length > 1
         const label = isMulti
           ? `${props.selectedIds!.length} conversations`
-          : (firstMessage.value?.subject?.trim() || firstMessage.value?.from?.name || 'Email')
+          : firstMessage.value?.subject?.trim() || firstMessage.value?.from?.name || 'Email'
 
         const el = document.createElement('div')
         el.style.cssText = [
@@ -100,7 +101,8 @@ const { isDragging } = useDraggable(itemRef, getDragData, {
 
         if (isMulti) {
           const badge = document.createElement('span')
-          badge.style.cssText = 'background:var(--color-accent,#6366f1);color:#fff;border-radius:999px;padding:1px 7px;font-size:11px;font-weight:700;flex-shrink:0'
+          badge.style.cssText =
+            'background:var(--color-accent,#6366f1);color:#fff;border-radius:999px;padding:1px 7px;font-size:11px;font-weight:700;flex-shrink:0'
           badge.textContent = String(props.selectedIds!.length)
           el.appendChild(badge)
         }
@@ -155,6 +157,9 @@ const hasUnread = computed(() => props.conversation.messages.some((m) => !m.is_r
 
 // Check if any message has attachments
 const hasAttachments = computed(() => props.conversation.messages.some((m) => m.has_attachments))
+
+// Check if any message has a reminder
+const hasReminder = computed(() => props.conversation.messages.some((m) => !!m.remind_at))
 
 const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = {
   personal: {
@@ -250,6 +255,11 @@ const categoryIconMap: Record<EmailCategory, { name: string; color: string }> = 
           <div class="flex items-center gap-2">
             <span class="line-clamp-1 font-bold">{{ firstMessage.subject }}</span>
             <div class="ml-auto flex items-center gap-2">
+              <Icon
+                v-if="hasReminder"
+                class="shrink-0 text-primary"
+                name="lucide:bell"
+              />
               <Icon
                 v-if="hasAttachments"
                 class="shrink-0"

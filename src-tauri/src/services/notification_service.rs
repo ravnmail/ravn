@@ -7,7 +7,9 @@ use uuid::Uuid;
 
 use crate::config::settings::Settings;
 use crate::database::models::email::Email;
-use crate::database::repositories::{FolderRepository, SqliteFolderRepository};
+use crate::database::repositories::{
+    ContactRepository, FolderRepository, SqliteContactRepository, SqliteFolderRepository,
+};
 use crate::sync::types::FolderType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,10 +57,14 @@ pub struct NotificationEmailPreview {
     pub id: String,
     pub account_id: String,
     pub folder_id: String,
+    pub conversation_id: Option<String>,
     pub sender_name: Option<String>,
     pub sender_address: Option<String>,
     pub subject: Option<String>,
     pub snippet: Option<String>,
+    pub avatar_url: Option<String>,
+    pub remind_at: Option<String>,
+    pub navigation_target: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,6 +76,7 @@ pub struct NotificationEventPayload {
     pub email: Option<NotificationEmailPreview>,
     pub play_sound: bool,
     pub suppress_during_bootstrap: bool,
+    pub tag: Option<String>,
 }
 
 pub struct NotificationService {
@@ -99,7 +106,6 @@ impl NotificationService {
         self
     }
 
-    /// Get notification settings from config
     pub fn get_notification_settings(&self) -> Result<NotificationSettings, String> {
         match self.settings.get::<NotificationSettings>("notifications") {
             Ok(settings) => Ok(settings),
@@ -256,20 +262,58 @@ impl NotificationService {
         self.emit_bootstrap_sync_state(false)
     }
 
-    fn build_email_preview(&self, email: &Email) -> NotificationEmailPreview {
-        NotificationEmailPreview {
-            id: email.id.to_string(),
-            account_id: email.account_id.to_string(),
-            folder_id: email.folder_id.to_string(),
-            sender_name: email.from.name.clone(),
-            sender_address: Some(email.from.address.clone()),
-            subject: email.subject.clone(),
-            snippet: email.snippet.clone(),
+    async fn resolve_avatar_url(&self, sender_address: &str) -> Option<String> {
+        let repo = SqliteContactRepository::new(self.pool.clone());
+        match repo.find_by_email(sender_address).await {
+            Ok(Some(contact)) => contact.avatar_path,
+            Ok(None) => None,
+            Err(error) => {
+                log::warn!(
+                    "Failed to resolve notification avatar for {}: {}",
+                    sender_address,
+                    error
+                );
+                None
+            }
         }
     }
 
-    fn build_incoming_notification_payload(&self, email: &Email) -> NotificationEventPayload {
-        let preview = self.build_email_preview(email);
+    async fn build_email_preview(&self, email: &Email) -> NotificationEmailPreview {
+        let sender_address = email.from.address.clone();
+        let avatar_url = self.resolve_avatar_url(&sender_address).await;
+        let email_id = email.id.to_string();
+        let folder_id = email.folder_id.to_string();
+        let account_id = email.account_id.to_string();
+        let conversation_id = email.conversation_id.clone();
+        let navigation_target = if let Some(conversation_id) = &conversation_id {
+            Some(format!(
+                "ravn://mail/{}/folders/{}/conversations/{}",
+                account_id, folder_id, conversation_id
+            ))
+        } else {
+            Some(format!(
+                "ravn://mail/{}/folders/{}/emails/{}",
+                account_id, folder_id, email_id
+            ))
+        };
+
+        NotificationEmailPreview {
+            id: email_id,
+            account_id,
+            folder_id,
+            conversation_id,
+            sender_name: email.from.name.clone(),
+            sender_address: Some(sender_address),
+            subject: email.subject.clone(),
+            snippet: email.snippet.clone(),
+            avatar_url,
+            remind_at: email.remind_at.map(|value| value.to_rfc3339()),
+            navigation_target,
+        }
+    }
+
+    async fn build_incoming_notification_payload(&self, email: &Email) -> NotificationEventPayload {
+        let preview = self.build_email_preview(email).await;
         let sender = preview
             .sender_name
             .clone()
@@ -286,11 +330,42 @@ impl NotificationService {
 
         NotificationEventPayload {
             kind: "incoming-email".to_string(),
-            title: "New email".to_string(),
+            title: sender,
             body: Some(body),
             email: Some(preview),
             play_sound: !self.suppress_notifications,
             suppress_during_bootstrap: true,
+            tag: Some(format!("incoming-email:{}", email.id)),
+        }
+    }
+
+    async fn build_reminder_notification_payload(&self, email: &Email) -> NotificationEventPayload {
+        let preview = self.build_email_preview(email).await;
+        let sender = preview
+            .sender_name
+            .clone()
+            .or(preview.sender_address.clone())
+            .unwrap_or_else(|| "Unknown sender".to_string());
+        let subject = preview
+            .subject
+            .clone()
+            .unwrap_or_else(|| "(no subject)".to_string());
+        let body = preview
+            .snippet
+            .clone()
+            .unwrap_or_else(|| format!("Reminder for {} — {}", sender, subject));
+
+        NotificationEventPayload {
+            kind: "reminder-email".to_string(),
+            title: format!("Reminder: {}", subject),
+            body: Some(body),
+            email: Some(preview.clone()),
+            play_sound: !self.suppress_notifications,
+            suppress_during_bootstrap: false,
+            tag: preview
+                .remind_at
+                .as_ref()
+                .map(|remind_at| format!("reminder-email:{}:{}", email.id, remind_at)),
         }
     }
 
@@ -302,10 +377,10 @@ impl NotificationService {
             email: None,
             play_sound: false,
             suppress_during_bootstrap: false,
+            tag: Some("outgoing-email".to_string()),
         }
     }
 
-    /// Check if a folder should trigger incoming notifications
     pub async fn should_notify_for_folder(
         &self,
         folder_id: Uuid,
@@ -327,7 +402,6 @@ impl NotificationService {
         }
     }
 
-    /// Play incoming email sound
     pub async fn play_incoming_sound(&self) -> Result<(), String> {
         let settings = self.get_notification_settings()?;
 
@@ -338,7 +412,6 @@ impl NotificationService {
         Ok(())
     }
 
-    /// Play outgoing email sound
     pub async fn play_outgoing_sound(&self) -> Result<(), String> {
         let settings = self.get_notification_settings()?;
 
@@ -349,7 +422,16 @@ impl NotificationService {
         Ok(())
     }
 
-    /// Play a sound file by name
+    pub async fn play_reminder_sound(&self) -> Result<(), String> {
+        let settings = self.get_notification_settings()?;
+
+        if let Some(sound_name) = settings.reminder_sound {
+            self.play_sound(&sound_name).await?;
+        }
+
+        Ok(())
+    }
+
     async fn play_sound(&self, sound_name: &str) -> Result<(), String> {
         if let Some(app_handle) = &self.app_handle {
             app_handle
@@ -364,11 +446,6 @@ impl NotificationService {
         Ok(())
     }
 
-    /// Calculate total unread count for badge folders
-    ///
-    /// This intentionally follows folder unread totals instead of recalculating
-    /// from the emails table so badge behavior stays consistent with the rest of
-    /// the UI while local optimistic mutations and provider sync settle.
     pub async fn calculate_badge_count(&self) -> Result<i64, String> {
         let settings = self.get_notification_settings()?;
         let folder_repo = SqliteFolderRepository::new(self.pool.clone());
@@ -423,7 +500,6 @@ impl NotificationService {
         Ok(count)
     }
 
-    /// Update app badge count
     pub async fn update_badge_count(&self) -> Result<(), String> {
         let settings = self.get_notification_settings()?;
         let count = self.calculate_badge_count().await?;
@@ -452,7 +528,6 @@ impl NotificationService {
         Ok(())
     }
 
-    /// Trigger notification for incoming email
     pub async fn notify_incoming_email(
         &self,
         folder_id: Uuid,
@@ -463,7 +538,7 @@ impl NotificationService {
             .should_notify_for_folder(folder_id, folder_type)
             .await?
         {
-            let payload = self.build_incoming_notification_payload(email);
+            let payload = self.build_incoming_notification_payload(email).await;
 
             if !self.suppress_notifications {
                 let body = payload
@@ -482,7 +557,27 @@ impl NotificationService {
         Ok(())
     }
 
-    /// Trigger notification for outgoing email
+    pub async fn notify_reminder_email(&self, email: &Email) -> Result<(), String> {
+        let settings = self.get_notification_settings()?;
+        if !self.notifications_enabled(&settings) {
+            return Ok(());
+        }
+
+        let payload = self.build_reminder_notification_payload(email).await;
+
+        if !self.suppress_notifications {
+            let body = payload
+                .body
+                .as_deref()
+                .unwrap_or("A reminder is due for one of your emails.");
+            self.show_native_notification(&payload.title, body).await?;
+            self.play_reminder_sound().await?;
+        }
+
+        self.emit_native_notification_event(&payload)?;
+        Ok(())
+    }
+
     pub async fn notify_outgoing_email(&self) -> Result<(), String> {
         let settings = self.get_notification_settings()?;
         if self.notifications_enabled(&settings) {
