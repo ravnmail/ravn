@@ -6,6 +6,29 @@ export type CalendarMode = 'month' | 'week'
 
 export type SwimlaneState = 'open' | 'closed'
 
+export type ListFilterOperator = 'and' | 'or'
+
+export type ListFilterSourceType = 'folders' | 'labels'
+
+export interface ListFilterRule {
+  id: string
+  source: ListFilterSourceType
+  values: string[]
+  operator?: ListFilterOperator
+  negated?: boolean
+}
+
+export interface ListFilterGroup {
+  id: string
+  operator: ListFilterOperator
+  negated?: boolean
+  rules: ListFilterRule[]
+}
+
+export interface ListViewFilters {
+  groups: ListFilterGroup[]
+}
+
 export interface KanbanSwimlane {
   id: string
   title: string
@@ -29,10 +52,15 @@ export type CalendarViewConfig = {
   mode: CalendarMode
 }
 
+export type ListViewConfig = {
+  type: 'list'
+  filters: ListViewFilters
+}
+
 export type ViewConfig =
   | KanbanViewConfig
   | CalendarViewConfig
-  | { type: 'list' }
+  | ListViewConfig
   | { type: 'smart' }
   | { type: 'unified' }
 

@@ -65,7 +65,8 @@ pub enum ViewConfig {
         swimlanes: Vec<KanbanSwimlane>,
     },
     List {
-        // Future: list-specific config
+        #[serde(default)]
+        filters: ListViewFilters,
     },
     Calendar {
         /// The date field to use for positioning emails on the calendar
@@ -92,6 +93,57 @@ impl Default for ViewConfig {
             swimlanes: Vec::new(),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ListViewFilters {
+    #[serde(default)]
+    pub groups: Vec<ListFilterGroup>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListFilterGroup {
+    pub id: Uuid,
+    #[serde(default = "default_list_filter_group_operator")]
+    pub operator: ListFilterOperator,
+    #[serde(default)]
+    pub negated: bool,
+    #[serde(default)]
+    pub rules: Vec<ListFilterRule>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListFilterRule {
+    pub id: Uuid,
+    pub source: ListFilterRuleSource,
+    #[serde(default)]
+    pub values: Vec<Uuid>,
+    #[serde(default = "default_list_filter_rule_operator")]
+    pub operator: ListFilterOperator,
+    #[serde(default)]
+    pub negated: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ListFilterOperator {
+    And,
+    Or,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ListFilterRuleSource {
+    Folders,
+    Labels,
+}
+
+fn default_list_filter_group_operator() -> ListFilterOperator {
+    ListFilterOperator::And
+}
+
+fn default_list_filter_rule_operator() -> ListFilterOperator {
+    ListFilterOperator::Or
 }
 
 /// Which date field to use for positioning emails on the calendar

@@ -32,15 +32,60 @@ const mailListRef = useTemplateRef<HTMLElement>('mailListRef')
 const scrollerRef = useTemplateRef<HTMLElement>('scrollerRef')
 const { focused } = useFocusWithin(mailListRef)
 
+import type { ListViewConfig, View } from '~/types/view'
+
+type AdvancedListFilterRule = {
+  id?: string
+  source?: 'folders' | 'labels'
+  values?: string[]
+  operator?: 'and' | 'or'
+  negated?: boolean
+}
+
+type AdvancedListFilterGroup = {
+  id?: string
+  operator?: 'and' | 'or'
+  negated?: boolean
+  rules?: AdvancedListFilterRule[]
+}
+
+type MailListScope =
+  | {
+      type: 'folder'
+      folderId: string
+    }
+  | {
+      type: 'label'
+      labelId: string
+    }
+  | {
+      type: 'combined'
+      folderIds: string[]
+      labelIds: string[]
+      matchAllLabels?: boolean
+      filterGroups?: AdvancedListFilterGroup[]
+      groupOperator?: 'and' | 'or'
+    }
+
 const props = defineProps<{
-  folderId: string
-  accountId: string
+  folderId?: string
+  accountId?: string
   conversationId?: string
+  view?: View
+  scope?: MailListScope
 }>()
 
-const { useGetConversationsForFolderInfinite } = useConversation()
+const emit = defineEmits<{
+  (e: 'select-conversation', conversationId?: string): void
+}>()
+
+const {
+  useGetConversationsForFolderInfinite,
+  useGetConversationsForLabelInfinite,
+  useGetConversationsForCombinedScopeInfinite,
+} = useConversation()
 const { folders, useUpdateSettingsMutation, useInitSyncMutation } = useFolders()
-const { labels } = useLabels()
+const { labels, useGetLabel } = useLabels()
 
 const { mutateAsync: updateSettings } = useUpdateSettingsMutation()
 const { mutateAsync: initSync } = useInitSyncMutation()
@@ -72,9 +117,61 @@ const expandedGroups = ref<Set<string>>(
   ])
 )
 
-const currentFolder = computed(() => {
-  return (folders.value || []).find((f) => f.id === props.folderId)
+const normalizedScope = computed<MailListScope>(() => {
+  if (props.scope) {
+    return props.scope
+  }
+
+  if (props.view?.view_type === 'list' && props.view.config.type === 'list') {
+    const config = props.view.config as ListViewConfig
+    const filterGroups = Array.isArray(config.filters?.groups)
+      ? (config.filters.groups as AdvancedListFilterGroup[])
+      : []
+
+    return {
+      type: 'combined',
+      folderIds: [],
+      labelIds: [],
+      matchAllLabels: false,
+      filterGroups,
+      groupOperator: 'and',
+    }
+  }
+
+  if (props.folderId) {
+    return {
+      type: 'folder',
+      folderId: props.folderId,
+    }
+  }
+
+  return {
+    type: 'combined',
+    folderIds: [],
+    labelIds: [],
+    matchAllLabels: false,
+  }
 })
+
+const primaryFolderId = computed(() => {
+  if (normalizedScope.value.type === 'folder') return normalizedScope.value.folderId
+  if (normalizedScope.value.type === 'combined') return normalizedScope.value.folderIds[0] || ''
+  return ''
+})
+
+const primaryLabelId = computed(() => {
+  if (normalizedScope.value.type === 'label') return normalizedScope.value.labelId
+  if (normalizedScope.value.type === 'combined') return normalizedScope.value.labelIds[0] || ''
+  return ''
+})
+
+const currentFolder = computed(() => {
+  if (!primaryFolderId.value) return null
+  return (folders.value || []).find((f) => f.id === primaryFolderId.value)
+})
+
+const { data: currentLabelData } = useGetLabel(primaryLabelId)
+const currentLabel = computed(() => currentLabelData.value ?? null)
 
 watch(
   currentFolder,
@@ -101,13 +198,35 @@ watch(
       )
       filterRead.value = folder.settings.filter_read ?? null
       filterHasAttachments.value = folder.settings.filter_has_attachments ?? null
+      return
     }
+
+    sortBy.value = 'received_at'
+    sortOrder.value = 'desc'
+    groupingEnabled.value = true
+    expandedGroups.value = new Set([
+      'today',
+      'yesterday',
+      'thisWeek',
+      'thisMonth',
+      'older',
+      'enormous',
+      'huge',
+      'veryLarge',
+      'large',
+      'medium',
+      'small',
+    ])
+    filterRead.value = null
+    filterHasAttachments.value = null
   },
   { immediate: true }
 )
 
 let settingsSaveTimeout: ReturnType<typeof setTimeout> | null = null
 const saveFolderSettings = () => {
+  if (!primaryFolderId.value || normalizedScope.value.type !== 'folder') return
+
   if (settingsSaveTimeout) {
     clearTimeout(settingsSaveTimeout)
   }
@@ -115,7 +234,7 @@ const saveFolderSettings = () => {
   settingsSaveTimeout = setTimeout(async () => {
     try {
       await updateSettings({
-        folderId: props.folderId,
+        folderId: primaryFolderId.value,
         settings: {
           ...currentFolder.value,
           sort_by: sortBy.value,
@@ -144,20 +263,98 @@ watch(
   { deep: true }
 )
 
-const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
-  useGetConversationsForFolderInfinite(
-    computed(() => props.folderId),
-    {
-      sortBy,
-      sortOrder,
-      filterRead,
-      filterHasAttachments,
-    }
-  )
+const folderQuery = useGetConversationsForFolderInfinite(primaryFolderId, {
+  sortBy,
+  sortOrder,
+  filterRead,
+  filterHasAttachments,
+})
 
-const conversations = computed<ConversationListItem[]>(
-  () => data.value?.pages.flatMap((p) => p.items) ?? []
+const labelQuery = useGetConversationsForLabelInfinite(primaryLabelId, {
+  sortBy,
+  sortOrder,
+  filterRead,
+  filterHasAttachments,
+})
+
+const mapListRuleToScopedFilter = (rule: AdvancedListFilterRule) => {
+  const values = Array.from(new Set((rule.values || []).filter(Boolean)))
+  if (values.length === 0 || !rule.source) return null
+
+  if (rule.source === 'folders') {
+    return {
+      type: 'folder' as const,
+      folderIds: values,
+      operator: rule.operator || 'or',
+      negated: rule.negated ?? false,
+    }
+  }
+
+  return {
+    type: 'label' as const,
+    labelIds: values,
+    operator: rule.operator || 'or',
+    negated: rule.negated ?? false,
+    matchAllLabels: (rule.operator || 'or') === 'and',
+  }
+}
+
+const combinedScope = computed(() =>
+  normalizedScope.value.type === 'combined'
+    ? {
+        folderIds: normalizedScope.value.folderIds,
+        labelIds: normalizedScope.value.labelIds,
+        matchAllLabels: normalizedScope.value.matchAllLabels,
+        filterGroups: (normalizedScope.value.filterGroups || [])
+          .map((group) => ({
+            operator: group.operator || 'and',
+            filters: (group.rules || []).map(mapListRuleToScopedFilter).filter(Boolean),
+          }))
+          .filter((group) => group.filters.length > 0),
+        rootOperator: normalizedScope.value.groupOperator || 'and',
+      }
+    : {
+        folderIds: [],
+        labelIds: [],
+        matchAllLabels: false,
+        filterGroups: [],
+        rootOperator: 'and' as const,
+      }
 )
+
+const combinedQuery = useGetConversationsForCombinedScopeInfinite(combinedScope, {
+  sortBy,
+  sortOrder,
+  filterRead,
+  filterHasAttachments,
+})
+
+const activeQuery = computed(() => {
+  switch (normalizedScope.value.type) {
+    case 'folder':
+      return folderQuery
+    case 'label':
+      return labelQuery
+    case 'combined':
+      return combinedQuery
+  }
+})
+
+const data = computed(() => activeQuery.value.data.value)
+
+const fetchNextPage = async () => {
+  await activeQuery.value.fetchNextPage()
+}
+
+const hasNextPage = computed(() => activeQuery.value.hasNextPage.value ?? false)
+
+const isFetchingNextPage = computed(() => activeQuery.value.isFetchingNextPage.value ?? false)
+
+const status = computed(() => activeQuery.value.status.value)
+
+const conversations = computed<ConversationListItem[]>(() => {
+  return activeQuery.value.data.value?.pages.flatMap((p) => p.items) ?? []
+})
 
 const cloneEmail = (email: EmailListItem): EmailListItem => ({
   ...email,
@@ -219,11 +416,38 @@ const getFolderScopedMessage = (
   conversation: ConversationListItem | null | undefined
 ): EmailListItem | null => {
   if (!conversation) return null
-  return (
-    conversation.messages.find((message) => message.folder_id === props.folderId) ??
-    conversation.messages[0] ??
-    null
-  )
+
+  if (normalizedScope.value.type === 'folder') {
+    return (
+      conversation.messages.find(
+        (message) => message.folder_id === normalizedScope.value.folderId
+      ) ??
+      conversation.messages[0] ??
+      null
+    )
+  }
+
+  if (normalizedScope.value.type === 'combined' && normalizedScope.value.folderIds.length > 0) {
+    return (
+      conversation.messages.find((message) =>
+        normalizedScope.value.folderIds.includes(message.folder_id)
+      ) ??
+      conversation.messages[0] ??
+      null
+    )
+  }
+
+  if (normalizedScope.value.type === 'combined' && normalizedScope.value.labelIds.length > 0) {
+    return (
+      conversation.messages.find((message) =>
+        message.labels.some((label) => normalizedScope.value.labelIds.includes(label.id))
+      ) ??
+      conversation.messages[0] ??
+      null
+    )
+  }
+
+  return conversation.messages[0] ?? null
 }
 
 const contextMenuTarget = shallowRef<{
@@ -329,6 +553,10 @@ const toggleLabelForContextEmail = async (labelId: string) => {
     replaceContextConversation(previousConversation)
     throw error
   }
+}
+
+const handleConversationSelect = (conversationId?: string) => {
+  emit('select-conversation', conversationId)
 }
 
 const handleAction = async (actionId: string, conversationId: string) => {
@@ -438,26 +666,37 @@ const getGroupOrder = (): GroupKey[] => {
 }
 
 const getFolderMessages = (conversation: ConversationListItem) => {
-  return conversation.messages
-    .filter((m) => m.folder_id === props.folderId)
-    .sort((a, b) => {
-      let aValue: number
-      let bValue: number
-      switch (sortBy.value) {
-        case 'sent_at':
-          aValue = a.sent_at ? new Date(a.sent_at).getTime() : 0
-          bValue = b.sent_at ? new Date(b.sent_at).getTime() : 0
-          break
-        case 'size':
-          aValue = a.size || 0
-          bValue = b.size || 0
-          break
-        default:
-          aValue = new Date(a.received_at).getTime()
-          bValue = new Date(b.received_at).getTime()
-      }
-      return sortOrder.value === 'desc' ? bValue - aValue : aValue - bValue
-    })
+  const scopedMessages =
+    normalizedScope.value.type === 'folder'
+      ? conversation.messages.filter((m) => m.folder_id === normalizedScope.value.folderId)
+      : normalizedScope.value.type === 'combined' && normalizedScope.value.folderIds.length > 0
+        ? conversation.messages.filter((m) => normalizedScope.value.folderIds.includes(m.folder_id))
+        : normalizedScope.value.type === 'combined' && normalizedScope.value.labelIds.length > 0
+          ? conversation.messages.filter((m) =>
+              m.labels.some((label) => normalizedScope.value.labelIds.includes(label.id))
+            )
+          : conversation.messages
+
+  const messagesToSort = scopedMessages.length > 0 ? scopedMessages : conversation.messages
+
+  return messagesToSort.sort((a, b) => {
+    let aValue: number
+    let bValue: number
+    switch (sortBy.value) {
+      case 'sent_at':
+        aValue = a.sent_at ? new Date(a.sent_at).getTime() : 0
+        bValue = b.sent_at ? new Date(b.sent_at).getTime() : 0
+        break
+      case 'size':
+        aValue = a.size || 0
+        bValue = b.size || 0
+        break
+      default:
+        aValue = new Date(a.received_at).getTime()
+        bValue = new Date(b.received_at).getTime()
+    }
+    return sortOrder.value === 'desc' ? bValue - aValue : aValue - bValue
+  })
 }
 
 const getPrimaryMessage = (conversation: ConversationListItem) => {
@@ -572,12 +811,24 @@ watch(virtualItems, (items) => {
 const handleSelect = (conversation: ConversationListItem, event?: MouseEvent) => {
   if (event?.metaKey || event?.ctrlKey || event?.shiftKey) {
     multiSelect.toggleSelect(conversation, event)
-  } else {
-    multiSelect.clearSelection()
-    router.push(
-      `/mail/${props.accountId}/folders/${props.folderId}/conversations/${conversation.id}`
-    )
+    return
   }
+
+  multiSelect.clearSelection()
+
+  if (normalizedScope.value.type === 'folder' && props.accountId && primaryFolderId.value) {
+    router.push(
+      `/mail/${props.accountId}/folders/${primaryFolderId.value}/conversations/${conversation.id}`
+    )
+    return
+  }
+
+  if (normalizedScope.value.type === 'label' && primaryLabelId.value) {
+    router.push(`/labels/${primaryLabelId.value}/conversations/${conversation.id}`)
+    return
+  }
+
+  handleConversationSelect(conversation.id)
 }
 
 const selectedMessageIds = computed(() => {
@@ -585,21 +836,46 @@ const selectedMessageIds = computed(() => {
   const selectedConversations = conversations.value.filter(
     (c) => selectedConvIds.includes(c.id) || props.conversationId === c.id
   )
-  return selectedConversations.flatMap((conv) =>
-    conv.messages.filter((m) => m.folder_id === props.folderId).map((m) => m.id)
-  )
+
+  if (normalizedScope.value.type === 'folder') {
+    return selectedConversations.flatMap((conv) =>
+      conv.messages.filter((m) => m.folder_id === normalizedScope.value.folderId).map((m) => m.id)
+    )
+  }
+
+  if (normalizedScope.value.type === 'combined' && normalizedScope.value.folderIds.length > 0) {
+    return selectedConversations.flatMap((conv) =>
+      conv.messages
+        .filter((m) => normalizedScope.value.folderIds.includes(m.folder_id))
+        .map((m) => m.id)
+    )
+  }
+
+  if (normalizedScope.value.type === 'combined' && normalizedScope.value.labelIds.length > 0) {
+    return selectedConversations.flatMap((conv) =>
+      conv.messages
+        .filter((m) => m.labels.some((label) => normalizedScope.value.labelIds.includes(label.id)))
+        .map((m) => m.id)
+    )
+  }
+
+  return selectedConversations.flatMap((conv) => conv.messages.map((m) => m.id))
 })
 
 watch(
-  () => props.folderId,
+  normalizedScope,
   () => {
     multiSelect.clearSelection()
     contextMenuTarget.value = null
-  }
+  },
+  { deep: true }
 )
 
 onMounted(async () => {
-  await initSync({ folderId: props.folderId, full: false })
+  if (normalizedScope.value.type === 'folder' && normalizedScope.value.folderId) {
+    await initSync({ folderId: normalizedScope.value.folderId, full: false })
+  }
+
   addContext('mailList', focused)
 
   const ns = 'mailList'
@@ -770,6 +1046,23 @@ const route = useRoute()
         :name="currentFolder.name || ''"
         class="font-semibold text-primary"
       />
+      <div
+        v-else-if="currentLabel"
+        class="flex items-center gap-2 font-semibold text-primary"
+      >
+        <Icon
+          :name="`lucide:${currentLabel.icon || 'tag'}`"
+          :style="{ color: currentLabel.color }"
+          :size="18"
+        />
+        <span>{{ currentLabel.name }}</span>
+      </div>
+      <div
+        v-else-if="normalizedScope.type === 'combined'"
+        class="font-semibold text-primary"
+      >
+        {{ view?.name || t('components.viewWizard.viewTypes.list.name') }}
+      </div>
       <div class="ml-auto flex items-center">
         <Popover>
           <PopoverTrigger as-child>
@@ -869,13 +1162,23 @@ const route = useRoute()
       :description="
         currentFolder?.folder_type === 'inbox'
           ? $t('components.mailList.emptyState.inbox.message')
-          : $t('components.mailList.emptyState.generic.message')
+          : normalizedScope.type === 'label'
+            ? $t('components.labelMailList.emptyState.message')
+            : $t('components.mailList.emptyState.generic.message')
       "
-      :icon="currentFolder?.folder_type === 'inbox' ? '🎉' : '📭'"
+      :icon="
+        currentFolder?.folder_type === 'inbox'
+          ? '🎉'
+          : normalizedScope.type === 'label'
+            ? '🏷️'
+            : '📭'
+      "
       :title="
         currentFolder?.folder_type === 'inbox'
           ? $t('components.mailList.emptyState.inbox.title')
-          : $t('components.mailList.emptyState.generic.title')
+          : normalizedScope.type === 'label'
+            ? $t('components.labelMailList.emptyState.title')
+            : $t('components.mailList.emptyState.generic.title')
       "
       class="flex-1"
     />
@@ -931,14 +1234,18 @@ const route = useRoute()
                   getStableConversation((virtualRows[virtualItem.index] as any).conversation.id) ??
                   (virtualRows[virtualItem.index] as any).conversation
                 "
-                :folder-id="folderId"
+                :folder-id="
+                  primaryFolderId ||
+                  getPrimaryMessage((virtualRows[virtualItem.index] as any).conversation)
+                    ?.folder_id ||
+                  ''
+                "
                 :is-multi-selected="
                   multiSelect.isSelected((virtualRows[virtualItem.index] as any).conversation.id)
                     .value
                 "
                 :is-selected="
-                  route.params.conversation ===
-                  (virtualRows[virtualItem.index] as any).conversation.id
+                  props.conversationId === (virtualRows[virtualItem.index] as any).conversation.id
                 "
                 :selected-ids="multiSelect.selectedIds.value"
                 :selected-message-ids="selectedMessageIds"

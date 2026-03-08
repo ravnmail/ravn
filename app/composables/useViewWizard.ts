@@ -1,10 +1,17 @@
 import { VIEW_TEMPLATES } from '~/data/viewTemplates'
-import type { CalendarDateField, CreateViewRequest, KanbanSwimlane, ViewType } from '~/types/view'
+import type {
+  CalendarDateField,
+  CreateViewRequest,
+  KanbanSwimlane,
+  ListFilterGroup,
+  ListViewConfig,
+  ViewType,
+} from '~/types/view'
 import type { ProcessedTemplate, ViewTemplate } from '~/types/viewTemplate'
 
 export type WizardStep = 'type' | 'template' | 'customize'
 
-export const useViewWizard = () => {
+export function useViewWizard() {
   const { createLabel } = useLabels()
   const { createView } = useViews()
 
@@ -24,10 +31,46 @@ export const useViewWizard = () => {
   )
   const calendarFolderIds = useState<string[]>('wizardCalendarFolderIds', () => [])
 
+  const createEmptyListFilterGroup = (): ListFilterGroup => ({
+    id: crypto.randomUUID(),
+    operator: 'and',
+    rules: [],
+  })
+
+  // List-specific configuration state
+  const listFilterGroups = useState<ListFilterGroup[]>('wizardListFilterGroups', () => [
+    createEmptyListFilterGroup(),
+  ])
+
   const availableTemplates = computed(() => {
     if (!selectedViewType.value) return []
     return VIEW_TEMPLATES.filter((t) => t.viewType === selectedViewType.value)
   })
+
+  const normalizeListFilterGroups = (
+    groups: ListFilterGroup[],
+    { preserveEmpty = false }: { preserveEmpty?: boolean } = {}
+  ): ListFilterGroup[] => {
+    const normalizedGroups = (groups || []).map((group, groupIndex) => ({
+      id: group.id || `group-${groupIndex}`,
+      operator: group.operator || 'and',
+      rules: (group.rules || [])
+        .map((rule, ruleIndex) => ({
+          id: rule.id || `${group.id || `group-${groupIndex}`}-rule-${ruleIndex}`,
+          source: rule.source,
+          values: Array.from(new Set((rule.values || []).filter(Boolean))),
+          operator: rule.operator || 'or',
+          negated: rule.negated ?? false,
+        }))
+        .filter((rule) => rule.values.length > 0),
+    }))
+
+    if (preserveEmpty) {
+      return normalizedGroups.length > 0 ? normalizedGroups : [createEmptyListFilterGroup()]
+    }
+
+    return normalizedGroups.filter((group) => group.rules.length > 0)
+  }
 
   const reset = () => {
     currentStep.value = 'type'
@@ -37,18 +80,22 @@ export const useViewWizard = () => {
     isProcessing.value = false
     calendarDateField.value = 'remind_at'
     calendarFolderIds.value = []
+    listFilterGroups.value = [createEmptyListFilterGroup()]
   }
 
   const selectViewType = (viewType: ViewType) => {
     selectedViewType.value = viewType
-    // Calendar view skips the template step — go straight to customize
-    if (viewType === 'calendar') {
+    // Calendar and list views skip the template step — go straight to customize
+    if (viewType === 'calendar' || viewType === 'list') {
       processedTemplate.value = {
-        title: 'New Calendar',
+        title: viewType === 'calendar' ? 'New Calendar' : 'New List',
         description: '',
-        viewType: 'calendar',
+        viewType,
         labels: [],
         swimlanes: [],
+      }
+      if (viewType === 'list') {
+        listFilterGroups.value = [createEmptyListFilterGroup()]
       }
       currentStep.value = 'customize'
     } else {
@@ -114,6 +161,9 @@ export const useViewWizard = () => {
         labels: [],
         swimlanes: [],
       }
+      if (selectedViewType.value === 'list') {
+        listFilterGroups.value = [createEmptyListFilterGroup()]
+      }
     }
     currentStep.value = 'customize'
   }
@@ -148,6 +198,41 @@ export const useViewWizard = () => {
             mode: 'month' as const,
           },
           folders: calendarFolderIds.value,
+        }
+        const view = await createView(viewRequest)
+        reset()
+        return view
+      }
+
+      if (selectedViewType.value === 'list') {
+        const normalizedGroups = normalizeListFilterGroups(listFilterGroups.value, {
+          preserveEmpty: false,
+        })
+
+        const folderIds = Array.from(
+          new Set(
+            normalizedGroups.flatMap((group) =>
+              group.rules.filter((rule) => rule.source === 'folders').flatMap((rule) => rule.values)
+            )
+          )
+        )
+
+        const config: ListViewConfig = {
+          type: 'list',
+          filters: {
+            groups: normalizedGroups,
+          },
+        }
+
+        const folders = Array.from(new Set([...folderIds, ...(customizations.folders || [])]))
+
+        const viewRequest: CreateViewRequest = {
+          name: customizations.name || template.title,
+          icon: customizations.icon,
+          color: customizations.color,
+          view_type: 'list',
+          config,
+          folders,
         }
         const view = await createView(viewRequest)
         reset()
@@ -206,8 +291,8 @@ export const useViewWizard = () => {
         selectedViewType.value = null
         break
       case 'customize':
-        // Calendar skips template step, go back to type
-        if (selectedViewType.value === 'calendar') {
+        // Calendar and list skip template step, go back to type
+        if (selectedViewType.value === 'calendar' || selectedViewType.value === 'list') {
           currentStep.value = 'type'
           selectedViewType.value = null
           processedTemplate.value = null
@@ -229,6 +314,7 @@ export const useViewWizard = () => {
     isProcessing: readonly(isProcessing),
     calendarDateField,
     calendarFolderIds,
+    listFilterGroups,
     reset,
     selectViewType,
     selectTemplate,

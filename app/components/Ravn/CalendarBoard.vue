@@ -1,7 +1,9 @@
 <script lang="ts" setup>
 import dayjs from 'dayjs'
+
 import CalendarEmailItem from '~/components/Ravn/CalendarEmailItem.vue'
 import ConversationViewer from '~/components/Ravn/ConversationViewer.vue'
+import { useSelectedConversation } from '~/components/Ravn/view/useSelectedConversation'
 import { Button } from '~/components/ui/button'
 import { UnobstrusiveSheetContent } from '~/components/ui/sheet'
 import { ToggleGroup, ToggleGroupItem } from '~/components/ui/toggle-group'
@@ -250,30 +252,15 @@ const handleEmailAction = (actionId: string) => {
 
 // ─── Conversation sheet ───────────────────────────────────────────────────────
 
-const router = useRouter()
-const route = useRoute()
-
-const selectedConversationId = computed({
-  get() {
-    return route.query.conversation as string | undefined
-  },
-  set(value: string | undefined) {
-    const query = { ...route.query }
-    if (value) {
-      query.conversation = value
-    } else {
-      delete query.conversation
-    }
-    router.replace({ query })
-  },
-})
+const { selectedConversationId, selectConversation, clearSelectedConversation } =
+  useSelectedConversation()
 
 const select = (email: EmailListItem) => {
-  selectedConversationId.value = email.conversation_id
+  selectConversation(email.conversation_id)
 }
 
 const onSheetClose = () => {
-  selectedConversationId.value = undefined
+  clearSelectedConversation()
 }
 
 const dateFieldLabel = computed(() => {

@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import ConversationViewer from '~/components/Ravn/ConversationViewer.vue'
 import KanbanSwimlane from '~/components/Ravn/KanbanSwimlane.vue'
+import { useSelectedConversation } from '~/components/Ravn/view/useSelectedConversation'
 import { Button } from '~/components/ui/button'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import { ScrollArea } from '~/components/ui/scroll-area'
@@ -162,22 +163,8 @@ const handleManualRefresh = async () => {
   startAutoRefresh()
 }
 
-const router = useRouter()
-const route = useRoute()
-const selectedConversationId = computed({
-  get() {
-    return route.query.conversation as string | undefined
-  },
-  set(value: string | undefined) {
-    const query = { ...route.query }
-    if (value) {
-      query.conversation = value
-    } else {
-      delete query.conversation
-    }
-    router.replace({ query })
-  },
-})
+const { selectedConversationId, selectConversation, clearSelectedConversation } =
+  useSelectedConversation()
 
 const handleSwimlaneUpdate = async (updatedSwimlane: KanbanSwimlaneType) => {
   console.log('Updating swimlane:', updatedSwimlane)
@@ -198,11 +185,11 @@ const handleSwimlaneUpdate = async (updatedSwimlane: KanbanSwimlaneType) => {
 }
 
 const select = (email: EmailListItem) => {
-  selectedConversationId.value = email.conversation_id
+  selectConversation(email.conversation_id)
 }
 
 const onSheetClose = () => {
-  selectedConversationId.value = undefined
+  clearSelectedConversation()
 }
 </script>
 

@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 import { RadioGroupItem } from 'reka-ui'
+
+import ListFilterBuilder from '~/components/Ravn/ListFilterBuilder.vue'
 import { Button } from '~/components/ui/button'
-import { Checkbox } from '~/components/ui/checkbox'
 import { Dialog, DialogContent, DialogHeaderCombined } from '~/components/ui/dialog'
 import EmailLabel from '~/components/ui/EmailLabel.vue'
 import IconName from '~/components/ui/IconName.vue'
@@ -14,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select'
-import type { View } from '~/types/view'
+import type { ListFilterGroup, View } from '~/types/view'
 import type { ViewTemplate } from '~/types/viewTemplate'
 
 const props = defineProps<{
@@ -39,6 +40,7 @@ const {
   isProcessing,
   calendarDateField,
   calendarFolderIds,
+  listFilterGroups,
   reset,
   selectViewType,
   selectTemplate,
@@ -46,6 +48,7 @@ const {
   goBack,
 } = useViewWizard()
 
+const { labels } = useLabels()
 const { accounts } = useAccounts()
 const { useGetFolders, mapFolderTree, flatten } = useFolders()
 const { data: accountFolders } = useGetFolders()
@@ -57,6 +60,12 @@ const customizations = ref({
   color: undefined as string | undefined,
   folders: [] as string[],
 })
+
+const availableLabels = computed(() => labels.value || [])
+
+const handleListFilterGroupsUpdate = (groups: ListFilterGroup[]) => {
+  listFilterGroups.value = groups
+}
 
 // View types with enabled status
 const viewTypes = computed(() => [
@@ -79,7 +88,7 @@ const viewTypes = computed(() => [
     name: t('components.viewWizard.viewTypes.list.name'),
     description: t('components.viewWizard.viewTypes.list.description'),
     icon: 'lucide:list',
-    enabled: false,
+    enabled: true,
   },
 ])
 
@@ -388,6 +397,33 @@ const dialogDescription = computed(() => {
                   {{ t('components.viewWizard.customize.noFolders') }}
                 </p>
               </div>
+            </div>
+          </template>
+
+          <!-- List-specific configuration -->
+          <template v-else-if="selectedViewType === 'list'">
+            <div class="space-y-4 rounded-lg border bg-muted/30 p-4">
+              <div>
+                <h4 class="flex items-center gap-2 text-sm font-medium">
+                  <Icon
+                    class="text-muted-foreground h-4 w-4"
+                    name="lucide:list-filter"
+                  />
+                  {{ t('components.viewWizard.customize.list.title') }}
+                </h4>
+                <p class="text-muted-foreground mt-1 text-xs">
+                  Build a tailored view by adding one or more groups with folder and label rules.
+                </p>
+              </div>
+
+              <ListFilterBuilder
+                :folders="folders"
+                :labels="availableLabels"
+                :model-value="listFilterGroups"
+                description="Add one or more groups and combine folder and label rules inside each group."
+                title="Filter groups"
+                @update:model-value="handleListFilterGroupsUpdate"
+              />
             </div>
           </template>
 

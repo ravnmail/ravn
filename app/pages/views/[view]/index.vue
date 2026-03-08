@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import CalendarBoard from '~/components/Ravn/CalendarBoard.vue'
 import KanbanBoard from '~/components/Ravn/KanbanBoard.vue'
+import ListViewBoard from '~/components/Ravn/ListViewBoard.vue'
 import EmptyState from '~/components/ui/empty/EmptyState.vue'
 import IconName from '~/components/ui/IconName.vue'
 
@@ -22,6 +23,8 @@ const component = computed(() => {
       return KanbanBoard
     case 'calendar':
       return CalendarBoard
+    case 'list':
+      return ListViewBoard
     default:
       return null
   }
